@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>शब्द Test — Spoken English Vocabulary Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --violet:#6C4CE0;
+    --violet-dark:#4E32B3;
+    --coral:#FF6B6B;
+    --mint:#1FBF8F;
+    --amber:#FFAE34;
+    --cream:#FFF9F0;
+    --card:#FFFFFF;
+    --ink:#241C3D;
+    --ink-soft:#6E6685;
+    --line:#EFE9FB;
+    --violet-10:#F1ECFE;
+    --shadow: 0 10px 28px rgba(108,76,224,0.14);
+    --radius-lg: 26px;
+    --radius-md: 18px;
+    --radius-sm: 12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(900px 500px at 8% -10%, #EFE6FF 0%, transparent 60%),
+      radial-gradient(700px 420px at 110% 10%, #FFE9D6 0%, transparent 55%),
+      var(--cream);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1,h2,h3,.display{font-family:'Baloo 2',cursive;}
+  button{font-family:inherit;}
+  .app{
+    max-width:560px;
+    margin:0 auto;
+    padding:18px 16px 60px;
+    min-height:100vh;
+  }
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .brand{
+    display:flex;align-items:center;gap:10px;
+  }
+  .brand-badge{
+    width:40px;height:40px;border-radius:13px;
+    background:linear-gradient(135deg,var(--violet),#9B7BFF);
+    display:flex;align-items:center;justify-content:center;
+    font-size:20px; box-shadow: var(--shadow);
+    transform:rotate(-6deg);
+  }
+  .brand-text .display{font-size:20px;margin:0;line-height:1;color:var(--ink);}
+  .brand-text small{color:var(--ink-soft);font-weight:600;}
+  .icon-btn{
+    border:none;background:var(--card);width:42px;height:42px;border-radius:14px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    box-shadow:0 4px 12px rgba(108,76,224,0.10);
+    font-size:18px;
+  }
+  /* ---------- generic screen/card ---------- */
+  .screen{display:none;animation:riseIn .45s cubic-bezier(.2,.9,.25,1);}
+  .screen.active{display:block;}
+  @keyframes riseIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+  .card{
+    background:var(--card);
+    border-radius:var(--radius-lg);
+    padding:22px;
+    box-shadow:var(--shadow);
+    margin-bottom:16px;
+  }
+  .hero{
+    background:linear-gradient(135deg,var(--violet) 0%, #8F6BFF 55%, #B58BFF 100%);
+    border-radius:var(--radius-lg);
+    padding:26px 22px 30px;
+    color:#fff;
+    position:relative;
+    overflow:hidden;
+    margin-bottom:18px;
+    box-shadow: 0 16px 34px rgba(108,76,224,0.35);
+  }
+  .hero .bubble{
+    position:absolute;border-radius:50%;background:rgba(255,255,255,0.14);
+  }
+  .hero .b1{width:120px;height:120px;top:-40px;right:-30px;}
+  .hero .b2{width:70px;height:70px;bottom:-20px;right:60px;background:rgba(255,255,255,0.10);}
+  .hero .b3{width:46px;height:46px;top:30px;left:-14px;background:rgba(255,255,255,0.12);}
+  .hero h1{font-size:26px;margin:0 0 8px;position:relative;}
+  .hero p{margin:0;opacity:.92;font-size:14.5px;line-height:1.5;position:relative;max-width:330px;}
+  .hero .hindi{font-size:13px;opacity:.85;display:block;margin-top:6px;}
+  .word-float{
+    position:relative;margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;
+  }
+  .word-chip{
+    background:rgba(255,255,255,0.18);
+    border:1px solid rgba(255,255,255,0.35);
+    padding:6px 12px;border-radius:100px;font-size:12.5px;font-weight:600;
+  }
+  /* ---------- upload ---------- */
+  .upload-zone{
+    border:2.5px dashed #D9CCFB;
+    border-radius:var(--radius-md);
+    padding:30px 16px;
+    text-align:center;
+    background:var(--violet-10);
+    cursor:pointer;
+    transition:.2s;
+  }
+  .upload-zone:active{transform:scale(.98);}
+  .upload-zone .emoji{font-size:38px;display:block;margin-bottom:10px;}
+  .upload-zone strong{display:block;color:var(--violet-dark);font-size:16px;margin-bottom:4px;}
+  .upload-zone span{color:var(--ink-soft);font-size:13px;}
+  input[type=file]{display:none;}
+  .or-row{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--ink-soft);font-size:12.5px;font-weight:600;}
+  .or-row .line{flex:1;height:1px;background:var(--line);}
+  .paste-box textarea{
+    width:100%;min-height:110px;border-radius:var(--radius-sm);border:1.5px solid var(--line);
+    padding:12px;font-family:inherit;font-size:13.5px;resize:vertical;background:#FBFAFF;color:var(--ink);
+  }
+  .paste-box textarea:focus{outline:none;border-color:var(--violet);}
+  .format-hint{
+    background:#FFF4E4;border-radius:var(--radius-sm);padding:12px 14px;margin-top:14px;font-size:12.5px;color:#8A5A16;line-height:1.6;
+  }
+  .format-hint code{background:#fff;padding:1px 6px;border-radius:6px;}
+  /* ---------- buttons ---------- */
+  .btn{
+    border:none;border-radius:var(--radius-sm);padding:14px 18px;font-weight:700;font-size:15px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    transition:transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:linear-gradient(135deg,var(--violet),#8A67F5);color:#fff;box-shadow:0 10px 22px rgba(108,76,224,0.32);}
+  .btn-primary:disabled{opacity:.45;box-shadow:none;cursor:not-allowed;}
+  .btn-ghost{background:var(--violet-10);color:var(--violet-dark);}
+  .btn-coral{background:linear-gradient(135deg,#FF7A7A,var(--coral));color:#fff;box-shadow:0 10px 22px rgba(255,107,107,0.32);}
+  .btn-mint{background:linear-gradient(135deg,#28D6A3,var(--mint));color:#fff;box-shadow:0 10px 22px rgba(31,191,143,0.30);}
+  .btn-sm{padding:9px 14px;font-size:13px;width:auto;border-radius:100px;}
+  .btn-row{display:flex;gap:10px;}
+  .btn-row .btn{flex:1;}
+  /* ---------- preview list ---------- */
+  .stat-strip{display:flex;gap:10px;margin-bottom:16px;}
+  .stat-pill{
+    flex:1;background:var(--card);border-radius:var(--radius-md);padding:14px 10px;text-align:center;box-shadow:var(--shadow);
+  }
+  .stat-pill .num{font-family:'Baloo 2';font-size:24px;color:var(--violet-dark);display:block;}
+  .stat-pill .lbl{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  .vocab-list{max-height:340px;overflow-y:auto;padding-right:2px;}
+  .vocab-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:11px 14px;border-radius:var(--radius-sm);background:#FBFAFF;border:1px solid var(--line);margin-bottom:8px;
+  }
+  .vocab-row .en{font-weight:700;color:var(--ink);font-size:14.5px;}
+  .vocab-row .hi{color:var(--violet-dark);font-weight:600;font-size:14.5px;}
+  .vocab-row .rm{background:none;border:none;color:#C9C1E8;font-size:16px;cursor:pointer;padding:4px 6px;}
+  .vocab-row .rm:hover{color:var(--coral);}
+  /* ---------- test screen ---------- */
+  .test-topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--ink-soft);}
+  .progress-track{height:8px;background:var(--violet-10);border-radius:100px;overflow:hidden;margin-bottom:18px;}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--violet),#B58BFF);border-radius:100px;transition:width .3s ease;}
+  .timer-wrap{display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+  .timer-ring{
+    position:relative;width:76px;height:76px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    background:conic-gradient(var(--mint) 0deg, var(--violet-10) 0deg);
+    transition:background 0.2s linear;
+  }
+  .timer-ring::before{
+    content:'';position:absolute;width:62px;height:62px;border-radius:50%;background:var(--cream);
+  }
+  .timer-ring span{position:relative;font-family:'Baloo 2';font-size:24px;color:var(--ink);}
+  .timer-ring.low{background:conic-gradient(var(--coral) 0deg, var(--violet-10) 0deg);}
+  .timer-ring.low span{color:var(--coral);}
+  @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+  .timer-ring.pulsing{animation:pulse .5s ease infinite;}
+  .qword{
+    text-align:center;font-family:'Baloo 2';font-size:15px;color:var(--violet-dark);font-weight:600;margin-bottom:4px;
+  }
+  .qtext{text-align:center;font-size:19px;font-weight:700;color:var(--ink);margin-bottom:22px;line-height:1.4;}
+  .options{display:grid;gap:12px;}
+  .opt{
+    text-align:left;background:#FBFAFF;border:2px solid var(--line);border-radius:var(--radius-md);
+    padding:15px 16px;font-size:16px;font-weight:600;color:var(--ink);cursor:pointer;
+    display:flex;align-items:center;gap:12px;transition:.15s;
+  }
+  .opt .tag{
+    width:26px;height:26px;border-radius:8px;background:var(--violet-10);color:var(--violet-dark);
+    display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex-shrink:0;
+  }
+  .opt:active{transform:scale(.98);}
+  .opt.selected{border-color:var(--violet);background:var(--violet-10);}
+  .opt.correct{border-color:var(--mint);background:#E7FBF3;}
+  .opt.correct .tag{background:var(--mint);color:#fff;}
+  .opt.wrong{border-color:var(--coral);background:#FFEEEE;}
+  .opt.wrong .tag{background:var(--coral);color:#fff;}
+  .opt.disabled{pointer-events:none;}
+  .score-chip{
+    position:fixed;top:14px;right:16px;background:var(--card);padding:8px 14px;border-radius:100px;
+    box-shadow:var(--shadow);font-weight:800;font-size:13px;color:var(--violet-dark);z-index:5;
+  }
+  /* ---------- result ---------- */
+  .result-hero{
+    text-align:center;padding:30px 20px;border-radius:var(--radius-lg);
+    background:linear-gradient(135deg,var(--violet),#8A67F5);color:#fff;margin-bottom:16px;
+    box-shadow:0 16px 34px rgba(108,76,224,0.32);
+  }
+  .result-hero .big{font-family:'Baloo 2';font-size:50px;margin:6px 0;}
+  .result-hero .pct{font-size:15px;opacity:.9;font-weight:700;}
+  .result-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;}
+  .rstat{background:var(--card);border-radius:var(--radius-md);padding:14px 6px;text-align:center;box-shadow:var(--shadow);}
+  .rstat .num{font-family:'Baloo 2';font-size:22px;}
+  .rstat .lbl{font-size:11px;color:var(--ink-soft);font-weight:700;}
+  .rstat.correct .num{color:var(--mint);}
+  .rstat.wrong .num{color:var(--coral);}
+  .rstat.timeout .num{color:var(--amber);}
+  /* ---------- report ---------- */
+  .filter-row{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;}
+  .filter-btn{
+    border:1.5px solid var(--line);background:var(--card);border-radius:100px;padding:8px 14px;font-size:12.5px;
+    font-weight:700;color:var(--ink-soft);cursor:pointer;white-space:nowrap;flex-shrink:0;
+  }
+  .filter-btn.active{background:var(--violet);color:#fff;border-color:var(--violet);}
+  .report-item{
+    background:var(--card);border-radius:var(--radius-md);padding:16px;margin-bottom:10px;box-shadow:var(--shadow);
+    border-left:5px solid var(--line);
+  }
+  .report-item.st-correct{border-left-color:var(--mint);}
+  .report-item.st-wrong{border-left-color:var(--coral);}
+  .report-item.st-timeout{border-left-color:var(--amber);}
+  .report-item .rhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .report-item .qn{font-size:11.5px;color:var(--ink-soft);font-weight:700;}
+  .report-item .status-badge{font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:100px;}
+  .status-badge.st-correct{background:#E7FBF3;color:var(--mint);}
+  .status-badge.st-wrong{background:#FFEEEE;color:var(--coral);}
+  .status-badge.st-timeout{background:#FFF4E1;color:#B87A0E;}
+  .report-item .word{font-family:'Baloo 2';font-size:16px;color:var(--violet-dark);margin-bottom:6px;}
+  .report-item .row{display:flex;justify-content:space-between;font-size:13.5px;margin-top:3px;}
+  .report-item .row .k{color:var(--ink-soft);}
+  .report-item .row .v{font-weight:700;}
+  .report-item .row .v.bad{color:var(--coral);}
+  .report-item .row .v.good{color:var(--mint);}
+  /* ---------- history ---------- */
+  .hist-row{
+    background:var(--card);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .hist-row .left .date{font-size:12px;color:var(--ink-soft);font-weight:600;}
+  .hist-row .left .meta{font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
+  .hist-row .pctbadge{
+    font-family:'Baloo 2';font-size:20px;color:var(--violet-dark);background:var(--violet-10);
+    padding:6px 14px;border-radius:12px;
+  }
+  .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);}
+  .empty-state .emoji{font-size:40px;display:block;margin-bottom:10px;}
+  .section-title{font-family:'Baloo 2';font-size:19px;margin:4px 0 12px;color:var(--ink);}
+  .muted{color:var(--ink-soft);font-size:13px;}
+  .error-box{
+    background:#FFEEEE;border:1.5px solid #FFC9C9;color:#B23A3A;border-radius:var(--radius-sm);
+    padding:13px 15px;font-size:13.5px;font-weight:600;margin-top:14px;line-height:1.5;
+  }
+  .success-box{
+    background:#E7FBF3;border:1.5px solid #B7F0DA;color:#127A57;border-radius:var(--radius-sm);
+    padding:13px 15px;font-size:13.5px;font-weight:600;margin-top:14px;
+  }
+  .spinner{
+    width:22px;height:22px;border:3px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;
+    animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .practice-banner{
+    background:linear-gradient(135deg,#FFB35C,var(--amber));color:#fff;border-radius:var(--radius-md);
+    padding:14px 16px;margin-bottom:14px;font-weight:700;font-size:13.5px;box-shadow:0 10px 20px rgba(255,174,52,.3);
+  }
+  .top-actions{display:flex;gap:10px;margin-bottom:16px;}
+  ::-webkit-scrollbar{width:6px;}
+  ::-webkit-scrollbar-thumb{background:#D9CCFB;border-radius:10px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-badge">📘</div>
+      <div class="brand-text">
+        <h1 class="display">शब्द Test</h1>
+        <small>Vocabulary MCQ Trainer</small>
+      </div>
+    </div>
+    <button class="icon-btn" id="historyNavBtn" title="Test History">📊</button>
+  </div>
+
+  <!-- ============ SCREEN 1: HOME / UPLOAD ============ -->
+  <section class="screen active" id="screen-home">
+    <div class="hero">
+      <div class="bubble b1"></div><div class="bubble b2"></div><div class="bubble b3"></div>
+      <h1>अपने शब्दों को याद रखें</h1>
+      <p>Upload your class vocabulary PDF and get an instant randomized MCQ test with a 15-second timer per question.</p>
+      <div class="word-float">
+        <span class="word-chip">Brave — बहादुर</span>
+        <span class="word-chip">Clever — चतुर</span>
+        <span class="word-chip">Honest — ईमानदार</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="upload-zone" id="uploadZone">
+        <span class="emoji">📄</span>
+        <strong>PDF अपलोड करें</strong>
+        <span>Tap to choose your vocabulary PDF</span>
+      </div>
+      <input type="file" id="pdfInput" accept="application/pdf" />
+
+      <div class="or-row"><div class="line"></div>या / OR<div class="line"></div></div>
+
+      <div class="paste-box">
+        <textarea id="pasteText" placeholder="Or paste your word list here, e.g.&#10;Brave — बहादुर&#10;Clever : चतुर"></textarea>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-ghost" id="parsePasteBtn">Use Pasted Text</button>
+      </div>
+
+      <div class="format-hint">
+        Supported formats: <code>Word — Meaning</code>, <code>Word : Meaning</code>, <code>Word - Meaning</code>, or <code>Word	Meaning</code> (one pair per line).
+      </div>
+
+      <div id="uploadStatus"></div>
+    </div>
+
+    <div class="card" id="savedVocabCard" style="display:none;">
+      <div class="section-title" style="margin-bottom:6px;">Saved Vocabulary मिला</div>
+      <p class="muted" id="savedVocabInfo"></p>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-primary" id="continueSavedBtn">Continue with this list</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 2: VOCAB PREVIEW ============ -->
+  <section class="screen" id="screen-preview">
+    <h2 class="section-title">Vocabulary Preview</h2>
+    <div class="stat-strip">
+      <div class="stat-pill"><span class="num" id="previewCount">0</span><span class="lbl">Words मिले</span></div>
+      <div class="stat-pill"><span class="num" id="previewQCount">0</span><span class="lbl">Test Questions</span></div>
+    </div>
+    <div class="card">
+      <div class="vocab-list" id="vocabList"></div>
+    </div>
+    <div id="previewError"></div>
+    <div class="btn-row" style="margin-top:6px;">
+      <button class="btn btn-ghost" id="backToUploadBtn">Upload Different PDF</button>
+      <button class="btn btn-primary" id="startTestBtn">Start Test</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 3: TEST ============ -->
+  <section class="screen" id="screen-test">
+    <div class="score-chip">Score: <span id="liveScore">0</span></div>
+    <div class="test-topline">
+      <span id="qCounter">Question 1 of 20</span>
+      <span id="qCorrectCount">✅ 0</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+    <div class="timer-wrap">
+      <div class="timer-ring" id="timerRing"><span id="timerNum">15</span></div>
+    </div>
+
+    <div class="card">
+      <div class="qword" id="qWord">BRAVE</div>
+      <div class="qtext" id="qText">What is the Hindi meaning of "Brave"?</div>
+      <div class="options" id="optionsWrap"></div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 4: RESULT ============ -->
+  <section class="screen" id="screen-result">
+    <div class="result-hero">
+      <div class="muted" style="color:rgba(255,255,255,.85);font-weight:700;">Your Score</div>
+      <div class="big" id="resultScoreLine">15/20</div>
+      <div class="pct" id="resultPct">75%</div>
+    </div>
+    <div class="result-grid">
+      <div class="rstat correct"><span class="num" id="resCorrect">0</span><span class="lbl">Correct</span></div>
+      <div class="rstat wrong"><span class="num" id="resWrong">0</span><span class="lbl">Wrong</span></div>
+      <div class="rstat timeout"><span class="num" id="resTimeout">0</span><span class="lbl">Time Out</span></div>
+    </div>
+    <div class="btn-row" style="margin-bottom:10px;">
+      <button class="btn btn-primary" id="viewReportBtn">Detailed Report देखें</button>
+    </div>
+    <div class="btn-row" style="margin-bottom:10px;">
+      <button class="btn btn-coral" id="practiceMistakesBtn">Practice Mistakes</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-mint" id="retakeTestBtn">Take Test Again</button>
+    </div>
+    <button class="btn btn-ghost" id="backHomeFromResultBtn" style="margin-top:10px;">Back to Home</button>
+  </section>
+
+  <!-- ============ SCREEN 5: DETAILED REPORT ============ -->
+  <section class="screen" id="screen-report">
+    <h2 class="section-title">Detailed Report</h2>
+    <div class="filter-row">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="correct">✅ Correct</button>
+      <button class="filter-btn" data-filter="wrong">❌ Wrong</button>
+      <button class="filter-btn" data-filter="timeout">⏰ Time Out</button>
+    </div>
+    <div id="reportList"></div>
+    <button class="btn btn-ghost" id="backToResultBtn" style="margin-top:6px;">Back to Result</button>
+  </section>
+
+  <!-- ============ SCREEN 6: HISTORY ============ -->
+  <section class="screen" id="screen-history">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromHistoryBtn">← Back</button>
+    </div>
+    <h2 class="section-title">Test History</h2>
+    <div id="historyList"></div>
+  </section>
+
+</div>
+
+<script>
+/* =========================================================
+   STATE
+========================================================= */
+const STORAGE_VOCAB = 'vocabTestApp_vocab';
+const STORAGE_HISTORY = 'vocabTestApp_history';
+
+let vocabulary = [];        // [{en, hi}]
+let questionBank = [];       // full generated question objects for current vocab
+let currentTest = [];        // questions for the running test (with runtime state)
+let currentIndex = 0;
+let score = 0;
+let timerInterval = null;
+let timeLeft = 15;
+const QUESTION_TIME = 15;
+let lastReportFilter = 'all';
+let isPracticeMode = false;
+
+/* =========================================================
+   UTILITIES
+========================================================= */
+function $(id){ return document.getElementById(id); }
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function isHindi(str){
+  return /[\u0900-\u097F]/.test(str);
+}
+function cleanWord(w){
+  return w.replace(/^[•\-\*\d\.\)\s]+/,'').trim();
+}
+
+/* =========================================================
+   VOCABULARY PARSING
+========================================================= */
+function parseVocabText(text){
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  const pairs = [];
+  const seen = new Set();
+
+  // separators tried in order of specificity
+  const seps = [
+    /\s+—\s+/,      // em dash
+    /\s+–\s+/,      // en dash
+    /\s*:\s+/,      // colon
+    /\t+/,          // tab
+    /\s+-\s+/,      // hyphen with spaces (avoid splitting hyphenated words)
+  ];
+
+  for(const line of lines){
+    // skip obvious headers/noise lines
+    if(/^(page|unit|chapter|lesson|s\.?no|word list|vocabulary)\b/i.test(line) && line.length < 30) continue;
+
+    let word = null, meaning = null;
+
+    for(const sep of seps){
+      if(sep.test(line)){
+        const parts = line.split(sep);
+        if(parts.length >= 2){
+          const left = cleanWord(parts[0]);
+          const right = cleanWord(parts.slice(1).join(' '));
+          if(left && right){ word = left; meaning = right; break; }
+        }
+      }
+    }
+
+    // fallback: detect an English chunk followed by a Devanagari chunk with no clear separator
+    if(!word){
+      const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s+([\u0900-\u097F][\u0900-\u097F\s,]*)$/);
+      if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
+    }
+
+    if(!word || !meaning) continue;
+
+    // sanity: word should be mostly English letters, meaning should ideally contain Hindi
+    // (we still accept English-English meanings, just prefer Hindi ones)
+    if(!/^[A-Za-z][A-Za-z\s'\-]*$/.test(word)) continue;
+    if(meaning.length === 0) continue;
+
+    const key = word.toLowerCase();
+    if(seen.has(key)) continue;
+    seen.add(key);
+
+    pairs.push({
+      en: word.charAt(0).toUpperCase()+word.slice(1).toLowerCase(),
+      hi: meaning
+    });
+  }
+  return pairs;
+}
+
+/* =========================================================
+   PDF EXTRACTION (PDF.js)
+========================================================= */
+if(window['pdfjsLib']){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+async function extractTextFromPdf(file){
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  let fullText = '';
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    // group items into lines using their y-position
+    const lines = {};
+    content.items.forEach(item=>{
+      const y = Math.round(item.transform[5]);
+      if(!lines[y]) lines[y] = [];
+      lines[y].push(item.str);
+    });
+    const sortedY = Object.keys(lines).map(Number).sort((a,b)=>b-a);
+    sortedY.forEach(y=>{
+      fullText += lines[y].join(' ') + '\n';
+    });
+    fullText += '\n';
+  }
+  return fullText;
+}
+
+/* =========================================================
+   UPLOAD HANDLERS
+========================================================= */
+const uploadZone = $('uploadZone');
+const pdfInput = $('pdfInput');
+uploadZone.addEventListener('click', ()=> pdfInput.click());
+pdfInput.addEventListener('change', handlePdfUpload);
+
+async function handlePdfUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = $('uploadStatus');
+  statusEl.innerHTML = `<div class="format-hint" style="display:flex;align-items:center;gap:10px;background:var(--violet-10);color:var(--violet-dark);"><div class="spinner" style="border-color:rgba(108,76,224,.25);border-top-color:var(--violet);"></div> Reading PDF...</div>`;
+
+  if(file.type !== 'application/pdf'){
+    statusEl.innerHTML = `<div class="error-box">यह एक valid PDF file नहीं है। Please choose a .pdf file.</div>`;
+    return;
+  }
+
+  try{
+    const text = await extractTextFromPdf(file);
+    if(!text || text.trim().length === 0){
+      statusEl.innerHTML = `<div class="error-box">This PDF appears to be empty or contains only images (scanned text). Please upload a PDF with selectable text, or paste the words manually below.</div>`;
+      return;
+    }
+    const pairs = parseVocabText(text);
+    finishParsing(pairs, statusEl);
+  }catch(err){
+    console.error(err);
+    statusEl.innerHTML = `<div class="error-box">यह PDF पढ़ा नहीं जा सका (couldn't parse this PDF). It may be corrupted or password protected. Try another file, or paste your words in the box below.</div>`;
+  }
+}
+
+$('parsePasteBtn').addEventListener('click', ()=>{
+  const text = $('pasteText').value;
+  const statusEl = $('uploadStatus');
+  if(!text || text.trim().length === 0){
+    statusEl.innerHTML = `<div class="error-box">Please paste some text first, or upload a PDF.</div>`;
+    return;
+  }
+  const pairs = parseVocabText(text);
+  finishParsing(pairs, statusEl);
+});
+
+function finishParsing(pairs, statusEl){
+  if(pairs.length === 0){
+    statusEl.innerHTML = `<div class="error-box">No recognizable vocabulary was found. Make sure each line looks like <code>Word — Meaning</code> or <code>Word : Meaning</code>, then try again.</div>`;
+    return;
+  }
+  statusEl.innerHTML = `<div class="success-box">🎉 ${pairs.length} words detected!</div>`;
+  vocabulary = pairs;
+  saveVocabToStorage();
+  setTimeout(()=> openPreview(), 500);
+}
+
+/* =========================================================
+   SAVED VOCAB (localStorage)
+========================================================= */
+function saveVocabToStorage(){
+  try{ localStorage.setItem(STORAGE_VOCAB, JSON.stringify(vocabulary)); }catch(e){}
+}
+function loadVocabFromStorage(){
+  try{
+    const raw = localStorage.getItem(STORAGE_VOCAB);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  }catch(e){}
+  return null;
+}
+function checkSavedVocabOnLoad(){
+  const saved = loadVocabFromStorage();
+  if(saved){
+    $('savedVocabCard').style.display = 'block';
+    $('savedVocabInfo').textContent = `${saved.length} words से आपका पिछला vocabulary list तैयार है।`;
+  }
+}
+$('continueSavedBtn').addEventListener('click', ()=>{
+  const saved = loadVocabFromStorage();
+  if(saved){ vocabulary = saved; openPreview(); }
+});
+
+/* =========================================================
+   PREVIEW SCREEN
+========================================================= */
+function openPreview(){
+  renderVocabList();
+  showScreen('screen-preview');
+}
+function renderVocabList(){
+  $('previewCount').textContent = vocabulary.length;
+  $('previewQCount').textContent = Math.min(vocabulary.length, vocabulary.length); // uses all words
+  const listEl = $('vocabList');
+  listEl.innerHTML = '';
+  vocabulary.forEach((v, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'vocab-row';
+    row.innerHTML = `<span class="en">${v.en}</span><span class="hi">${v.hi}</span>
+      <button class="rm" data-idx="${idx}" title="Remove">✕</button>`;
+    listEl.appendChild(row);
+  });
+  listEl.querySelectorAll('.rm').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      vocabulary.splice(idx,1);
+      saveVocabToStorage();
+      renderVocabList();
+    });
+  });
+
+  const errEl = $('previewError');
+  errEl.innerHTML = '';
+  if(vocabulary.length < 4){
+    errEl.innerHTML = `<div class="error-box">Not enough words yet. You need at least 4 vocabulary words to build reliable 4-option MCQ questions (currently ${vocabulary.length}). Add more words or upload a longer list.</div>`;
+    $('startTestBtn').disabled = true;
+  } else {
+    $('startTestBtn').disabled = false;
+  }
+}
+$('backToUploadBtn').addEventListener('click', ()=> showScreen('screen-home'));
+
+/* =========================================================
+   QUESTION GENERATION
+========================================================= */
+function buildQuestionBank(vocabList){
+  const allMeanings = vocabList.map(v=>v.hi);
+  const bank = [];
+
+  vocabList.forEach(v=>{
+    // gather distractor pool: other meanings that are not equal to this word's meaning
+    const pool = shuffle(allMeanings.filter(m => m.toLowerCase() !== v.hi.toLowerCase() ));
+    // dedupe pool
+    const uniquePool = [...new Set(pool)];
+    const distractors = uniquePool.slice(0,3);
+
+    if(distractors.length < 3){
+      // not enough unique distractors for this word; skip generating an unreliable question
+      return;
+    }
+
+    const options = shuffle([v.hi, ...distractors]);
+    bank.push({
+      en: v.en,
+      correct: v.hi,
+      options: options,
+      question: `What is the Hindi meaning of "${v.en}"?`
+    });
+  });
+  return bank;
+}
+
+/* =========================================================
+   START TEST
+========================================================= */
+$('startTestBtn').addEventListener('click', ()=> startTest(vocabulary, false));
+$('retakeTestBtn').addEventListener('click', ()=> startTest(vocabulary, false));
+
+function startTest(vocabList, practiceMode){
+  const bank = buildQuestionBank(vocabList);
+  if(bank.length < 1){
+    $('previewError').innerHTML = `<div class="error-box">Couldn't build enough unique-option questions from this vocabulary. Try adding more distinct words.</div>`;
+    showScreen('screen-preview');
+    return;
+  }
+  isPracticeMode = practiceMode;
+  currentTest = shuffle(bank).map(q=>({
+    ...q,
+    options: shuffle(q.options),
+    userAnswer: null,
+    status: null // 'correct' | 'wrong' | 'timeout'
+  }));
+  currentIndex = 0;
+  score = 0;
+  showScreen('screen-test');
+  renderQuestion();
+}
+
+/* =========================================================
+   TEST RUNTIME
+========================================================= */
+function renderQuestion(){
+  clearInterval(timerInterval);
+  const total = currentTest.length;
+  const q = currentTest[currentIndex];
+
+  $('qCounter').textContent = `Question ${currentIndex+1} of ${total}`;
+  $('qCorrectCount').textContent = `✅ ${score}`;
+  $('liveScore').textContent = score;
+  $('progressFill').style.width = `${(currentIndex/total)*100}%`;
+
+  $('qWord').textContent = q.en.toUpperCase();
+  $('qText').textContent = q.question;
+
+  const wrap = $('optionsWrap');
+  wrap.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  q.options.forEach((opt, i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'opt';
+    btn.innerHTML = `<span class="tag">${letters[i]}</span><span>${opt}</span>`;
+    btn.addEventListener('click', ()=> selectAnswer(opt, btn));
+    wrap.appendChild(btn);
+  });
+
+  timeLeft = QUESTION_TIME;
+  updateTimerUI();
+  timerInterval = setInterval(()=>{
+    timeLeft--;
+    updateTimerUI();
+    if(timeLeft <= 0){
+      clearInterval(timerInterval);
+      handleTimeout();
+    }
+  }, 1000);
+}
+
+function updateTimerUI(){
+  const ring = $('timerRing');
+  const pct = (timeLeft/QUESTION_TIME)*360;
+  const color = timeLeft <= 5 ? 'var(--coral)' : 'var(--mint)';
+  ring.style.background = `conic-gradient(${color} ${pct}deg, var(--violet-10) 0deg)`;
+  $('timerNum').textContent = timeLeft;
+  if(timeLeft <= 5){
+    ring.classList.add('low','pulsing');
+    if(navigator.vibrate) navigator.vibrate(60);
+  } else {
+    ring.classList.remove('low','pulsing');
+  }
+}
+
+function selectAnswer(chosen, btnEl){
+  clearInterval(timerInterval);
+  const q = currentTest[currentIndex];
+  if(q.status) return; // already answered
+  q.userAnswer = chosen;
+  q.status = (chosen === q.correct) ? 'correct' : 'wrong';
+  if(q.status === 'correct') score++;
+
+  lockOptions(q, btnEl);
+  setTimeout(nextQuestion, 800);
+}
+
+function handleTimeout(){
+  const q = currentTest[currentIndex];
+  if(q.status) return;
+  q.userAnswer = null;
+  q.status = 'timeout';
+  lockOptions(q, null);
+  if(navigator.vibrate) navigator.vibrate([80,60,80]);
+  setTimeout(nextQuestion, 900);
+}
+
+function lockOptions(q, chosenBtn){
+  const wrap = $('optionsWrap');
+  const buttons = wrap.querySelectorAll('.opt');
+  buttons.forEach(btn=>{
+    btn.classList.add('disabled');
+    const label = btn.querySelector('span:last-child').textContent;
+    if(label === q.correct){
+      btn.classList.add('correct');
+    } else if(chosenBtn && btn === chosenBtn && label !== q.correct){
+      btn.classList.add('wrong');
+    }
+  });
+}
+
+function nextQuestion(){
+  currentIndex++;
+  if(currentIndex >= currentTest.length){
+    finishTest();
+  } else {
+    renderQuestion();
+  }
+}
+
+/* =========================================================
+   RESULT
+========================================================= */
+function finishTest(){
+  clearInterval(timerInterval);
+  const total = currentTest.length;
+  const correct = currentTest.filter(q=>q.status==='correct').length;
+  const wrong = currentTest.filter(q=>q.status==='wrong').length;
+  const timeout = currentTest.filter(q=>q.status==='timeout').length;
+  const pct = Math.round((correct/total)*100);
+
+  $('resultScoreLine').textContent = `${correct}/${total}`;
+  $('resultPct').textContent = `${pct}%`;
+  $('resCorrect').textContent = correct;
+  $('resWrong').textContent = wrong;
+  $('resTimeout').textContent = timeout;
+
+  saveHistoryEntry({
+    date: new Date().toISOString(),
+    total, correct, wrong, timeout, pct
+  });
+
+  showScreen('screen-result');
+}
+
+$('backHomeFromResultBtn').addEventListener('click', ()=> showScreen('screen-home'));
+
+/* =========================================================
+   DETAILED REPORT
+========================================================= */
+$('viewReportBtn').addEventListener('click', ()=>{
+  lastReportFilter = 'all';
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+  renderReport();
+  showScreen('screen-report');
+});
+$('backToResultBtn').addEventListener('click', ()=> showScreen('screen-result'));
+
+document.querySelectorAll('.filter-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    lastReportFilter = btn.getAttribute('data-filter');
+    renderReport();
+  });
+});
+
+function renderReport(){
+  const listEl = $('reportList');
+  listEl.innerHTML = '';
+  const filtered = currentTest.filter(q=>{
+    if(lastReportFilter === 'all') return true;
+    return q.status === lastReportFilter;
+  });
+
+  if(filtered.length === 0){
+    listEl.innerHTML = `<div class="empty-state"><span class="emoji">🗂️</span>No questions in this category.</div>`;
+    return;
+  }
+
+  filtered.forEach((q)=>{
+    const originalIndex = currentTest.indexOf(q) + 1;
+    const statusMap = {
+      correct: {label:'✅ Correct', cls:'st-correct'},
+      wrong: {label:'❌ Wrong', cls:'st-wrong'},
+      timeout: {label:'⏰ Time Out', cls:'st-timeout'}
+    };
+    const s = statusMap[q.status];
+    const div = document.createElement('div');
+    div.className = `report-item ${s.cls}`;
+    div.innerHTML = `
+      <div class="rhead">
+        <span class="qn">Question ${originalIndex}</span>
+        <span class="status-badge ${s.cls}">${s.label}</span>
+      </div>
+      <div class="word">${q.en}</div>
+      <div class="row"><span class="k">Your Answer</span><span class="v ${q.status==='wrong'?'bad':(q.status==='correct'?'good':'')}">${q.userAnswer ? q.userAnswer : 'No answer'}</span></div>
+      <div class="row"><span class="k">Correct Answer</span><span class="v good">${q.correct}</span></div>
+    `;
+    listEl.appendChild(div);
+  });
+}
+
+/* =========================================================
+   PRACTICE MISTAKES
+========================================================= */
+$('practiceMistakesBtn').addEventListener('click', ()=>{
+  const mistakes = currentTest.filter(q=> q.status === 'wrong' || q.status === 'timeout');
+  if(mistakes.length === 0){
+    $('practiceMistakesBtn').outerHTML = `<div class="success-box" style="text-align:center;">Great! You got everything correct.</div>`;
+    return;
+  }
+  const mistakeVocab = mistakes.map(m => ({en: m.en, hi: m.correct}));
+  startTest(mistakeVocab, true);
+});
+
+/* =========================================================
+   HISTORY
+========================================================= */
+function saveHistoryEntry(entry){
+  let history = [];
+  try{
+    const raw = localStorage.getItem(STORAGE_HISTORY);
+    if(raw) history = JSON.parse(raw);
+  }catch(e){}
+  history.push(entry);
+  try{ localStorage.setItem(STORAGE_HISTORY, JSON.stringify(history)); }catch(e){}
+}
+
+function renderHistory(){
+  let history = [];
+  try{
+    const raw = localStorage.getItem(STORAGE_HISTORY);
+    if(raw) history = JSON.parse(raw);
+  }catch(e){}
+
+  const listEl = $('historyList');
+  listEl.innerHTML = '';
+
+  if(history.length === 0){
+    listEl.innerHTML = `<div class="empty-state"><span class="emoji">📈</span>No attempts yet. Take a test to start building your history!</div>`;
+    return;
+  }
+
+  history.slice().reverse().forEach((h, revIdx)=>{
+    const attemptNum = history.length - revIdx;
+    const d = new Date(h.date);
+    const dateStr = d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    row.innerHTML = `
+      <div class="left">
+        <div class="date">Attempt ${attemptNum} — ${dateStr}</div>
+        <div class="meta">${h.correct}/${h.total} correct · ❌ ${h.wrong} · ⏰ ${h.timeout}</div>
+      </div>
+      <div class="pctbadge">${h.pct}%</div>
+    `;
+    listEl.appendChild(row);
+  });
+}
+
+$('historyNavBtn').addEventListener('click', ()=>{ renderHistory(); showScreen('screen-history'); });
+$('backFromHistoryBtn').addEventListener('click', ()=> showScreen('screen-home'));
+
+/* =========================================================
+   INIT
+========================================================= */
+checkSavedVocabOnLoad();
+</script>
+</body>
+</html>
