@@ -3,10 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-<title>शब्द Test — Spoken English Vocabulary Trainer</title>
+<title>Rebel Test Series — Spoken English Vocabulary Trainer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --violet:#6C4CE0;
@@ -294,52 +296,98 @@
     <div class="brand">
       <div class="brand-badge">📘</div>
       <div class="brand-text">
-        <h1 class="display">शब्द Test</h1>
+        <h1 class="display">Rebel Test</h1>
         <small>Vocabulary MCQ Trainer</small>
       </div>
     </div>
-    <button class="icon-btn" id="historyNavBtn" title="Test History">📊</button>
+    <div style="display:flex;gap:8px;">
+      <button class="icon-btn" id="adminBtn" title="Admin">🔒</button>
+      <button class="icon-btn" id="historyNavBtn" title="Test History">📊</button>
+    </div>
   </div>
 
   <!-- ============ SCREEN 1: HOME / UPLOAD ============ -->
   <section class="screen active" id="screen-home">
     <div class="hero">
       <div class="bubble b1"></div><div class="bubble b2"></div><div class="bubble b3"></div>
-      <h1>अपने शब्दों को याद रखें</h1>
-      <p>Upload your class vocabulary PDF and get an instant randomized MCQ test with a 15-second timer per question.</p>
+      <h1>Remember Your Words</h1>
+      <p>Pick a test from the Rebel Test Series and take an instant randomized MCQ test with a 15-second timer per question.</p>
       <div class="word-float">
-        <span class="word-chip">Brave — बहादुर</span>
-        <span class="word-chip">Clever — चतुर</span>
-        <span class="word-chip">Honest — ईमानदार</span>
+        <span class="word-chip">Brave — Courageous</span>
+        <span class="word-chip">Clever — Smart</span>
+        <span class="word-chip">Honest — Truthful</span>
       </div>
     </div>
 
+    <div class="card" id="cloudTestsCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="section-title" style="margin:0;">🎯 Rebel Test Series</div>
+        <button class="icon-btn" id="refreshCloudBtn" title="Refresh" style="width:36px;height:36px;font-size:15px;">🔄</button>
+      </div>
+      <p class="muted" id="cloudStatusMsg">Loading tests...</p>
+      <div id="cloudTestsList"></div>
+    </div>
+
     <div class="card">
-      <div class="upload-zone" id="uploadZone">
+      <div class="section-title" style="margin-bottom:12px;">📄 Upload Your Own PDF</div>
+      <p class="muted" style="margin-top:-6px;margin-bottom:14px;">Make a private test just for yourself — this stays only on your device.</p>
+      <div class="upload-zone" id="uploadZonePersonal">
         <span class="emoji">📄</span>
-        <strong>PDF अपलोड करें</strong>
+        <strong>Upload PDF</strong>
         <span>Tap to choose your vocabulary PDF</span>
       </div>
-      <input type="file" id="pdfInput" accept="application/pdf" />
+      <input type="file" id="pdfInputPersonal" accept="application/pdf" />
 
-      <div class="or-row"><div class="line"></div>या / OR<div class="line"></div></div>
+      <div class="or-row"><div class="line"></div>OR<div class="line"></div></div>
 
       <div class="paste-box">
-        <textarea id="pasteText" placeholder="Or paste your word list here, e.g.&#10;Brave — बहादुर&#10;Clever : चतुर"></textarea>
+        <textarea id="pasteTextPersonal" placeholder="Or paste your word list here, e.g.&#10;Brave — Bahadur&#10;Clever : Chatur"></textarea>
       </div>
       <div style="margin-top:10px;">
-        <button class="btn btn-ghost" id="parsePasteBtn">Use Pasted Text</button>
+        <button class="btn btn-ghost" id="parsePastePersonalBtn">Use Pasted Text</button>
       </div>
 
       <div class="format-hint">
         Supported formats: <code>Word — Meaning</code>, <code>Word : Meaning</code>, <code>Word - Meaning</code>, or <code>Word	Meaning</code> (one pair per line).
       </div>
 
-      <div id="uploadStatus"></div>
+      <div id="uploadStatusPersonal"></div>
+    </div>
+
+    <div class="card" id="uploadCard" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div class="section-title" style="margin:0;">🔓 Admin: Add to Rebel Test Series</div>
+        <button class="btn btn-ghost btn-sm" id="exitAdminBtn">Exit Admin</button>
+      </div>
+      <div class="upload-zone" id="uploadZoneAdmin">
+        <span class="emoji">📄</span>
+        <strong>Upload PDF</strong>
+        <span>Tap to choose your vocabulary PDF</span>
+      </div>
+      <input type="file" id="pdfInputAdmin" accept="application/pdf" />
+      <div style="margin-top:12px;">
+        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Test name (visible to everyone)</label>
+        <input type="text" id="testNameInput" placeholder="e.g. Class 5 - Unit 2 Words" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--line);padding:11px 13px;font-family:inherit;font-size:13.5px;background:#FBFAFF;color:var(--ink);" />
+      </div>
+
+      <div class="or-row"><div class="line"></div>OR<div class="line"></div></div>
+
+      <div class="paste-box">
+        <textarea id="pasteTextAdmin" placeholder="Or paste your word list here, e.g.&#10;Brave — Bahadur&#10;Clever : Chatur"></textarea>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-ghost" id="parsePasteAdminBtn">Use Pasted Text</button>
+      </div>
+
+      <div class="format-hint">
+        Supported formats: <code>Word — Meaning</code>, <code>Word : Meaning</code>, <code>Word - Meaning</code>, or <code>Word	Meaning</code> (one pair per line).
+      </div>
+
+      <div id="uploadStatusAdmin"></div>
     </div>
 
     <div class="card" id="savedVocabCard" style="display:none;">
-      <div class="section-title" style="margin-bottom:6px;">Saved Vocabulary मिला</div>
+      <div class="section-title" style="margin-bottom:6px;">Saved Vocabulary Found</div>
       <p class="muted" id="savedVocabInfo"></p>
       <div class="btn-row" style="margin-top:12px;">
         <button class="btn btn-primary" id="continueSavedBtn">Continue with this list</button>
@@ -351,7 +399,7 @@
   <section class="screen" id="screen-preview">
     <h2 class="section-title">Vocabulary Preview</h2>
     <div class="stat-strip">
-      <div class="stat-pill"><span class="num" id="previewCount">0</span><span class="lbl">Words मिले</span></div>
+      <div class="stat-pill"><span class="num" id="previewCount">0</span><span class="lbl">Words Found</span></div>
       <div class="stat-pill"><span class="num" id="previewQCount">0</span><span class="lbl">Test Questions</span></div>
     </div>
     <div class="card">
@@ -397,7 +445,7 @@
       <div class="rstat timeout"><span class="num" id="resTimeout">0</span><span class="lbl">Time Out</span></div>
     </div>
     <div class="btn-row" style="margin-bottom:10px;">
-      <button class="btn btn-primary" id="viewReportBtn">Detailed Report देखें</button>
+      <button class="btn btn-primary" id="viewReportBtn">View Detailed Report</button>
     </div>
     <div class="btn-row" style="margin-bottom:10px;">
       <button class="btn btn-coral" id="practiceMistakesBtn">Practice Mistakes</button>
@@ -433,6 +481,38 @@
 </div>
 
 <script>
+/* =========================================================
+   FIREBASE SETUP (REQUIRED FOR SHARED TESTS)
+   -----------------------------------------------------------
+   1. Go to https://console.firebase.google.com -> Create a free project
+   2. In the project, click "Build > Firestore Database" -> Create database
+      -> start in "test mode" (fine for a small class app).
+   3. Click the gear icon > Project settings > scroll to "Your apps" >
+      click the </> (web) icon -> register app -> copy the firebaseConfig
+      object it gives you and paste it below, replacing the placeholder.
+========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDqH_MHlDoOutizI4-Htcc18UIXouA2xDo",
+  authDomain: "rebel-test-9a453.firebaseapp.com",
+  projectId: "rebel-test-9a453",
+  storageBucket: "rebel-test-9a453.firebasestorage.app",
+  messagingSenderId: "39692234468",
+  appId: "1:39692234468:web:12c07b504765114522c6f1"
+};
+
+let db = null;
+let firebaseReady = false;
+try{
+  if(firebaseConfig.apiKey && firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY"){
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    firebaseReady = true;
+  }
+}catch(e){
+  console.error('Firebase init failed', e);
+  firebaseReady = false;
+}
+
 /* =========================================================
    STATE
 ========================================================= */
@@ -564,21 +644,29 @@ async function extractTextFromPdf(file){
 }
 
 /* =========================================================
-   UPLOAD HANDLERS
+   UPLOAD HANDLERS (personal = local-only test, admin = publish to Rebel Test Series)
 ========================================================= */
-const uploadZone = $('uploadZone');
-const pdfInput = $('pdfInput');
-uploadZone.addEventListener('click', ()=> pdfInput.click());
-pdfInput.addEventListener('change', handlePdfUpload);
+function wireUploadZone(zoneId, inputId, mode){
+  const zone = $(zoneId);
+  const input = $(inputId);
+  zone.addEventListener('click', ()=> input.click());
+  input.addEventListener('change', (e)=> handlePdfUpload(e, mode));
+}
+wireUploadZone('uploadZonePersonal', 'pdfInputPersonal', 'personal');
+wireUploadZone('uploadZoneAdmin', 'pdfInputAdmin', 'admin');
 
-async function handlePdfUpload(e){
+function statusElFor(mode){
+  return mode === 'admin' ? $('uploadStatusAdmin') : $('uploadStatusPersonal');
+}
+
+async function handlePdfUpload(e, mode){
   const file = e.target.files[0];
   if(!file) return;
-  const statusEl = $('uploadStatus');
+  const statusEl = statusElFor(mode);
   statusEl.innerHTML = `<div class="format-hint" style="display:flex;align-items:center;gap:10px;background:var(--violet-10);color:var(--violet-dark);"><div class="spinner" style="border-color:rgba(108,76,224,.25);border-top-color:var(--violet);"></div> Reading PDF...</div>`;
 
   if(file.type !== 'application/pdf'){
-    statusEl.innerHTML = `<div class="error-box">यह एक valid PDF file नहीं है। Please choose a .pdf file.</div>`;
+    statusEl.innerHTML = `<div class="error-box">This is not a valid PDF file. Please choose a .pdf file.</div>`;
     return;
   }
 
@@ -589,34 +677,165 @@ async function handlePdfUpload(e){
       return;
     }
     const pairs = parseVocabText(text);
-    finishParsing(pairs, statusEl);
+    finishParsing(pairs, statusEl, mode);
   }catch(err){
     console.error(err);
-    statusEl.innerHTML = `<div class="error-box">यह PDF पढ़ा नहीं जा सका (couldn't parse this PDF). It may be corrupted or password protected. Try another file, or paste your words in the box below.</div>`;
+    statusEl.innerHTML = `<div class="error-box">This PDF couldn't be parsed. It may be corrupted or password protected. Try another file, or paste your words in the box below.</div>`;
   }
 }
 
-$('parsePasteBtn').addEventListener('click', ()=>{
-  const text = $('pasteText').value;
-  const statusEl = $('uploadStatus');
+$('parsePastePersonalBtn').addEventListener('click', ()=>{
+  const text = $('pasteTextPersonal').value;
+  const statusEl = $('uploadStatusPersonal');
   if(!text || text.trim().length === 0){
     statusEl.innerHTML = `<div class="error-box">Please paste some text first, or upload a PDF.</div>`;
     return;
   }
-  const pairs = parseVocabText(text);
-  finishParsing(pairs, statusEl);
+  finishParsing(parseVocabText(text), statusEl, 'personal');
 });
 
-function finishParsing(pairs, statusEl){
+$('parsePasteAdminBtn').addEventListener('click', ()=>{
+  const text = $('pasteTextAdmin').value;
+  const statusEl = $('uploadStatusAdmin');
+  if(!text || text.trim().length === 0){
+    statusEl.innerHTML = `<div class="error-box">Please paste some text first, or upload a PDF.</div>`;
+    return;
+  }
+  finishParsing(parseVocabText(text), statusEl, 'admin');
+});
+
+async function finishParsing(pairs, statusEl, mode){
   if(pairs.length === 0){
     statusEl.innerHTML = `<div class="error-box">No recognizable vocabulary was found. Make sure each line looks like <code>Word — Meaning</code> or <code>Word : Meaning</code>, then try again.</div>`;
     return;
   }
-  statusEl.innerHTML = `<div class="success-box">🎉 ${pairs.length} words detected!</div>`;
   vocabulary = pairs;
   saveVocabToStorage();
-  setTimeout(()=> openPreview(), 500);
+
+  if(mode === 'personal'){
+    statusEl.innerHTML = `<div class="success-box">🎉 ${pairs.length} words detected! Starting your private test...</div>`;
+    setTimeout(()=> openPreview(), 500);
+    return;
+  }
+
+  // admin mode: publish to the shared Rebel Test Series
+  if(firebaseReady){
+    statusEl.innerHTML = `<div class="format-hint" style="display:flex;align-items:center;gap:10px;background:var(--violet-10);color:var(--violet-dark);"><div class="spinner" style="border-color:rgba(108,76,224,.25);border-top-color:var(--violet);"></div> ${pairs.length} words detected. Publishing to Rebel Test Series...</div>`;
+    try{
+      const nameInput = $('testNameInput').value.trim();
+      const testName = nameInput || `Test - ${new Date().toLocaleDateString()}`;
+      await db.collection('vocabTests').add({
+        name: testName,
+        words: pairs,
+        wordCount: pairs.length,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      statusEl.innerHTML = `<div class="success-box">🎉 ${pairs.length} words detected and published to Rebel Test Series for everyone!</div>`;
+    }catch(err){
+      console.error(err);
+      statusEl.innerHTML = `<div class="error-box">${pairs.length} words detected, but couldn't publish to Rebel Test Series (check your Firebase setup / internet). You can still take the test yourself below.</div>`;
+    }
+  } else {
+    statusEl.innerHTML = `<div class="error-box">${pairs.length} words detected — but Rebel Test Series isn't set up yet, so only you can see this test. Add your Firebase config in the code (see comments near the top of the script) to make it visible to everyone.</div>`;
+  }
+
+  setTimeout(()=> openPreview(), 800);
 }
+
+
+/* =========================================================
+   CLOUD (SHARED) TESTS
+========================================================= */
+function renderCloudTests(docs){
+  const listEl = $('cloudTestsList');
+  const statusEl = $('cloudStatusMsg');
+  listEl.innerHTML = '';
+
+  if(!firebaseReady){
+    statusEl.innerHTML = `Rebel Test Series isn't active yet. Add your Firebase config (see comments near the top of the code) so tests can be shared with everyone.`;
+    return;
+  }
+  if(docs.length === 0){
+    statusEl.textContent = 'No tests available yet. Check back soon!';
+    return;
+  }
+  statusEl.textContent = `${docs.length} test${docs.length>1?'s':''} available:`;
+
+  docs.forEach(doc=>{
+    const data = doc.data();
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    row.style.cursor = 'pointer';
+    const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
+    row.innerHTML = `
+      <div class="left">
+        <div class="date" style="font-weight:800;color:var(--ink);">${data.name || 'Untitled Test'}</div>
+        <div class="meta">${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
+      </div>
+      <div class="pctbadge" style="font-size:13px;">Start →</div>
+    `;
+    row.addEventListener('click', ()=>{
+      vocabulary = data.words || [];
+      saveVocabToStorage();
+      openPreview();
+    });
+    listEl.appendChild(row);
+  });
+}
+
+function listenToCloudTests(){
+  if(!firebaseReady){
+    renderCloudTests([]);
+    return;
+  }
+  db.collection('vocabTests').orderBy('createdAt','desc').limit(30)
+    .onSnapshot(snapshot=>{
+      renderCloudTests(snapshot.docs);
+    }, err=>{
+      console.error(err);
+      $('cloudStatusMsg').innerHTML = `Couldn't load shared tests (check internet / Firestore rules).`;
+    });
+}
+$('refreshCloudBtn').addEventListener('click', listenToCloudTests);
+
+/* =========================================================
+   ADMIN MODE (only the admin can upload/add tests)
+   -----------------------------------------------------------
+   Change this password to something only you know before
+   deploying the site.
+========================================================= */
+const ADMIN_PASSWORD = "changeme123";
+let isAdmin = false;
+
+function updateAdminUI(){
+  $('uploadCard').style.display = isAdmin ? 'block' : 'none';
+  $('adminBtn').textContent = isAdmin ? '🔓' : '🔒';
+  $('adminBtn').title = isAdmin ? 'Admin (unlocked)' : 'Admin login';
+}
+
+$('adminBtn').addEventListener('click', ()=>{
+  if(isAdmin) return; // already unlocked, use "Exit Admin" button instead
+  const entered = prompt('Enter admin password:');
+  if(entered === null) return;
+  if(entered === ADMIN_PASSWORD){
+    isAdmin = true;
+    sessionStorage.setItem('isAdmin_rebeltest', 'true');
+    updateAdminUI();
+  } else {
+    alert('Incorrect password.');
+  }
+});
+
+$('exitAdminBtn').addEventListener('click', ()=>{
+  isAdmin = false;
+  sessionStorage.removeItem('isAdmin_rebeltest');
+  updateAdminUI();
+});
+
+if(sessionStorage.getItem('isAdmin_rebeltest') === 'true'){
+  isAdmin = true;
+}
+updateAdminUI();
 
 /* =========================================================
    SAVED VOCAB (localStorage)
@@ -638,7 +857,7 @@ function checkSavedVocabOnLoad(){
   const saved = loadVocabFromStorage();
   if(saved){
     $('savedVocabCard').style.display = 'block';
-    $('savedVocabInfo').textContent = `${saved.length} words से आपका पिछला vocabulary list तैयार है।`;
+    $('savedVocabInfo').textContent = `Your previous vocabulary list with ${saved.length} words is ready.`;
   }
 }
 $('continueSavedBtn').addEventListener('click', ()=>{
@@ -988,6 +1207,7 @@ $('backFromHistoryBtn').addEventListener('click', ()=> showScreen('screen-home')
    INIT
 ========================================================= */
 checkSavedVocabOnLoad();
+listenToCloudTests();
 </script>
 </body>
 </html>
