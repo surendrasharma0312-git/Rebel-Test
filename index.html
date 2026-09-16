@@ -319,13 +319,14 @@
       </div>
     </div>
 
-    <div class="card" id="cloudTestsCard">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <div class="section-title" style="margin:0;">🎯 Rebel Test Series</div>
-        <button class="icon-btn" id="refreshCloudBtn" title="Refresh" style="width:36px;height:36px;font-size:15px;">🔄</button>
+    <div class="card" id="cloudTestsCard" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0;">🎯 Rebel Test Series</div>
+          <p class="muted" id="cloudSummaryMsg" style="margin:6px 0 0;">Loading tests...</p>
+        </div>
+        <div style="font-size:24px;color:var(--violet);">→</div>
       </div>
-      <p class="muted" id="cloudStatusMsg">Loading tests...</p>
-      <div id="cloudTestsList"></div>
     </div>
 
     <div class="card">
@@ -354,11 +355,36 @@
       <div id="uploadStatusPersonal"></div>
     </div>
 
-    <div class="card" id="uploadCard" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-        <div class="section-title" style="margin:0;">🔓 Admin: Add to Rebel Test Series</div>
-        <button class="btn btn-ghost btn-sm" id="exitAdminBtn">Exit Admin</button>
+    <div class="card" id="savedVocabCard" style="display:none;">
+      <div class="section-title" style="margin-bottom:6px;">Saved Vocabulary Found</div>
+      <p class="muted" id="savedVocabInfo"></p>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-primary" id="continueSavedBtn">Continue with this list</button>
       </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 1B: REBEL TEST SERIES (public list) ============ -->
+  <section class="screen" id="screen-rebel-list">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromRebelListBtn">← Back</button>
+      <button class="icon-btn" id="refreshCloudBtn" title="Refresh">🔄</button>
+    </div>
+    <h2 class="section-title">🎯 Rebel Test Series</h2>
+    <p class="muted" id="cloudStatusMsg" style="margin-bottom:14px;">Loading tests...</p>
+    <div id="cloudTestsList"></div>
+  </section>
+
+  <!-- ============ SCREEN 1C: ADMIN DASHBOARD ============ -->
+  <section class="screen" id="screen-admin">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromAdminBtn">← Back</button>
+      <button class="btn btn-coral btn-sm" id="logoutAdminBtn">Logout</button>
+    </div>
+    <h2 class="section-title">🔓 Admin Dashboard</h2>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:14px;">Add a New Test</div>
       <div class="upload-zone" id="uploadZoneAdmin">
         <span class="emoji">📄</span>
         <strong>Upload PDF</strong>
@@ -386,14 +412,10 @@
       <div id="uploadStatusAdmin"></div>
     </div>
 
-    <div class="card" id="savedVocabCard" style="display:none;">
-      <div class="section-title" style="margin-bottom:6px;">Saved Vocabulary Found</div>
-      <p class="muted" id="savedVocabInfo"></p>
-      <div class="btn-row" style="margin-top:12px;">
-        <button class="btn btn-primary" id="continueSavedBtn">Continue with this list</button>
-      </div>
-    </div>
+    <h2 class="section-title">All Tests <span id="adminTestCount" class="muted" style="font-size:13px;font-weight:600;"></span></h2>
+    <div id="adminTestsList"></div>
   </section>
+
 
   <!-- ============ SCREEN 2: VOCAB PREVIEW ============ -->
   <section class="screen" id="screen-preview">
@@ -406,6 +428,10 @@
       <div class="vocab-list" id="vocabList"></div>
     </div>
     <div id="previewError"></div>
+    <div id="publishBanner" style="display:none;" class="practice-banner">🔓 This test hasn't been published yet — it's only visible to you until you tap "Publish to Rebel Test Series".</div>
+    <div class="btn-row" id="publishBtnRow" style="margin-top:6px;margin-bottom:10px;display:none;">
+      <button class="btn btn-mint" id="publishTestBtn">📤 Publish to Rebel Test Series</button>
+    </div>
     <div class="btn-row" style="margin-top:6px;">
       <button class="btn btn-ghost" id="backToUploadBtn">Upload Different PDF</button>
       <button class="btn btn-primary" id="startTestBtn">Start Test</button>
@@ -438,6 +464,7 @@
       <div class="muted" style="color:rgba(255,255,255,.85);font-weight:700;">Your Score</div>
       <div class="big" id="resultScoreLine">15/20</div>
       <div class="pct" id="resultPct">75%</div>
+      <div class="pct" id="resultTime" style="margin-top:4px;">⏱️ --</div>
     </div>
     <div class="result-grid">
       <div class="rstat correct"><span class="num" id="resCorrect">0</span><span class="lbl">Correct</span></div>
@@ -476,6 +503,42 @@
     </div>
     <h2 class="section-title">Test History</h2>
     <div id="historyList"></div>
+  </section>
+
+  <!-- ============ SCREEN 7: MANAGE TEST (admin) ============ -->
+  <section class="screen" id="screen-manage">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromManageBtn">← Back</button>
+    </div>
+    <h2 class="section-title">Manage Test</h2>
+
+    <div class="card">
+      <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Test name</label>
+      <input type="text" id="manageNameInput" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--line);padding:11px 13px;font-family:inherit;font-size:14.5px;background:#FBFAFF;color:var(--ink);margin-bottom:14px;" />
+
+      <div class="stat-strip" style="margin-bottom:14px;">
+        <div class="stat-pill"><span class="num" id="manageCount">0</span><span class="lbl">Words in Test</span></div>
+      </div>
+
+      <div class="vocab-list" id="manageVocabList" style="max-height:260px;"></div>
+
+      <div class="or-row"><div class="line"></div>Add More Words<div class="line"></div></div>
+      <div class="paste-box">
+        <textarea id="manageAddText" placeholder="Paste more words to add, e.g.&#10;Brave — Bahadur&#10;Clever : Chatur"></textarea>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-ghost" id="manageAddBtn">Add These Words</button>
+      </div>
+
+      <div id="manageStatus"></div>
+    </div>
+
+    <div class="btn-row" style="margin-bottom:10px;">
+      <button class="btn btn-primary" id="manageSaveBtn">Save Changes</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-coral" id="manageDeleteBtn">Delete This Test</button>
+    </div>
   </section>
 
 </div>
@@ -529,6 +592,7 @@ let timeLeft = 15;
 const QUESTION_TIME = 15;
 let lastReportFilter = 'all';
 let isPracticeMode = false;
+let testStartTime = null;
 
 /* =========================================================
    UTILITIES
@@ -574,6 +638,8 @@ function parseVocabText(text){
   for(const line of lines){
     // skip obvious headers/noise lines
     if(/^(page|unit|chapter|lesson|s\.?no|word list|vocabulary)\b/i.test(line) && line.length < 30) continue;
+    // skip table header rows like "English   हिंदी अर्थ"
+    if(/^english\s+/i.test(line) && /अर्थ|meaning/i.test(line)) continue;
 
     let word = null, meaning = null;
 
@@ -589,8 +655,9 @@ function parseVocabText(text){
     }
 
     // fallback: detect an English chunk followed by a Devanagari chunk with no clear separator
+    // (common in table-format PDFs where columns are just spaced apart, not punctuated)
     if(!word){
-      const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s+([\u0900-\u097F][\u0900-\u097F\s,]*)$/);
+      const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s{1,}([\u0900-\u097F][\u0900-\u097F\s,\/\-()]*)$/);
       if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
     }
 
@@ -624,19 +691,34 @@ async function extractTextFromPdf(file){
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
   let fullText = '';
+  const Y_TOLERANCE = 4; // groups items into the same visual row even with small baseline differences (common in table PDFs mixing English + Devanagari fonts)
+
   for(let i=1;i<=pdf.numPages;i++){
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    // group items into lines using their y-position
-    const lines = {};
-    content.items.forEach(item=>{
-      const y = Math.round(item.transform[5]);
-      if(!lines[y]) lines[y] = [];
-      lines[y].push(item.str);
+
+    // Build a list of {x, y, str} and cluster into rows by y-proximity,
+    // then sort each row left-to-right by x. This handles table PDFs
+    // where the two columns' baselines are a couple of points apart.
+    const items = content.items
+      .filter(it => it.str && it.str.trim().length > 0)
+      .map(it => ({ x: it.transform[4], y: it.transform[5], str: it.str }));
+
+    items.sort((a,b) => b.y - a.y || a.x - b.x);
+
+    const rows = [];
+    items.forEach(item=>{
+      let row = rows.find(r => Math.abs(r.y - item.y) <= Y_TOLERANCE);
+      if(!row){
+        row = { y: item.y, items: [] };
+        rows.push(row);
+      }
+      row.items.push(item);
     });
-    const sortedY = Object.keys(lines).map(Number).sort((a,b)=>b-a);
-    sortedY.forEach(y=>{
-      fullText += lines[y].join(' ') + '\n';
+
+    rows.forEach(row=>{
+      row.items.sort((a,b)=> a.x - b.x);
+      fullText += row.items.map(it=>it.str).join('  ') + '\n';
     });
     fullText += '\n';
   }
@@ -713,40 +795,45 @@ async function finishParsing(pairs, statusEl, mode){
   saveVocabToStorage();
 
   if(mode === 'personal'){
+    pendingAdminPublish = null;
     statusEl.innerHTML = `<div class="success-box">🎉 ${pairs.length} words detected! Starting your private test...</div>`;
     setTimeout(()=> openPreview(), 500);
     return;
   }
 
-  // admin mode: publish to the shared Rebel Test Series
-  if(firebaseReady){
-    statusEl.innerHTML = `<div class="format-hint" style="display:flex;align-items:center;gap:10px;background:var(--violet-10);color:var(--violet-dark);"><div class="spinner" style="border-color:rgba(108,76,224,.25);border-top-color:var(--violet);"></div> ${pairs.length} words detected. Publishing to Rebel Test Series...</div>`;
-    try{
-      const nameInput = $('testNameInput').value.trim();
-      const testName = nameInput || `Test - ${new Date().toLocaleDateString()}`;
-      await db.collection('vocabTests').add({
-        name: testName,
-        words: pairs,
-        wordCount: pairs.length,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      statusEl.innerHTML = `<div class="success-box">🎉 ${pairs.length} words detected and published to Rebel Test Series for everyone!</div>`;
-    }catch(err){
-      console.error(err);
-      statusEl.innerHTML = `<div class="error-box">${pairs.length} words detected, but couldn't publish to Rebel Test Series (check your Firebase setup / internet). You can still take the test yourself below.</div>`;
-    }
-  } else {
-    statusEl.innerHTML = `<div class="error-box">${pairs.length} words detected — but Rebel Test Series isn't set up yet, so only you can see this test. Add your Firebase config in the code (see comments near the top of the script) to make it visible to everyone.</div>`;
-  }
-
-  setTimeout(()=> openPreview(), 800);
+  // admin mode: parse only — DO NOT publish yet. Admin reviews on the
+  // Preview screen and explicitly taps "Publish to Rebel Test Series".
+  const nameInput = $('testNameInput').value.trim();
+  const testName = nameInput || `Test - ${new Date().toLocaleDateString()}`;
+  pendingAdminPublish = { name: testName };
+  statusEl.innerHTML = `<div class="success-box">🎉 ${pairs.length} words detected! Review the list, then choose to Publish or just Preview.</div>`;
+  setTimeout(()=> openPreview(), 500);
 }
 
 
 /* =========================================================
    CLOUD (SHARED) TESTS
 ========================================================= */
-function renderCloudTests(docs){
+function renderCloudUI(docs){
+  renderHomeSummary(docs);
+  renderRebelList(docs);
+  renderAdminList(docs);
+}
+
+function renderHomeSummary(docs){
+  const el = $('cloudSummaryMsg');
+  if(!firebaseReady){
+    el.textContent = "Not set up yet — tap for details.";
+    return;
+  }
+  if(docs.length === 0){
+    el.textContent = "No tests yet — check back soon.";
+    return;
+  }
+  el.textContent = `${docs.length} test${docs.length>1?'s':''} available — tap to view`;
+}
+
+function renderRebelList(docs){
   const listEl = $('cloudTestsList');
   const statusEl = $('cloudStatusMsg');
   listEl.innerHTML = '';
@@ -776,6 +863,7 @@ function renderCloudTests(docs){
     `;
     row.addEventListener('click', ()=>{
       vocabulary = data.words || [];
+      pendingAdminPublish = null;
       saveVocabToStorage();
       openPreview();
     });
@@ -783,20 +871,69 @@ function renderCloudTests(docs){
   });
 }
 
+function renderAdminList(docs){
+  if(!isAdmin) return;
+  const listEl = $('adminTestsList');
+  const countEl = $('adminTestCount');
+  listEl.innerHTML = '';
+
+  if(!firebaseReady){
+    listEl.innerHTML = `<div class="error-box">Firebase isn't configured yet — see comments near the top of the code.</div>`;
+    countEl.textContent = '';
+    return;
+  }
+  countEl.textContent = `(${docs.length})`;
+  if(docs.length === 0){
+    listEl.innerHTML = `<div class="empty-state"><span class="emoji">🗂️</span>No tests added yet. Use the form above to add your first one.</div>`;
+    return;
+  }
+
+  docs.forEach(doc=>{
+    const data = doc.data();
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
+    row.innerHTML = `
+      <div class="left" style="flex:1;">
+        <div class="date" style="font-weight:800;color:var(--ink);">${data.name || 'Untitled Test'}</div>
+        <div class="meta">${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm manage-btn" style="margin-right:8px;">✏️ Edit</button>
+      <button class="btn btn-coral btn-sm delete-btn">🗑️</button>
+    `;
+    row.querySelector('.manage-btn').addEventListener('click', ()=> openManageTest(doc.id, data));
+    row.querySelector('.delete-btn').addEventListener('click', async ()=>{
+      const sure = confirm(`Delete "${data.name || 'Untitled Test'}" for everyone? This cannot be undone.`);
+      if(!sure) return;
+      try{
+        await db.collection('vocabTests').doc(doc.id).delete();
+      }catch(err){
+        console.error(err);
+        alert("Couldn't delete this test (check your internet / Firestore rules).");
+      }
+    });
+    listEl.appendChild(row);
+  });
+}
+
+let lastCloudDocs = [];
 function listenToCloudTests(){
   if(!firebaseReady){
-    renderCloudTests([]);
+    renderCloudUI([]);
     return;
   }
   db.collection('vocabTests').orderBy('createdAt','desc').limit(30)
     .onSnapshot(snapshot=>{
-      renderCloudTests(snapshot.docs);
+      lastCloudDocs = snapshot.docs;
+      renderCloudUI(snapshot.docs);
     }, err=>{
       console.error(err);
       $('cloudStatusMsg').innerHTML = `Couldn't load shared tests (check internet / Firestore rules).`;
     });
 }
 $('refreshCloudBtn').addEventListener('click', listenToCloudTests);
+$('cloudTestsCard').addEventListener('click', ()=> showScreen('screen-rebel-list'));
+$('backFromRebelListBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
 /* =========================================================
    ADMIN MODE (only the admin can upload/add tests)
@@ -808,29 +945,35 @@ const ADMIN_PASSWORD = "changeme123";
 let isAdmin = false;
 
 function updateAdminUI(){
-  $('uploadCard').style.display = isAdmin ? 'block' : 'none';
   $('adminBtn').textContent = isAdmin ? '🔓' : '🔒';
-  $('adminBtn').title = isAdmin ? 'Admin (unlocked)' : 'Admin login';
+  $('adminBtn').title = isAdmin ? 'Admin dashboard' : 'Admin login';
+  renderCloudUI(lastCloudDocs);
 }
 
 $('adminBtn').addEventListener('click', ()=>{
-  if(isAdmin) return; // already unlocked, use "Exit Admin" button instead
+  if(isAdmin){
+    showScreen('screen-admin');
+    return;
+  }
   const entered = prompt('Enter admin password:');
   if(entered === null) return;
   if(entered === ADMIN_PASSWORD){
     isAdmin = true;
     sessionStorage.setItem('isAdmin_rebeltest', 'true');
     updateAdminUI();
+    showScreen('screen-admin');
   } else {
     alert('Incorrect password.');
   }
 });
 
-$('exitAdminBtn').addEventListener('click', ()=>{
+$('logoutAdminBtn').addEventListener('click', ()=>{
   isAdmin = false;
   sessionStorage.removeItem('isAdmin_rebeltest');
   updateAdminUI();
+  showScreen('screen-home');
 });
+$('backFromAdminBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
 if(sessionStorage.getItem('isAdmin_rebeltest') === 'true'){
   isAdmin = true;
@@ -862,35 +1005,68 @@ function checkSavedVocabOnLoad(){
 }
 $('continueSavedBtn').addEventListener('click', ()=>{
   const saved = loadVocabFromStorage();
-  if(saved){ vocabulary = saved; openPreview(); }
+  if(saved){ vocabulary = saved; pendingAdminPublish = null; openPreview(); }
 });
 
 /* =========================================================
    PREVIEW SCREEN
 ========================================================= */
+let pendingAdminPublish = null; // {name} set only when previewing a newly-uploaded admin test that hasn't been published yet
+
 function openPreview(){
   renderVocabList();
+  updatePublishUI();
   showScreen('screen-preview');
 }
+
+function updatePublishUI(){
+  const show = !!pendingAdminPublish;
+  $('publishBanner').style.display = show ? 'block' : 'none';
+  $('publishBtnRow').style.display = show ? 'flex' : 'none';
+  $('startTestBtn').textContent = show ? '▶️ Preview Only' : 'Start Test';
+}
+
+$('publishTestBtn').addEventListener('click', async ()=>{
+  if(!pendingAdminPublish) return;
+  if(vocabulary.length < 4){
+    $('previewError').innerHTML = `<div class="error-box">Need at least 4 words to publish.</div>`;
+    return;
+  }
+  if(!firebaseReady){
+    $('previewError').innerHTML = `<div class="error-box">Rebel Test Series isn't set up yet — add your Firebase config (see comments near the top of the code).</div>`;
+    return;
+  }
+  const btn = $('publishTestBtn');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Publishing...';
+  try{
+    await db.collection('vocabTests').add({
+      name: pendingAdminPublish.name,
+      words: vocabulary,
+      wordCount: vocabulary.length,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    pendingAdminPublish = null;
+    showScreen('screen-admin');
+  }catch(err){
+    console.error(err);
+    $('previewError').innerHTML = `<div class="error-box">Couldn't publish (check your internet / Firestore rules).</div>`;
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+});
+
 function renderVocabList(){
   $('previewCount').textContent = vocabulary.length;
   $('previewQCount').textContent = Math.min(vocabulary.length, vocabulary.length); // uses all words
   const listEl = $('vocabList');
   listEl.innerHTML = '';
-  vocabulary.forEach((v, idx)=>{
+  vocabulary.forEach((v)=>{
     const row = document.createElement('div');
     row.className = 'vocab-row';
-    row.innerHTML = `<span class="en">${v.en}</span><span class="hi">${v.hi}</span>
-      <button class="rm" data-idx="${idx}" title="Remove">✕</button>`;
+    row.innerHTML = `<span class="en">${v.en}</span><span class="hi">${v.hi}</span>`;
     listEl.appendChild(row);
-  });
-  listEl.querySelectorAll('.rm').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      const idx = parseInt(e.target.getAttribute('data-idx'));
-      vocabulary.splice(idx,1);
-      saveVocabToStorage();
-      renderVocabList();
-    });
   });
 
   const errEl = $('previewError');
@@ -902,7 +1078,119 @@ function renderVocabList(){
     $('startTestBtn').disabled = false;
   }
 }
-$('backToUploadBtn').addEventListener('click', ()=> showScreen('screen-home'));
+$('backToUploadBtn').addEventListener('click', ()=> showScreen(pendingAdminPublish ? 'screen-admin' : 'screen-home'));
+
+/* =========================================================
+   MANAGE TEST (admin: rename / add words / remove words / delete)
+========================================================= */
+let managingId = null;
+let managingWords = [];
+
+function openManageTest(id, data){
+  managingId = id;
+  managingWords = (data.words || []).slice();
+  $('manageNameInput').value = data.name || '';
+  $('manageStatus').innerHTML = '';
+  $('manageAddText').value = '';
+  renderManageVocabList();
+  showScreen('screen-manage');
+}
+
+function renderManageVocabList(){
+  $('manageCount').textContent = managingWords.length;
+  const listEl = $('manageVocabList');
+  listEl.innerHTML = '';
+  managingWords.forEach((v, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'vocab-row';
+    row.innerHTML = `<span class="en">${v.en}</span><span class="hi">${v.hi}</span>
+      <button class="rm" data-idx="${idx}" title="Edit" style="color:var(--violet);">✏️</button>
+      <button class="rm" data-idx="${idx}" title="Remove">✕</button>`;
+    listEl.appendChild(row);
+  });
+  listEl.querySelectorAll('button[title="Edit"]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const current = managingWords[idx];
+      const newWord = prompt('English word:', current.en);
+      if(newWord === null) return;
+      const newMeaning = prompt('Hindi meaning:', current.hi);
+      if(newMeaning === null) return;
+      const w = newWord.trim(), m = newMeaning.trim();
+      if(!w || !m) return;
+      managingWords[idx] = { en: w, hi: m };
+      renderManageVocabList();
+    });
+  });
+  listEl.querySelectorAll('button[title="Remove"]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const idx = parseInt(e.target.getAttribute('data-idx'));
+      managingWords.splice(idx,1);
+      renderManageVocabList();
+    });
+  });
+}
+
+$('manageAddBtn').addEventListener('click', ()=>{
+  const text = $('manageAddText').value;
+  if(!text || text.trim().length === 0){
+    $('manageStatus').innerHTML = `<div class="error-box">Paste some words first.</div>`;
+    return;
+  }
+  const newPairs = parseVocabText(text);
+  if(newPairs.length === 0){
+    $('manageStatus').innerHTML = `<div class="error-box">No recognizable vocabulary found in that text.</div>`;
+    return;
+  }
+  const existingKeys = new Set(managingWords.map(w=>w.en.toLowerCase()));
+  let added = 0;
+  newPairs.forEach(p=>{
+    if(!existingKeys.has(p.en.toLowerCase())){
+      managingWords.push(p);
+      existingKeys.add(p.en.toLowerCase());
+      added++;
+    }
+  });
+  $('manageAddText').value = '';
+  renderManageVocabList();
+  $('manageStatus').innerHTML = `<div class="success-box">${added} new word${added!==1?'s':''} added (not saved yet — tap "Save Changes" below).</div>`;
+});
+
+$('manageSaveBtn').addEventListener('click', async ()=>{
+  if(!managingId) return;
+  const newName = $('manageNameInput').value.trim() || 'Untitled Test';
+  if(managingWords.length < 4){
+    $('manageStatus').innerHTML = `<div class="error-box">A test needs at least 4 words to generate reliable MCQ options (currently ${managingWords.length}).</div>`;
+    return;
+  }
+  $('manageStatus').innerHTML = `<div class="format-hint" style="display:flex;align-items:center;gap:10px;background:var(--violet-10);color:var(--violet-dark);"><div class="spinner" style="border-color:rgba(108,76,224,.25);border-top-color:var(--violet);"></div> Saving...</div>`;
+  try{
+    await db.collection('vocabTests').doc(managingId).update({
+      name: newName,
+      words: managingWords,
+      wordCount: managingWords.length
+    });
+    $('manageStatus').innerHTML = `<div class="success-box">🎉 Changes saved!</div>`;
+  }catch(err){
+    console.error(err);
+    $('manageStatus').innerHTML = `<div class="error-box">Couldn't save changes (check your internet / Firestore rules).</div>`;
+  }
+});
+
+$('manageDeleteBtn').addEventListener('click', async ()=>{
+  if(!managingId) return;
+  const sure = confirm('Delete this test for everyone? This cannot be undone.');
+  if(!sure) return;
+  try{
+    await db.collection('vocabTests').doc(managingId).delete();
+    showScreen('screen-admin');
+  }catch(err){
+    console.error(err);
+    $('manageStatus').innerHTML = `<div class="error-box">Couldn't delete this test (check your internet / Firestore rules).</div>`;
+  }
+});
+
+$('backFromManageBtn').addEventListener('click', ()=> showScreen('screen-admin'));
 
 /* =========================================================
    QUESTION GENERATION
@@ -956,6 +1244,7 @@ function startTest(vocabList, practiceMode){
   }));
   currentIndex = 0;
   score = 0;
+  testStartTime = Date.now();
   showScreen('screen-test');
   renderQuestion();
 }
@@ -1061,6 +1350,12 @@ function nextQuestion(){
 /* =========================================================
    RESULT
 ========================================================= */
+function formatDuration(totalSeconds){
+  const m = Math.floor(totalSeconds/60);
+  const s = totalSeconds%60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 function finishTest(){
   clearInterval(timerInterval);
   const total = currentTest.length;
@@ -1068,16 +1363,20 @@ function finishTest(){
   const wrong = currentTest.filter(q=>q.status==='wrong').length;
   const timeout = currentTest.filter(q=>q.status==='timeout').length;
   const pct = Math.round((correct/total)*100);
+  const durationSeconds = testStartTime ? Math.round((Date.now()-testStartTime)/1000) : null;
+  const durationStr = durationSeconds !== null ? formatDuration(durationSeconds) : '--';
 
   $('resultScoreLine').textContent = `${correct}/${total}`;
   $('resultPct').textContent = `${pct}%`;
+  $('resultTime').textContent = `⏱️ Time Taken: ${durationStr}`;
   $('resCorrect').textContent = correct;
   $('resWrong').textContent = wrong;
   $('resTimeout').textContent = timeout;
 
   saveHistoryEntry({
     date: new Date().toISOString(),
-    total, correct, wrong, timeout, pct
+    total, correct, wrong, timeout, pct,
+    durationSeconds
   });
 
   showScreen('screen-result');
@@ -1192,7 +1491,7 @@ function renderHistory(){
     row.innerHTML = `
       <div class="left">
         <div class="date">Attempt ${attemptNum} — ${dateStr}</div>
-        <div class="meta">${h.correct}/${h.total} correct · ❌ ${h.wrong} · ⏰ ${h.timeout}</div>
+        <div class="meta">${h.correct}/${h.total} correct · ❌ ${h.wrong} · ⏰ ${h.timeout}${h.durationSeconds != null ? ' · ⏱️ '+formatDuration(h.durationSeconds) : ''}</div>
       </div>
       <div class="pctbadge">${h.pct}%</div>
     `;
