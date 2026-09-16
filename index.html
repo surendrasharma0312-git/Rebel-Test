@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta name="google-site-verification" content="mfskMczFKceXE6y1PlbO4GqZAeLUVX7AvuYua_KzfcE" />
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <title>Rebel Test Series — Spoken English Vocabulary Trainer</title>
@@ -599,11 +598,32 @@ let testStartTime = null;
    UTILITIES
 ========================================================= */
 function $(id){ return document.getElementById(id); }
-function showScreen(id){
+function showScreen(id, opts){
+  opts = opts || {};
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $(id).classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
+  if(!opts.skipHistory){
+    history.pushState({ screen: id }, '', '#'+id);
+  }
 }
+
+/* Make the phone/browser BACK button move between in-app screens
+   instead of leaving the website. */
+window.addEventListener('popstate', (e)=>{
+  const target = (e.state && e.state.screen) ? e.state.screen : 'screen-home';
+  const leavingActiveTest = $('screen-test').classList.contains('active') && target !== 'screen-test';
+  if(leavingActiveTest){
+    const sure = confirm('Leave this test? Your progress will be lost.');
+    if(!sure){
+      history.pushState({ screen: 'screen-test' }, '', '#screen-test');
+      return;
+    }
+    clearInterval(timerInterval);
+  }
+  showScreen(target, { skipHistory: true });
+});
+history.replaceState({ screen: 'screen-home' }, '', '#screen-home');
 function shuffle(arr){
   const a = arr.slice();
   for(let i=a.length-1;i>0;i--){
