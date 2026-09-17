@@ -456,6 +456,12 @@
       <div class="qtext" id="qText">What is the Hindi meaning of "Brave"?</div>
       <div class="options" id="optionsWrap"></div>
     </div>
+
+    <div class="btn-row" style="margin-top:14px;gap:8px;">
+      <button class="btn btn-ghost" id="prevQBtn" style="flex:1;">⬅ Previous</button>
+      <button class="btn" id="attemptLaterBtn" style="flex:1;background:linear-gradient(135deg,#FFB35C,var(--amber));color:#fff;box-shadow:0 10px 20px rgba(255,174,52,.3);">🔖 Later</button>
+      <button class="btn btn-primary" id="nextQBtn" style="flex:1.3;">Next ➡</button>
+    </div>
   </section>
 
   <!-- ============ SCREEN 4: RESULT ============ -->
@@ -586,10 +592,9 @@ let vocabulary = [];        // [{en, hi}]
 let questionBank = [];       // full generated question objects for current vocab
 let currentTest = [];        // questions for the running test (with runtime state)
 let currentIndex = 0;
-let score = 0;
 let timerInterval = null;
 let timeLeft = 15;
-const QUESTION_TIME = 15;
+const QUESTION_TIME = 20;
 let lastReportFilter = 'all';
 let isPracticeMode = false;
 let testStartTime = null;
@@ -1264,7 +1269,6 @@ function startTest(vocabList, practiceMode){
     status: null // 'correct' | 'wrong' | 'timeout'
   }));
   currentIndex = 0;
-  score = 0;
   testStartTime = Date.now();
   showScreen('screen-test');
   renderQuestion();
@@ -1273,14 +1277,19 @@ function startTest(vocabList, practiceMode){
 /* =========================================================
    TEST RUNTIME
 ========================================================= */
+function getScore(){
+  return currentTest.filter(q=>q.status==='correct').length;
+}
+
 function renderQuestion(){
   clearInterval(timerInterval);
   const total = currentTest.length;
   const q = currentTest[currentIndex];
+  const answered = !!q.status; // already answered or timed out earlier
 
   $('qCounter').textContent = `Question ${currentIndex+1} of ${total}`;
-  $('qCorrectCount').textContent = `✅ ${score}`;
-  $('liveScore').textContent = score;
+  $('qCorrectCount').textContent = `✅ ${getScore()}`;
+  $('liveScore').textContent = getScore();
   $('progressFill').style.width = `${(currentIndex/total)*100}%`;
 
   $('qWord').textContent = q.en.toUpperCase();
@@ -1293,20 +1302,45 @@ function renderQuestion(){
     const btn = document.createElement('button');
     btn.className = 'opt';
     btn.innerHTML = `<span class="tag">${letters[i]}</span><span>${opt}</span>`;
-    btn.addEventListener('click', ()=> selectAnswer(opt, btn));
+    if(answered){
+      btn.classList.add('disabled');
+    } else {
+      btn.addEventListener('click', ()=> selectAnswer(opt, btn));
+    }
     wrap.appendChild(btn);
   });
 
-  timeLeft = QUESTION_TIME;
-  updateTimerUI();
-  timerInterval = setInterval(()=>{
-    timeLeft--;
+  if(answered){
+    // Already answered/timed-out earlier — show the locked review state, no running timer.
+    lockOptions(q, null);
+  } else {
+    timeLeft = QUESTION_TIME;
     updateTimerUI();
-    if(timeLeft <= 0){
-      clearInterval(timerInterval);
-      handleTimeout();
-    }
-  }, 1000);
+    timerInterval = setInterval(()=>{
+      timeLeft--;
+      updateTimerUI();
+      if(timeLeft <= 0){
+        clearInterval(timerInterval);
+        handleTimeout();
+      }
+    }, 1000);
+  }
+
+  updateNavButtons();
+}
+
+function updateNavButtons(){
+  const total = currentTest.length;
+  const q = currentTest[currentIndex];
+  const isLast = currentIndex === total - 1;
+
+  $('prevQBtn').disabled = (currentIndex === 0);
+  $('prevQBtn').style.opacity = (currentIndex === 0) ? '0.5' : '1';
+
+  $('nextQBtn').textContent = isLast ? 'Finish Test ✅' : 'Next ➡';
+
+  const canSkip = !q.status && !isLast;
+  $('attemptLaterBtn').style.display = canSkip ? 'flex' : 'none';
 }
 
 function updateTimerUI(){
@@ -1329,10 +1363,11 @@ function selectAnswer(chosen, btnEl){
   if(q.status) return; // already answered
   q.userAnswer = chosen;
   q.status = (chosen === q.correct) ? 'correct' : 'wrong';
-  if(q.status === 'correct') score++;
 
   lockOptions(q, btnEl);
-  setTimeout(nextQuestion, 800);
+  $('qCorrectCount').textContent = `✅ ${getScore()}`;
+  $('liveScore').textContent = getScore();
+  updateNavButtons();
 }
 
 function handleTimeout(){
@@ -1342,7 +1377,7 @@ function handleTimeout(){
   q.status = 'timeout';
   lockOptions(q, null);
   if(navigator.vibrate) navigator.vibrate([80,60,80]);
-  setTimeout(nextQuestion, 900);
+  updateNavButtons();
 }
 
 function lockOptions(q, chosenBtn){
@@ -1355,18 +1390,32 @@ function lockOptions(q, chosenBtn){
       btn.classList.add('correct');
     } else if(chosenBtn && btn === chosenBtn && label !== q.correct){
       btn.classList.add('wrong');
+    } else if(!chosenBtn && q.userAnswer && label === q.userAnswer && label !== q.correct){
+      btn.classList.add('wrong');
     }
   });
 }
 
-function nextQuestion(){
-  currentIndex++;
-  if(currentIndex >= currentTest.length){
-    finishTest();
-  } else {
+$('prevQBtn').addEventListener('click', ()=>{
+  if(currentIndex > 0){
+    currentIndex--;
     renderQuestion();
   }
-}
+});
+$('nextQBtn').addEventListener('click', ()=>{
+  if(currentIndex < currentTest.length - 1){
+    currentIndex++;
+    renderQuestion();
+  } else {
+    finishTest();
+  }
+});
+$('attemptLaterBtn').addEventListener('click', ()=>{
+  if(currentIndex < currentTest.length - 1){
+    currentIndex++;
+    renderQuestion();
+  }
+});
 
 /* =========================================================
    RESULT
@@ -1379,6 +1428,14 @@ function formatDuration(totalSeconds){
 
 function finishTest(){
   clearInterval(timerInterval);
+  // Any question the user navigated away from without ever answering or
+  // timing out counts as "Not Answered" (same scoring bucket as Time Out).
+  currentTest.forEach(q=>{
+    if(!q.status){
+      q.status = 'timeout';
+      q.userAnswer = null;
+    }
+  });
   const total = currentTest.length;
   const correct = currentTest.filter(q=>q.status==='correct').length;
   const wrong = currentTest.filter(q=>q.status==='wrong').length;
