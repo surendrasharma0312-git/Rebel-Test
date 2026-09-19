@@ -9,6 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <style>
   :root{
     --violet:#6C4CE0;
@@ -301,6 +303,7 @@
       </div>
     </div>
     <div style="display:flex;gap:8px;">
+      <button class="icon-btn" id="notifyBtn" title="Enable Notifications">🔔</button>
       <button class="icon-btn" id="adminBtn" title="Admin">🔒</button>
       <button class="icon-btn" id="historyNavBtn" title="Test History">📊</button>
     </div>
@@ -322,7 +325,7 @@
     <div class="card" id="cloudTestsCard" style="cursor:pointer;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div class="section-title" style="margin:0;">🎯 Rebel Test Series</div>
+          <div class="section-title" style="margin:0;">🎯 Rebel Test Series <span id="newTestBadge" style="display:none;background:var(--coral);color:#fff;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:100px;vertical-align:middle;margin-left:4px;">🆕 New</span></div>
           <p class="muted" id="cloudSummaryMsg" style="margin:6px 0 0;">Loading tests...</p>
         </div>
         <div style="font-size:24px;color:var(--violet);">→</div>
@@ -373,6 +376,23 @@
     <h2 class="section-title">🎯 Rebel Test Series</h2>
     <p class="muted" id="cloudStatusMsg" style="margin-bottom:14px;">Loading tests...</p>
     <div id="cloudTestsList"></div>
+  </section>
+
+  <!-- ============ SCREEN 1B-2: ADMIN LOGIN (real form so password managers can save/autofill it) ============ -->
+  <section class="screen" id="screen-admin-login">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromAdminLoginBtn">← Back</button>
+    </div>
+    <div class="card">
+      <h2 class="section-title" style="margin-bottom:16px;">🔒 Admin Login</h2>
+      <form id="adminLoginForm" autocomplete="on">
+        <input type="text" name="username" autocomplete="username" value="rebel-admin" style="position:absolute;left:-9999px;" tabindex="-1" aria-hidden="true" />
+        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Password</label>
+        <input type="password" id="adminPasswordInput" name="password" autocomplete="current-password" placeholder="Enter admin password" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--line);padding:13px 14px;font-family:inherit;font-size:15px;background:#FBFAFF;color:var(--ink);" required />
+        <div id="adminLoginError"></div>
+        <button type="submit" class="btn btn-primary" style="margin-top:16px;">Login</button>
+      </form>
+    </div>
   </section>
 
   <!-- ============ SCREEN 1C: ADMIN DASHBOARD ============ -->
@@ -583,6 +603,80 @@ try{
 }
 
 /* =========================================================
+   PUSH NOTIFICATIONS (Firebase Cloud Messaging)
+   -----------------------------------------------------------
+   This part only REGISTERS the browser to receive notifications
+   and stores its token in Firestore. Actually SENDING a
+   notification when a new test is published happens from a
+   Cloud Function (server-side) — see the separate instructions
+   for deploying `functions/index.js`. Nothing here will "ring"
+   anyone's phone until that function is deployed.
+
+   1. Firebase Console → Project settings → Cloud Messaging tab →
+      "Web configuration" → Web Push certificates → Generate key
+      pair. Copy the key and paste it below as VAPID_KEY.
+   2. Upload the separate `firebase-messaging-sw.js` file (given
+      alongside this one) to the SAME folder as this index.html
+      on GitHub Pages — it must be reachable at /firebase-messaging-sw.js.
+========================================================= */
+const VAPID_KEY = "PASTE_YOUR_VAPID_KEY";
+let messaging = null;
+if(firebaseReady && 'serviceWorker' in navigator && typeof firebase.messaging === 'function'){
+  try{ messaging = firebase.messaging(); }catch(e){ console.error('Messaging init failed', e); }
+}
+
+async function enableNotifications(){
+  if(!messaging){
+    alert("Notifications aren't set up yet on this site (missing VAPID key or Firebase config).");
+    return;
+  }
+  if(VAPID_KEY === "PASTE_YOUR_VAPID_KEY"){
+    alert("The site owner hasn't finished setting up notifications yet (missing VAPID key).");
+    return;
+  }
+  try{
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){
+      alert("Notifications weren't allowed. You can enable them later from your browser's site settings.");
+      return;
+    }
+    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    if(token){
+      await db.collection('fcmTokens').doc(token).set({
+        token,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      $('notifyBtn').textContent = '🔔✅';
+      $('notifyBtn').title = 'Notifications enabled';
+      localStorage.setItem('vocabTestApp_notifyEnabled', 'true');
+    }
+  }catch(err){
+    console.error(err);
+    alert("Couldn't enable notifications — check your internet connection and try again.");
+  }
+}
+
+$('notifyBtn').addEventListener('click', enableNotifications);
+if(localStorage.getItem('vocabTestApp_notifyEnabled') === 'true' && typeof Notification !== 'undefined' && Notification.permission === 'granted'){
+  $('notifyBtn').textContent = '🔔✅';
+  $('notifyBtn').title = 'Notifications enabled';
+}
+
+// Show an in-app toast if a push arrives while the site is already open
+if(messaging){
+  messaging.onMessage((payload)=>{
+    const title = (payload.notification && payload.notification.title) || 'New test available!';
+    const body = (payload.notification && payload.notification.body) || '';
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--violet);color:#fff;padding:12px 18px;border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.25);z-index:999;font-weight:700;font-size:13.5px;max-width:90%;text-align:center;';
+    toast.textContent = body ? `${title} — ${body}` : title;
+    document.body.appendChild(toast);
+    setTimeout(()=> toast.remove(), 5000);
+  });
+}
+
+/* =========================================================
    STATE
 ========================================================= */
 const STORAGE_VOCAB = 'vocabTestApp_vocab';
@@ -721,11 +815,15 @@ function parseVocabText(text){
 
     if(!word || !meaning) continue;
 
-    // Some lists give multiple word-forms separated by commas
-    // (e.g. "Attack, Attacked, Attacked - आक्रमण करना") — use only the
-    // first/base form as the actual vocabulary word.
+    // Some lists give multiple word-forms/synonyms separated by commas or
+    // slashes (e.g. "Attack, Attacked, Attacked - आक्रमण करना" or
+    // "Nab / Arrest - पकड़ लेना") — use only the first/base form as the
+    // actual vocabulary word.
     if(word.includes(',')){
       word = word.split(',')[0].trim();
+    }
+    if(word.includes('/')){
+      word = word.split('/')[0].trim();
     }
     if(!word) continue;
 
@@ -886,17 +984,49 @@ function renderCloudUI(docs){
   renderAdminList(docs);
 }
 
+const STORAGE_LAST_SEEN_TESTS = 'vocabTestApp_lastSeenTestsTime';
+
+function getNewTestCount(docs){
+  const lastSeen = parseInt(localStorage.getItem(STORAGE_LAST_SEEN_TESTS) || '0', 10);
+  return docs.filter(doc=>{
+    const createdAt = doc.data().createdAt;
+    return createdAt && createdAt.toMillis() > lastSeen;
+  }).length;
+}
+
+function markTestsAsSeen(){
+  localStorage.setItem(STORAGE_LAST_SEEN_TESTS, String(Date.now()));
+  $('newTestBadge').style.display = 'none';
+}
+
 function renderHomeSummary(docs){
   const el = $('cloudSummaryMsg');
   if(!firebaseReady){
     el.textContent = "Not set up yet — tap for details.";
+    $('newTestBadge').style.display = 'none';
     return;
   }
   if(docs.length === 0){
     el.textContent = "No tests yet — check back soon.";
+    $('newTestBadge').style.display = 'none';
     return;
   }
   el.textContent = `${docs.length} test${docs.length>1?'s':''} available — tap to view`;
+  const newCount = getNewTestCount(docs);
+  $('newTestBadge').style.display = newCount > 0 ? 'inline-block' : 'none';
+  $('newTestBadge').textContent = newCount > 0 ? `🆕 ${newCount} New` : '🆕 New';
+}
+
+function sortCloudDocs(docs){
+  // Lower "order" = shown first. Docs without an order yet (older tests,
+  // or before this feature existed) fall back to their createdAt time so
+  // they still show up in a sensible place.
+  return docs.slice().sort((a,b)=>{
+    const da = a.data(), db_ = b.data();
+    const oa = (da.order !== undefined) ? da.order : (da.createdAt ? da.createdAt.toMillis() : 0);
+    const ob = (db_.order !== undefined) ? db_.order : (db_.createdAt ? db_.createdAt.toMillis() : 0);
+    return oa - ob;
+  });
 }
 
 function renderRebelList(docs){
@@ -914,7 +1044,7 @@ function renderRebelList(docs){
   }
   statusEl.textContent = `${docs.length} test${docs.length>1?'s':''} available:`;
 
-  docs.forEach(doc=>{
+  sortCloudDocs(docs).forEach(doc=>{
     const data = doc.data();
     const row = document.createElement('div');
     row.className = 'hist-row';
@@ -937,6 +1067,8 @@ function renderRebelList(docs){
   });
 }
 
+let adminSortable = null;
+
 function renderAdminList(docs){
   if(!isAdmin) return;
   const listEl = $('adminTestsList');
@@ -954,12 +1086,15 @@ function renderAdminList(docs){
     return;
   }
 
-  docs.forEach(doc=>{
+  const sorted = sortCloudDocs(docs);
+  sorted.forEach(doc=>{
     const data = doc.data();
     const row = document.createElement('div');
     row.className = 'hist-row';
+    row.setAttribute('data-id', doc.id);
     const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
     row.innerHTML = `
+      <span class="drag-handle" style="cursor:grab;font-size:18px;color:#C9C1E8;padding:4px 8px;touch-action:none;">☰</span>
       <div class="left" style="flex:1;">
         <div class="date" style="font-weight:800;color:var(--ink);">${data.name || 'Untitled Test'}</div>
         <div class="meta">${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
@@ -980,6 +1115,28 @@ function renderAdminList(docs){
     });
     listEl.appendChild(row);
   });
+
+  // Drag-to-reorder (works with touch too, thanks to SortableJS)
+  if(typeof Sortable !== 'undefined'){
+    if(adminSortable) adminSortable.destroy();
+    adminSortable = Sortable.create(listEl, {
+      handle: '.drag-handle',
+      animation: 150,
+      onEnd: async ()=>{
+        const ids = Array.from(listEl.querySelectorAll('[data-id]')).map(el=>el.getAttribute('data-id'));
+        try{
+          const batch = db.batch();
+          ids.forEach((id, idx)=>{
+            batch.update(db.collection('vocabTests').doc(id), { order: idx });
+          });
+          await batch.commit();
+        }catch(err){
+          console.error(err);
+          alert("Couldn't save the new order (check your internet / Firestore rules).");
+        }
+      }
+    });
+  }
 }
 
 let lastCloudDocs = [];
@@ -998,17 +1155,28 @@ function listenToCloudTests(){
     });
 }
 $('refreshCloudBtn').addEventListener('click', listenToCloudTests);
-$('cloudTestsCard').addEventListener('click', ()=> showScreen('screen-rebel-list'));
+$('cloudTestsCard').addEventListener('click', ()=>{
+  showScreen('screen-rebel-list');
+  markTestsAsSeen();
+});
 $('backFromRebelListBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
 /* =========================================================
    ADMIN MODE (only the admin can upload/add tests)
    -----------------------------------------------------------
-   Change this password to something only you know before
-   deploying the site.
+   The password itself now lives in Firestore (config/admin →
+   passwordHash), NOT in this file — so viewing the page source
+   never reveals it. See the setup instructions given alongside
+   this file for how to create that document.
+   We only ever compare a SHA-256 HASH of what's typed, never the
+   plain text, so even Firestore never stores the real password.
 ========================================================= */
-const ADMIN_PASSWORD = "changeme123";
 let isAdmin = false;
+
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 
 function updateAdminUI(){
   $('adminBtn').textContent = isAdmin ? '🔓' : '🔒';
@@ -1021,15 +1189,56 @@ $('adminBtn').addEventListener('click', ()=>{
     showScreen('screen-admin');
     return;
   }
-  const entered = prompt('Enter admin password:');
-  if(entered === null) return;
-  if(entered === ADMIN_PASSWORD){
-    isAdmin = true;
-    sessionStorage.setItem('isAdmin_rebeltest', 'true');
-    updateAdminUI();
-    showScreen('screen-admin');
-  } else {
-    alert('Incorrect password.');
+  if(!firebaseReady){
+    alert("Firebase isn't configured yet — admin login needs it. See the code comments near the top.");
+    return;
+  }
+  $('adminLoginError').innerHTML = '';
+  showScreen('screen-admin-login');
+  setTimeout(()=> $('adminPasswordInput').focus(), 300);
+});
+
+$('backFromAdminLoginBtn').addEventListener('click', ()=> showScreen('screen-home'));
+
+$('adminLoginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const entered = $('adminPasswordInput').value;
+  if(!entered) return;
+  $('adminLoginError').innerHTML = '';
+
+  try{
+    const configDoc = await db.collection('config').doc('admin').get();
+    if(!configDoc.exists || !configDoc.data().passwordHash){
+      $('adminLoginError').innerHTML = `<div class="error-box">Admin password isn't set up in Firestore yet. See the setup instructions to create config/admin with a passwordHash field.</div>`;
+      return;
+    }
+    const enteredHash = await sha256Hex(entered);
+    if(enteredHash === configDoc.data().passwordHash){
+      isAdmin = true;
+      sessionStorage.setItem('isAdmin_rebeltest', 'true');
+
+      // Explicitly offer to save this password (Chrome/Edge support this API;
+      // other browsers may still offer their own save-password prompt on submit).
+      if(window.PasswordCredential){
+        try{
+          const cred = new PasswordCredential({
+            id: 'rebel-admin',
+            password: entered,
+            name: 'Rebel Test Series Admin'
+          });
+          await navigator.credentials.store(cred);
+        }catch(credErr){ console.warn('Credential save skipped', credErr); }
+      }
+
+      $('adminPasswordInput').value = '';
+      updateAdminUI();
+      showScreen('screen-admin');
+    } else {
+      $('adminLoginError').innerHTML = `<div class="error-box">Incorrect password.</div>`;
+    }
+  }catch(err){
+    console.error(err);
+    $('adminLoginError').innerHTML = `<div class="error-box">Couldn't verify the password (check your internet / Firestore rules).</div>`;
   }
 });
 
@@ -1111,6 +1320,7 @@ $('publishTestBtn').addEventListener('click', async ()=>{
       name: pendingAdminPublish.name,
       words: vocabulary,
       wordCount: vocabulary.length,
+      order: Date.now(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     pendingAdminPublish = null;
