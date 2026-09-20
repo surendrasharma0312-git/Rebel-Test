@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Rebel Test Series — Spoken English Vocabulary Trainer</title>
+<meta name="description" content="Rebel Test Series — a spoken English vocabulary MCQ trainer with randomized timed tests, a class leaderboard, and shared teacher-published word lists." />
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -13,11 +14,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Rebel Test">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
 <style>
   :root{
     --violet:#6C4CE0;
@@ -174,7 +173,7 @@
   }
   .vocab-row .en{font-weight:700;color:var(--ink);font-size:14.5px;}
   .vocab-row .hi{color:var(--violet-dark);font-weight:600;font-size:14.5px;}
-  .vocab-row .rm{background:none;border:none;color:#C9C1E8;font-size:16px;cursor:pointer;padding:4px 6px;}
+  .vocab-row .rm{background:none;border:none;color:#786C9E;font-size:16px;cursor:pointer;padding:4px 6px;}
   .vocab-row .rm:hover{color:var(--coral);}
   /* ---------- test screen ---------- */
   .test-topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--ink-soft);}
@@ -293,6 +292,29 @@
   }
   .notif-checkbox.checked{background:var(--coral);border-color:var(--coral);}
   .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);}
+  /* ---------- custom modal (replaces native prompt/confirm/alert) ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(36,28,61,0.45);z-index:1000;
+    display:flex;align-items:flex-end;justify-content:center;
+    animation:fadeIn .15s ease;
+  }
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @media (min-width:560px){ .modal-overlay{align-items:center;} }
+  .modal-box{
+    background:var(--card);border-radius:24px 24px 0 0;padding:24px 22px 26px;
+    width:100%;max-width:480px;box-shadow:0 -10px 40px rgba(0,0,0,.2);
+    animation:modalUp .22s cubic-bezier(.2,.9,.25,1);
+  }
+  @media (min-width:560px){ .modal-box{border-radius:24px;margin:0 16px;} }
+  @keyframes modalUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .modal-msg{font-size:14.5px;color:var(--ink);line-height:1.55;white-space:pre-line;}
+  .modal-input{
+    width:100%;margin-top:14px;border-radius:var(--radius-sm);border:1.5px solid var(--line);
+    padding:12px 14px;font-family:inherit;font-size:15px;background:#FBFAFF;color:var(--ink);
+  }
+  .modal-input:focus{outline:none;border-color:var(--violet);}
+  .modal-btns{display:flex;gap:10px;margin-top:20px;}
+  .modal-btns .btn{flex:1;}
   .empty-state .emoji{font-size:40px;display:block;margin-bottom:10px;}
   .section-title{font-family:'Baloo 2';font-size:19px;margin:4px 0 12px;color:var(--ink);}
   .muted{color:var(--ink-soft);font-size:13px;}
@@ -319,7 +341,7 @@
 </style>
 </head>
 <body>
-<div class="app">
+<div class="app" role="main">
 
   <div class="topbar">
     <div class="brand">
@@ -349,6 +371,18 @@
         <span class="word-chip">Brave — Courageous</span>
         <span class="word-chip">Clever — Smart</span>
         <span class="word-chip">Honest — Truthful</span>
+      </div>
+    </div>
+
+    <div class="card" id="installBanner" style="display:none;background:linear-gradient(135deg,#28D6A3,var(--mint));color:#fff;position:relative;">
+      <button id="dismissInstallBtn" title="Dismiss" style="position:absolute;top:8px;right:10px;background:none;border:none;color:#fff;opacity:.8;font-size:16px;cursor:pointer;padding:4px;">✕</button>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="font-size:28px;">📲</div>
+        <div style="flex:1;">
+          <div style="font-weight:800;font-size:14.5px;">Install this app</div>
+          <div style="font-size:12.5px;opacity:.92;margin-top:2px;">Get a real app icon on your home screen — one tap to open, no browser bar.</div>
+        </div>
+        <button class="btn btn-sm" id="installBtn" style="background:#fff;color:var(--mint);white-space:nowrap;">Install</button>
       </div>
     </div>
 
@@ -651,6 +685,10 @@
 
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script>
 /* =========================================================
    FIREBASE SETUP (REQUIRED FOR SHARED TESTS)
@@ -719,11 +757,11 @@ function showScreen(id, opts){
 
 /* Make the phone/browser BACK button move between in-app screens
    instead of leaving the website. */
-window.addEventListener('popstate', (e)=>{
+window.addEventListener('popstate', async (e)=>{
   const target = (e.state && e.state.screen) ? e.state.screen : 'screen-home';
   const leavingActiveTest = $('screen-test').classList.contains('active') && target !== 'screen-test';
   if(leavingActiveTest){
-    const sure = confirm('Leave this test? Your progress will be lost.');
+    const sure = await appConfirm('Leave this test? Your progress will be lost.', { danger:true, confirmText:'Leave' });
     if(!sure){
       history.pushState({ screen: 'screen-test' }, '', '#screen-test');
       return;
@@ -742,6 +780,80 @@ function speakWord(word){
     utter.rate = 0.9;
     speechSynthesis.speak(utter);
   }catch(e){ console.error('Speech synthesis failed', e); }
+}
+
+/* =========================================================
+   CUSTOM MODAL (replaces native prompt()/confirm()/alert() with
+   a styled, on-brand dialog)
+========================================================= */
+function showModal({message, type='alert', defaultValue='', placeholder='', confirmText='OK', cancelText='Cancel', danger=false}){
+  return new Promise((resolve)=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-msg">${message}</div>
+        ${type==='prompt' ? `<input type="text" class="modal-input" placeholder="${placeholder}" />` : ''}
+        <div class="modal-btns">
+          ${type!=='alert' ? `<button class="btn btn-ghost modal-cancel">${cancelText}</button>` : ''}
+          <button class="btn ${danger?'btn-coral':'btn-primary'} modal-ok">${confirmText}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('.modal-input');
+    if(input){
+      input.value = defaultValue;
+      setTimeout(()=> input.focus(), 60);
+      input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') finish(input.value); });
+    }
+    function finish(result){ overlay.remove(); resolve(result); }
+    overlay.querySelector('.modal-ok').addEventListener('click', ()=> finish(type==='prompt' ? input.value : true));
+    const cancelBtn = overlay.querySelector('.modal-cancel');
+    if(cancelBtn) cancelBtn.addEventListener('click', ()=> finish(type==='prompt' ? null : false));
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) finish(type==='prompt' ? null : false); });
+  });
+}
+function appAlert(message){
+  return showModal({ message, type:'alert' });
+}
+function appConfirm(message, opts={}){
+  return showModal({ message, type:'confirm', confirmText: opts.confirmText||'OK', cancelText: opts.cancelText||'Cancel', danger: !!opts.danger });
+}
+function appPrompt(message, defaultValue='', placeholder=''){
+  return showModal({ message, type:'prompt', defaultValue, placeholder, confirmText:'OK', cancelText:'Cancel' });
+}
+function showEditWordModal(currentEn, currentHi){
+  return new Promise((resolve)=>{
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-msg" style="font-weight:800;font-size:16px;margin-bottom:2px;">Edit Word</div>
+        <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-top:12px;">English word</label>
+        <input type="text" class="modal-input" id="editEnInput" style="margin-top:6px;" />
+        <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-top:12px;">Hindi meaning</label>
+        <input type="text" class="modal-input" id="editHiInput" style="margin-top:6px;" />
+        <div class="modal-btns">
+          <button class="btn btn-ghost modal-cancel">Cancel</button>
+          <button class="btn btn-primary modal-ok">Save</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const enInput = overlay.querySelector('#editEnInput');
+    const hiInput = overlay.querySelector('#editHiInput');
+    enInput.value = currentEn; hiInput.value = currentHi;
+    setTimeout(()=> enInput.focus(), 60);
+    function finish(result){ overlay.remove(); resolve(result); }
+    overlay.querySelector('.modal-ok').addEventListener('click', ()=>{
+      const w = enInput.value.trim(), m = hiInput.value.trim();
+      if(!w || !m) return;
+      finish({ en:w, hi:m });
+    });
+    overlay.querySelector('.modal-cancel').addEventListener('click', ()=> finish(null));
+    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) finish(null); });
+  });
 }
 
 function shuffle(arr){
@@ -1191,9 +1303,9 @@ $('markAllReadBtn').addEventListener('click', ()=>{
   updateNotifBadge(lastCloudDocs);
 });
 $('cancelSelectBtn').addEventListener('click', exitSelectMode);
-$('deleteSelectedBtn').addEventListener('click', ()=>{
+$('deleteSelectedBtn').addEventListener('click', async ()=>{
   if(selectedNotifIds.size === 0) return;
-  const sure = confirm(`Remove ${selectedNotifIds.size} notification${selectedNotifIds.size>1?'s':''}?\n\n(The tests themselves stay in Rebel Test Series — this only clears them from your notification list.)`);
+  const sure = await appConfirm(`Remove ${selectedNotifIds.size} notification${selectedNotifIds.size>1?'s':''}?\n\n(The tests themselves stay in Rebel Test Series — this only clears them from your notification list.)`, { danger:true, confirmText:'Remove' });
   if(sure){
     selectedNotifIds.forEach(id=> dismissNotification(id));
     exitSelectMode();
@@ -1290,7 +1402,7 @@ function renderAdminList(docs){
     row.setAttribute('data-id', doc.id);
     const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
     row.innerHTML = `
-      <span class="drag-handle" style="cursor:grab;font-size:18px;color:#C9C1E8;padding:4px 8px;touch-action:none;">☰</span>
+      <span class="drag-handle" style="cursor:grab;font-size:18px;color:#786C9E;padding:4px 8px;touch-action:none;">☰</span>
       <div class="left" style="flex:1;">
         <div class="date" style="font-weight:800;color:var(--ink);">${data.name || 'Untitled Test'}</div>
         <div class="meta">${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
@@ -1300,13 +1412,13 @@ function renderAdminList(docs){
     `;
     row.querySelector('.manage-btn').addEventListener('click', ()=> openManageTest(doc.id, data));
     row.querySelector('.delete-btn').addEventListener('click', async ()=>{
-      const sure = confirm(`Delete "${data.name || 'Untitled Test'}" for everyone? This cannot be undone.`);
+      const sure = await appConfirm(`Delete "${data.name || 'Untitled Test'}" for everyone? This cannot be undone.`, { danger:true, confirmText:'Delete' });
       if(!sure) return;
       try{
         await db.collection('vocabTests').doc(doc.id).delete();
       }catch(err){
         console.error(err);
-        alert("Couldn't delete this test (check your internet / Firestore rules).");
+        appAlert("Couldn't delete this test (check your internet / Firestore rules).");
       }
     });
     listEl.appendChild(row);
@@ -1328,7 +1440,7 @@ function renderAdminList(docs){
           await batch.commit();
         }catch(err){
           console.error(err);
-          alert("Couldn't save the new order (check your internet / Firestore rules).");
+          appAlert("Couldn't save the new order (check your internet / Firestore rules).");
         }
       }
     });
@@ -1477,7 +1589,7 @@ $('adminBtn').addEventListener('click', ()=>{
     return;
   }
   if(!firebaseReady){
-    alert("Firebase isn't configured yet — admin login needs it. See the code comments near the top.");
+    appAlert("Firebase isn't configured yet — admin login needs it. See the code comments near the top.");
     return;
   }
   $('adminLoginError').innerHTML = '';
@@ -1678,16 +1790,12 @@ function renderManageVocabList(){
     listEl.appendChild(row);
   });
   listEl.querySelectorAll('button[title="Edit"]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
+    btn.addEventListener('click', async (e)=>{
       const idx = parseInt(e.target.getAttribute('data-idx'));
       const current = managingWords[idx];
-      const newWord = prompt('English word:', current.en);
-      if(newWord === null) return;
-      const newMeaning = prompt('Hindi meaning:', current.hi);
-      if(newMeaning === null) return;
-      const w = newWord.trim(), m = newMeaning.trim();
-      if(!w || !m) return;
-      managingWords[idx] = { en: w, hi: m };
+      const result = await showEditWordModal(current.en, current.hi);
+      if(!result) return;
+      managingWords[idx] = result;
       renderManageVocabList();
     });
   });
@@ -1748,7 +1856,7 @@ $('manageSaveBtn').addEventListener('click', async ()=>{
 
 $('manageDeleteBtn').addEventListener('click', async ()=>{
   if(!managingId) return;
-  const sure = confirm('Delete this test for everyone? This cannot be undone.');
+  const sure = await appConfirm('Delete this test for everyone? This cannot be undone.', { danger:true, confirmText:'Delete' });
   if(!sure) return;
   try{
     await db.collection('vocabTests').doc(managingId).delete();
@@ -2104,10 +2212,10 @@ function saveHistoryEntry(entry){
 ========================================================= */
 const STORAGE_STUDENT_NAME = 'vocabTestApp_studentName';
 
-function getStudentName(){
+async function getStudentName(){
   let name = localStorage.getItem(STORAGE_STUDENT_NAME);
   if(name) return name;
-  name = prompt('What name should show on the class leaderboard?');
+  name = await appPrompt('What name should show on the class leaderboard?', '', 'Your name');
   if(!name || !name.trim()) return null;
   name = name.trim().slice(0, 40);
   localStorage.setItem(STORAGE_STUDENT_NAME, name);
@@ -2116,7 +2224,7 @@ function getStudentName(){
 
 async function saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds }){
   if(!currentTestDocId || !firebaseReady) return;
-  const studentName = getStudentName();
+  const studentName = await getStudentName();
   if(!studentName) return; // they skipped entering a name — don't save
   try{
     await db.collection('testResults').add({
@@ -2165,6 +2273,58 @@ function renderHistory(){
 
 $('historyNavBtn').addEventListener('click', ()=>{ renderHistory(); showScreen('screen-history'); });
 $('backFromHistoryBtn').addEventListener('click', ()=> showScreen('screen-home'));
+
+/* =========================================================
+   INSTALL / ADD TO HOME SCREEN
+========================================================= */
+let deferredInstallPrompt = null;
+
+function isStandaloneApp(){
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function isIOSDevice(){
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+function updateInstallBanner(){
+  const banner = $('installBanner');
+  if(isStandaloneApp() || sessionStorage.getItem('vocabTestApp_installDismissed') === 'true'){
+    banner.style.display = 'none';
+    return;
+  }
+  banner.style.display = (deferredInstallPrompt || isIOSDevice()) ? 'block' : 'none';
+}
+
+$('dismissInstallBtn').addEventListener('click', ()=>{
+  sessionStorage.setItem('vocabTestApp_installDismissed', 'true');
+  $('installBanner').style.display = 'none';
+});
+
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  updateInstallBanner();
+});
+
+$('installBtn').addEventListener('click', async ()=>{
+  if(deferredInstallPrompt){
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    updateInstallBanner();
+  } else if(isIOSDevice()){
+    appAlert('To install:\n\n1. Tap the Share icon (square with an arrow ↑) at the bottom of Safari\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"');
+  }
+});
+
+window.addEventListener('appinstalled', ()=>{
+  deferredInstallPrompt = null;
+  updateInstallBanner();
+});
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(err=> console.error('Service worker registration failed', err));
+}
+updateInstallBanner();
 
 /* =========================================================
    INIT
