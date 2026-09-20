@@ -1537,6 +1537,26 @@ function renderLeaderboardFilters(){
   });
 }
 
+function bestPerStudentPerTest(docs){
+  // Keeps only each student's best attempt on each test: highest score
+  // wins; if scores tie, the faster completion time wins.
+  const best = new Map();
+  docs.forEach(doc=>{
+    const d = doc.data();
+    const key = `${(d.studentName||'').trim().toLowerCase()}|${d.testDocId}`;
+    const existing = best.get(key);
+    if(!existing){
+      best.set(key, doc);
+      return;
+    }
+    const ed = existing.data();
+    const isBetter = (d.pct||0) > (ed.pct||0) ||
+      ((d.pct||0) === (ed.pct||0) && (d.durationSeconds ?? Infinity) < (ed.durationSeconds ?? Infinity));
+    if(isBetter) best.set(key, doc);
+  });
+  return Array.from(best.values());
+}
+
 function renderLeaderboardList(){
   const listEl = $('leaderboardList');
   listEl.innerHTML = '';
@@ -1544,21 +1564,28 @@ function renderLeaderboardList(){
   if(leaderboardFilter !== 'all'){
     docs = docs.filter(doc=> doc.data().testDocId === leaderboardFilter);
   }
+  docs = bestPerStudentPerTest(docs);
   if(docs.length === 0){
     listEl.innerHTML = `<div class="empty-state"><span class="emoji">🏆</span>No results yet. Once students take a Rebel Test Series test (and enter their name), they'll show up here.</div>`;
     return;
   }
-  const sorted = docs.slice().sort((a,b)=> (b.data().pct||0) - (a.data().pct||0));
+  const sorted = docs.slice().sort((a,b)=>{
+    const da = a.data(), db = b.data();
+    if((db.pct||0) !== (da.pct||0)) return (db.pct||0) - (da.pct||0);
+    // same score — faster time ranks higher
+    return (da.durationSeconds ?? Infinity) - (db.durationSeconds ?? Infinity);
+  });
   sorted.forEach((doc, idx)=>{
     const d = doc.data();
     const dateStr = d.createdAt ? d.createdAt.toDate().toLocaleDateString() : '';
+    const timeStr = d.durationSeconds != null ? formatDuration(d.durationSeconds) : '';
     const medal = idx===0 ? '🥇' : idx===1 ? '🥈' : idx===2 ? '🥉' : `#${idx+1}`;
     const row = document.createElement('div');
     row.className = 'hist-row';
     row.innerHTML = `
       <div class="left">
         <div class="date" style="font-weight:800;color:var(--ink);">${medal} ${d.studentName || 'Anonymous'}</div>
-        <div class="meta">${leaderboardFilter==='all' ? ((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct · ${dateStr}</div>
+        <div class="meta">${leaderboardFilter==='all' ? ((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+timeStr : ''} · ${dateStr}</div>
       </div>
       <div class="pctbadge">${d.pct}%</div>
     `;
