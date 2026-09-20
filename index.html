@@ -4,12 +4,19 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <title>Rebel Test Series — Spoken English Vocabulary Trainer</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#6C4CE0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Rebel Test">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <style>
   :root{
@@ -265,6 +272,26 @@
     font-family:'Baloo 2';font-size:20px;color:var(--violet-dark);background:var(--violet-10);
     padding:6px 14px;border-radius:12px;
   }
+  /* ---------- notifications ---------- */
+  .notif-row{
+    background:var(--card);border-radius:var(--radius-md);padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);
+    display:flex;align-items:center;gap:10px;cursor:pointer;border-left:4px solid transparent;transition:.15s;
+  }
+  .notif-row:active{transform:scale(.98);}
+  .notif-row.unread{border-left-color:var(--violet);background:var(--violet-10);}
+  .notif-row .dot{width:9px;height:9px;border-radius:50%;background:var(--violet);flex-shrink:0;}
+  .notif-row.read{opacity:.65;}
+  .notif-row .left{flex:1;}
+  .notif-row .title{font-weight:800;color:var(--ink);font-size:14.5px;}
+  .notif-row.unread .title{color:var(--violet-dark);}
+  .notif-row .meta{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .notif-row .arrow{color:var(--ink-soft);font-size:18px;}
+  .notif-row.selected{border-left-color:var(--coral);background:#FFEEEE;}
+  .notif-checkbox{
+    width:22px;height:22px;border-radius:7px;border:2px solid #D9CCFB;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;
+  }
+  .notif-checkbox.checked{background:var(--coral);border-color:var(--coral);}
   .empty-state{text-align:center;padding:40px 20px;color:var(--ink-soft);}
   .empty-state .emoji{font-size:40px;display:block;margin-bottom:10px;}
   .section-title{font-family:'Baloo 2';font-size:19px;margin:4px 0 12px;color:var(--ink);}
@@ -303,7 +330,10 @@
       </div>
     </div>
     <div style="display:flex;gap:8px;">
-      <button class="icon-btn" id="notifyBtn" title="Enable Notifications">🔔</button>
+      <button class="icon-btn" id="notifyBtn" title="Notifications" style="position:relative;">
+        🔔
+        <span id="notifyBadge" style="display:none;position:absolute;top:2px;right:2px;background:var(--coral);color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:100px;align-items:center;justify-content:center;padding:0 3px;">0</span>
+      </button>
       <button class="icon-btn" id="adminBtn" title="Admin">🔒</button>
       <button class="icon-btn" id="historyNavBtn" title="Test History">📊</button>
     </div>
@@ -325,8 +355,18 @@
     <div class="card" id="cloudTestsCard" style="cursor:pointer;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div class="section-title" style="margin:0;">🎯 Rebel Test Series <span id="newTestBadge" style="display:none;background:var(--coral);color:#fff;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:100px;vertical-align:middle;margin-left:4px;">🆕 New</span></div>
+          <div class="section-title" style="margin:0;">🎯 Rebel Test Series</div>
           <p class="muted" id="cloudSummaryMsg" style="margin:6px 0 0;">Loading tests...</p>
+        </div>
+        <div style="font-size:24px;color:var(--violet);">→</div>
+      </div>
+    </div>
+
+    <div class="card" id="leaderboardNavCardHome" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0;">🏆 Class Leaderboard</div>
+          <p class="muted" style="margin:6px 0 0;">See top scores — what does it take to be #1?</p>
         </div>
         <div style="font-size:24px;color:var(--violet);">→</div>
       </div>
@@ -378,6 +418,22 @@
     <div id="cloudTestsList"></div>
   </section>
 
+  <!-- ============ SCREEN: NOTIFICATIONS ============ -->
+  <section class="screen" id="screen-notifications">
+    <div class="top-actions" id="notifNormalToolbar">
+      <button class="btn btn-ghost" id="backFromNotifBtn">← Back</button>
+      <button class="btn btn-ghost btn-sm" id="markAllReadBtn">Mark all read</button>
+    </div>
+    <div class="top-actions" id="notifSelectToolbar" style="display:none;align-items:center;">
+      <button class="btn btn-ghost btn-sm" id="cancelSelectBtn">Cancel</button>
+      <span class="muted" id="selectCountText" style="font-weight:700;flex:1;text-align:center;">0 selected</span>
+      <button class="btn btn-coral btn-sm" id="deleteSelectedBtn">🗑️ Delete</button>
+    </div>
+    <h2 class="section-title">🔔 Notifications</h2>
+    <p class="muted" style="font-size:12px;margin:0 2px 10px;">Tap to open a test · Press and hold to select & delete multiple</p>
+    <div id="notifList"></div>
+  </section>
+
   <!-- ============ SCREEN 1B-2: ADMIN LOGIN (real form so password managers can save/autofill it) ============ -->
   <section class="screen" id="screen-admin-login">
     <div class="top-actions">
@@ -402,6 +458,16 @@
       <button class="btn btn-coral btn-sm" id="logoutAdminBtn">Logout</button>
     </div>
     <h2 class="section-title">🔓 Admin Dashboard</h2>
+
+    <div class="card" id="leaderboardNavCard" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0;">🏆 Class Leaderboard</div>
+          <p class="muted" style="margin:6px 0 0;">See every student's score on every test</p>
+        </div>
+        <div style="font-size:24px;color:var(--violet);">→</div>
+      </div>
+    </div>
 
     <div class="card">
       <div class="section-title" style="margin-bottom:14px;">Add a New Test</div>
@@ -434,6 +500,19 @@
 
     <h2 class="section-title">All Tests <span id="adminTestCount" class="muted" style="font-size:13px;font-weight:600;"></span></h2>
     <div id="adminTestsList"></div>
+  </section>
+
+  <!-- ============ SCREEN: LEADERBOARD ============ -->
+  <section class="screen" id="screen-leaderboard">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromLeaderboardBtn">← Back</button>
+      <button class="icon-btn" id="refreshLeaderboardBtn" title="Refresh">🔄</button>
+    </div>
+    <h2 class="section-title">🏆 Class Leaderboard</h2>
+    <div class="filter-row" id="leaderboardTestFilterRow" style="margin-bottom:14px;">
+      <button class="filter-btn active" data-test="all">All Tests</button>
+    </div>
+    <div id="leaderboardList"></div>
   </section>
 
 
@@ -472,7 +551,10 @@
     </div>
 
     <div class="card">
-      <div class="qword" id="qWord">BRAVE</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+        <div class="qword" id="qWord">BRAVE</div>
+        <button id="speakQWordBtn" title="Hear pronunciation" style="border:none;background:var(--violet-10);color:var(--violet);width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;">🔊</button>
+      </div>
       <div class="qtext" id="qText">What is the Hindi meaning of "Brave"?</div>
       <div class="options" id="optionsWrap"></div>
     </div>
@@ -603,80 +685,6 @@ try{
 }
 
 /* =========================================================
-   PUSH NOTIFICATIONS (Firebase Cloud Messaging)
-   -----------------------------------------------------------
-   This part only REGISTERS the browser to receive notifications
-   and stores its token in Firestore. Actually SENDING a
-   notification when a new test is published happens from a
-   Cloud Function (server-side) — see the separate instructions
-   for deploying `functions/index.js`. Nothing here will "ring"
-   anyone's phone until that function is deployed.
-
-   1. Firebase Console → Project settings → Cloud Messaging tab →
-      "Web configuration" → Web Push certificates → Generate key
-      pair. Copy the key and paste it below as VAPID_KEY.
-   2. Upload the separate `firebase-messaging-sw.js` file (given
-      alongside this one) to the SAME folder as this index.html
-      on GitHub Pages — it must be reachable at /firebase-messaging-sw.js.
-========================================================= */
-const VAPID_KEY = "PASTE_YOUR_VAPID_KEY";
-let messaging = null;
-if(firebaseReady && 'serviceWorker' in navigator && typeof firebase.messaging === 'function'){
-  try{ messaging = firebase.messaging(); }catch(e){ console.error('Messaging init failed', e); }
-}
-
-async function enableNotifications(){
-  if(!messaging){
-    alert("Notifications aren't set up yet on this site (missing VAPID key or Firebase config).");
-    return;
-  }
-  if(VAPID_KEY === "PASTE_YOUR_VAPID_KEY"){
-    alert("The site owner hasn't finished setting up notifications yet (missing VAPID key).");
-    return;
-  }
-  try{
-    const permission = await Notification.requestPermission();
-    if(permission !== 'granted'){
-      alert("Notifications weren't allowed. You can enable them later from your browser's site settings.");
-      return;
-    }
-    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
-    if(token){
-      await db.collection('fcmTokens').doc(token).set({
-        token,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      $('notifyBtn').textContent = '🔔✅';
-      $('notifyBtn').title = 'Notifications enabled';
-      localStorage.setItem('vocabTestApp_notifyEnabled', 'true');
-    }
-  }catch(err){
-    console.error(err);
-    alert("Couldn't enable notifications — check your internet connection and try again.");
-  }
-}
-
-$('notifyBtn').addEventListener('click', enableNotifications);
-if(localStorage.getItem('vocabTestApp_notifyEnabled') === 'true' && typeof Notification !== 'undefined' && Notification.permission === 'granted'){
-  $('notifyBtn').textContent = '🔔✅';
-  $('notifyBtn').title = 'Notifications enabled';
-}
-
-// Show an in-app toast if a push arrives while the site is already open
-if(messaging){
-  messaging.onMessage((payload)=>{
-    const title = (payload.notification && payload.notification.title) || 'New test available!';
-    const body = (payload.notification && payload.notification.body) || '';
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--violet);color:#fff;padding:12px 18px;border-radius:14px;box-shadow:0 10px 24px rgba(0,0,0,.25);z-index:999;font-weight:700;font-size:13.5px;max-width:90%;text-align:center;';
-    toast.textContent = body ? `${title} — ${body}` : title;
-    document.body.appendChild(toast);
-    setTimeout(()=> toast.remove(), 5000);
-  });
-}
-
-/* =========================================================
    STATE
 ========================================================= */
 const STORAGE_VOCAB = 'vocabTestApp_vocab';
@@ -692,6 +700,8 @@ const QUESTION_TIME = 20;
 let lastReportFilter = 'all';
 let isPracticeMode = false;
 let testStartTime = null;
+let currentTestDocId = null;   // set when the active test came from Rebel Test Series (for the leaderboard)
+let currentTestName = null;
 
 /* =========================================================
    UTILITIES
@@ -723,6 +733,17 @@ window.addEventListener('popstate', (e)=>{
   showScreen(target, { skipHistory: true });
 });
 history.replaceState({ screen: 'screen-home' }, '', '#screen-home');
+function speakWord(word){
+  if(!word || typeof speechSynthesis === 'undefined') return;
+  try{
+    speechSynthesis.cancel(); // stop anything currently speaking
+    const utter = new SpeechSynthesisUtterance(word);
+    utter.lang = 'en-US';
+    utter.rate = 0.9;
+    speechSynthesis.speak(utter);
+  }catch(e){ console.error('Speech synthesis failed', e); }
+}
+
 function shuffle(arr){
   const a = arr.slice();
   for(let i=a.length-1;i>0;i--){
@@ -956,6 +977,8 @@ async function finishParsing(pairs, statusEl, mode){
     return;
   }
   vocabulary = pairs;
+  currentTestDocId = null;
+  currentTestName = null;
   saveVocabToStorage();
 
   if(mode === 'personal'){
@@ -975,6 +998,209 @@ async function finishParsing(pairs, statusEl, mode){
 }
 
 
+const STORAGE_READ_TEST_IDS = 'vocabTestApp_readTestIds';
+const STORAGE_DISMISSED_TEST_IDS = 'vocabTestApp_dismissedTestIds';
+const NOTIF_EXPIRY_DAYS = 7; // notifications older than this auto-disappear from the list
+
+function getReadTestIds(){
+  try{
+    const raw = localStorage.getItem(STORAGE_READ_TEST_IDS);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  }catch(e){ return new Set(); }
+}
+function markTestAsRead(id){
+  const ids = getReadTestIds();
+  ids.add(id);
+  localStorage.setItem(STORAGE_READ_TEST_IDS, JSON.stringify(Array.from(ids)));
+}
+function markAllTestsRead(docs){
+  const ids = getReadTestIds();
+  getActiveNotifDocs(docs).forEach(doc=> ids.add(doc.id));
+  localStorage.setItem(STORAGE_READ_TEST_IDS, JSON.stringify(Array.from(ids)));
+}
+
+function getDismissedTestIds(){
+  try{
+    const raw = localStorage.getItem(STORAGE_DISMISSED_TEST_IDS);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  }catch(e){ return new Set(); }
+}
+function dismissNotification(id){
+  const ids = getDismissedTestIds();
+  ids.add(id);
+  localStorage.setItem(STORAGE_DISMISSED_TEST_IDS, JSON.stringify(Array.from(ids)));
+}
+
+function isNotifExpired(data){
+  if(!data.createdAt) return false;
+  const ageMs = Date.now() - data.createdAt.toMillis();
+  return ageMs > NOTIF_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+}
+
+// The notifications a person can still see: not dismissed, not expired.
+// (The underlying test itself is untouched — this only affects this one
+// device's notification list.)
+function getActiveNotifDocs(docs){
+  const dismissed = getDismissedTestIds();
+  return docs.filter(doc=> !dismissed.has(doc.id) && !isNotifExpired(doc.data()));
+}
+
+function getUnreadCount(docs){
+  const readIds = getReadTestIds();
+  return getActiveNotifDocs(docs).filter(doc=> !readIds.has(doc.id)).length;
+}
+function updateNotifBadge(docs){
+  const count = getUnreadCount(docs);
+  const badge = $('notifyBadge');
+  badge.style.display = count > 0 ? 'flex' : 'none';
+  badge.textContent = count > 9 ? '9+' : String(count);
+}
+
+// Attaches a touch/mouse "long press" gesture to an element. Calls
+// onLongPress() after ~550ms of holding, with a light vibration for
+// feedback. Sets el._suppressClick so the normal tap/click handler can
+// skip acting on the same interaction.
+function attachLongPress(el, onLongPress){
+  let timer = null;
+  const start = ()=>{
+    timer = setTimeout(()=>{
+      timer = null;
+      el._suppressClick = true;
+      if(navigator.vibrate) navigator.vibrate(40);
+      onLongPress();
+    }, 550);
+  };
+  const cancel = ()=>{ if(timer){ clearTimeout(timer); timer = null; } };
+  el.addEventListener('touchstart', start, {passive:true});
+  el.addEventListener('touchend', cancel);
+  el.addEventListener('touchmove', cancel);
+  el.addEventListener('touchcancel', cancel);
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', cancel);
+  el.addEventListener('mouseleave', cancel);
+  el.addEventListener('contextmenu', (e)=> e.preventDefault());
+}
+
+function renderHomeSummary(docs){
+  const el = $('cloudSummaryMsg');
+  if(!firebaseReady){
+    el.textContent = "Not set up yet — tap for details.";
+    return;
+  }
+  if(docs.length === 0){
+    el.textContent = "No tests yet — check back soon.";
+    return;
+  }
+  el.textContent = `${docs.length} test${docs.length>1?'s':''} available — tap to view`;
+}
+
+let notifSelectMode = false;
+let selectedNotifIds = new Set();
+
+function updateSelectToolbar(){
+  $('notifNormalToolbar').style.display = notifSelectMode ? 'none' : 'flex';
+  $('notifSelectToolbar').style.display = notifSelectMode ? 'flex' : 'none';
+  $('selectCountText').textContent = `${selectedNotifIds.size} selected`;
+}
+
+function exitSelectMode(){
+  notifSelectMode = false;
+  selectedNotifIds.clear();
+  updateSelectToolbar();
+  renderNotifications(lastCloudDocs);
+}
+
+function renderNotifications(docs){
+  const listEl = $('notifList');
+  listEl.innerHTML = '';
+  if(!firebaseReady){
+    listEl.innerHTML = `<div class="error-box">Rebel Test Series isn't active yet. Add your Firebase config (see comments near the top of the code).</div>`;
+    return;
+  }
+  const active = getActiveNotifDocs(docs);
+  if(active.length === 0){
+    listEl.innerHTML = `<div class="empty-state"><span class="emoji">🔔</span>No notifications yet — you'll see one here whenever a new test is published.</div>`;
+    return;
+  }
+  const readIds = getReadTestIds();
+  const byNewest = active.slice().sort((a,b)=>{
+    const ta = a.data().createdAt ? a.data().createdAt.toMillis() : 0;
+    const tb = b.data().createdAt ? b.data().createdAt.toMillis() : 0;
+    return tb - ta;
+  });
+  byNewest.forEach(doc=>{
+    const data = doc.data();
+    const isUnread = !readIds.has(doc.id);
+    const isSelected = selectedNotifIds.has(doc.id);
+    const row = document.createElement('div');
+    row.className = `notif-row ${isUnread ? 'unread' : 'read'} ${isSelected ? 'selected' : ''}`;
+    const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
+    const leadingIcon = notifSelectMode
+      ? `<div class="notif-checkbox ${isSelected ? 'checked' : ''}">${isSelected ? '✓' : ''}</div>`
+      : (isUnread ? '<div class="dot"></div>' : '<div style="width:9px;"></div>');
+    row.innerHTML = `
+      ${leadingIcon}
+      <div class="left">
+        <div class="title">${data.name || 'Untitled Test'}</div>
+        <div class="meta">🎯 New in Rebel Test Series · ${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
+      </div>
+      ${notifSelectMode ? '' : '<div class="arrow">→</div>'}
+    `;
+    row.addEventListener('click', ()=>{
+      if(row._suppressClick){ row._suppressClick = false; return; }
+      if(notifSelectMode){
+        if(selectedNotifIds.has(doc.id)) selectedNotifIds.delete(doc.id);
+        else selectedNotifIds.add(doc.id);
+        updateSelectToolbar();
+        renderNotifications(lastCloudDocs);
+        return;
+      }
+      markTestAsRead(doc.id);
+      updateNotifBadge(lastCloudDocs);
+      vocabulary = data.words || [];
+      pendingAdminPublish = null;
+      currentTestDocId = doc.id;
+      currentTestName = data.name || 'Untitled Test';
+      saveVocabToStorage();
+      openPreview();
+    });
+    attachLongPress(row, ()=>{
+      if(!notifSelectMode){
+        notifSelectMode = true;
+        selectedNotifIds.clear();
+      }
+      selectedNotifIds.add(doc.id);
+      updateSelectToolbar();
+      renderNotifications(lastCloudDocs);
+    });
+    listEl.appendChild(row);
+  });
+}
+
+$('notifyBtn').addEventListener('click', ()=>{
+  notifSelectMode = false;
+  selectedNotifIds.clear();
+  updateSelectToolbar();
+  showScreen('screen-notifications');
+  renderNotifications(lastCloudDocs);
+});
+$('backFromNotifBtn').addEventListener('click', ()=> showScreen('screen-home'));
+$('markAllReadBtn').addEventListener('click', ()=>{
+  markAllTestsRead(lastCloudDocs);
+  renderNotifications(lastCloudDocs);
+  updateNotifBadge(lastCloudDocs);
+});
+$('cancelSelectBtn').addEventListener('click', exitSelectMode);
+$('deleteSelectedBtn').addEventListener('click', ()=>{
+  if(selectedNotifIds.size === 0) return;
+  const sure = confirm(`Remove ${selectedNotifIds.size} notification${selectedNotifIds.size>1?'s':''}?\n\n(The tests themselves stay in Rebel Test Series — this only clears them from your notification list.)`);
+  if(sure){
+    selectedNotifIds.forEach(id=> dismissNotification(id));
+    exitSelectMode();
+    updateNotifBadge(lastCloudDocs);
+  }
+});
+
 /* =========================================================
    CLOUD (SHARED) TESTS
 ========================================================= */
@@ -982,39 +1208,7 @@ function renderCloudUI(docs){
   renderHomeSummary(docs);
   renderRebelList(docs);
   renderAdminList(docs);
-}
-
-const STORAGE_LAST_SEEN_TESTS = 'vocabTestApp_lastSeenTestsTime';
-
-function getNewTestCount(docs){
-  const lastSeen = parseInt(localStorage.getItem(STORAGE_LAST_SEEN_TESTS) || '0', 10);
-  return docs.filter(doc=>{
-    const createdAt = doc.data().createdAt;
-    return createdAt && createdAt.toMillis() > lastSeen;
-  }).length;
-}
-
-function markTestsAsSeen(){
-  localStorage.setItem(STORAGE_LAST_SEEN_TESTS, String(Date.now()));
-  $('newTestBadge').style.display = 'none';
-}
-
-function renderHomeSummary(docs){
-  const el = $('cloudSummaryMsg');
-  if(!firebaseReady){
-    el.textContent = "Not set up yet — tap for details.";
-    $('newTestBadge').style.display = 'none';
-    return;
-  }
-  if(docs.length === 0){
-    el.textContent = "No tests yet — check back soon.";
-    $('newTestBadge').style.display = 'none';
-    return;
-  }
-  el.textContent = `${docs.length} test${docs.length>1?'s':''} available — tap to view`;
-  const newCount = getNewTestCount(docs);
-  $('newTestBadge').style.display = newCount > 0 ? 'inline-block' : 'none';
-  $('newTestBadge').textContent = newCount > 0 ? `🆕 ${newCount} New` : '🆕 New';
+  updateNotifBadge(docs);
 }
 
 function sortCloudDocs(docs){
@@ -1060,6 +1254,8 @@ function renderRebelList(docs){
     row.addEventListener('click', ()=>{
       vocabulary = data.words || [];
       pendingAdminPublish = null;
+      currentTestDocId = doc.id;
+      currentTestName = data.name || 'Untitled Test';
       saveVocabToStorage();
       openPreview();
     });
@@ -1155,10 +1351,7 @@ function listenToCloudTests(){
     });
 }
 $('refreshCloudBtn').addEventListener('click', listenToCloudTests);
-$('cloudTestsCard').addEventListener('click', ()=>{
-  showScreen('screen-rebel-list');
-  markTestsAsSeen();
-});
+$('cloudTestsCard').addEventListener('click', ()=> showScreen('screen-rebel-list'));
 $('backFromRebelListBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
 /* =========================================================
@@ -1183,6 +1376,100 @@ function updateAdminUI(){
   $('adminBtn').title = isAdmin ? 'Admin dashboard' : 'Admin login';
   renderCloudUI(lastCloudDocs);
 }
+
+/* =========================================================
+   LEADERBOARD (admin only)
+========================================================= */
+let lastLeaderboardDocs = [];
+let leaderboardFilter = 'all';
+
+async function loadLeaderboard(){
+  const listEl = $('leaderboardList');
+  listEl.innerHTML = `<div class="empty-state"><span class="emoji">⏳</span>Loading...</div>`;
+  if(!firebaseReady){
+    listEl.innerHTML = `<div class="error-box">Firebase isn't configured yet — see comments near the top of the code.</div>`;
+    return;
+  }
+  try{
+    const snap = await db.collection('testResults').orderBy('createdAt','desc').limit(300).get();
+    lastLeaderboardDocs = snap.docs;
+    renderLeaderboardFilters();
+    renderLeaderboardList();
+  }catch(err){
+    console.error(err);
+    listEl.innerHTML = `<div class="error-box">Couldn't load the leaderboard (check your internet, or that the testResults Firestore rule is set — see setup instructions).</div>`;
+  }
+}
+
+function renderLeaderboardFilters(){
+  const seen = new Map();
+  lastLeaderboardDocs.forEach(doc=>{
+    const d = doc.data();
+    if(d.testDocId && !seen.has(d.testDocId)) seen.set(d.testDocId, d.testName || 'Untitled Test');
+  });
+  const row = $('leaderboardTestFilterRow');
+  row.innerHTML = `<button class="filter-btn ${leaderboardFilter==='all'?'active':''}" data-test="all">All Tests</button>`;
+  seen.forEach((name, id)=>{
+    const btn = document.createElement('button');
+    btn.className = `filter-btn ${leaderboardFilter===id?'active':''}`;
+    btn.setAttribute('data-test', id);
+    btn.textContent = name;
+    row.appendChild(btn);
+  });
+  row.querySelectorAll('.filter-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      leaderboardFilter = btn.getAttribute('data-test');
+      renderLeaderboardFilters();
+      renderLeaderboardList();
+    });
+  });
+}
+
+function renderLeaderboardList(){
+  const listEl = $('leaderboardList');
+  listEl.innerHTML = '';
+  let docs = lastLeaderboardDocs;
+  if(leaderboardFilter !== 'all'){
+    docs = docs.filter(doc=> doc.data().testDocId === leaderboardFilter);
+  }
+  if(docs.length === 0){
+    listEl.innerHTML = `<div class="empty-state"><span class="emoji">🏆</span>No results yet. Once students take a Rebel Test Series test (and enter their name), they'll show up here.</div>`;
+    return;
+  }
+  const sorted = docs.slice().sort((a,b)=> (b.data().pct||0) - (a.data().pct||0));
+  sorted.forEach((doc, idx)=>{
+    const d = doc.data();
+    const dateStr = d.createdAt ? d.createdAt.toDate().toLocaleDateString() : '';
+    const medal = idx===0 ? '🥇' : idx===1 ? '🥈' : idx===2 ? '🥉' : `#${idx+1}`;
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    row.innerHTML = `
+      <div class="left">
+        <div class="date" style="font-weight:800;color:var(--ink);">${medal} ${d.studentName || 'Anonymous'}</div>
+        <div class="meta">${leaderboardFilter==='all' ? ((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct · ${dateStr}</div>
+      </div>
+      <div class="pctbadge">${d.pct}%</div>
+    `;
+    listEl.appendChild(row);
+  });
+}
+
+let leaderboardReturnScreen = 'screen-home';
+
+$('leaderboardNavCard').addEventListener('click', ()=>{
+  leaderboardReturnScreen = 'screen-admin';
+  showScreen('screen-leaderboard');
+  leaderboardFilter = 'all';
+  loadLeaderboard();
+});
+$('leaderboardNavCardHome').addEventListener('click', ()=>{
+  leaderboardReturnScreen = 'screen-home';
+  showScreen('screen-leaderboard');
+  leaderboardFilter = 'all';
+  loadLeaderboard();
+});
+$('backFromLeaderboardBtn').addEventListener('click', ()=> showScreen(leaderboardReturnScreen));
+$('refreshLeaderboardBtn').addEventListener('click', loadLeaderboard);
 
 $('adminBtn').addEventListener('click', ()=>{
   if(isAdmin){
@@ -1341,8 +1628,14 @@ function renderVocabList(){
   vocabulary.forEach((v)=>{
     const row = document.createElement('div');
     row.className = 'vocab-row';
-    row.innerHTML = `<span class="en">${v.en}</span><span class="hi">${v.hi}</span>`;
+    row.innerHTML = `<button class="speak-btn" data-word="${v.en}" title="Hear pronunciation" style="border:none;background:none;color:var(--violet);font-size:15px;cursor:pointer;padding:4px 6px;flex-shrink:0;">🔊</button><span class="en">${v.en}</span><span class="hi">${v.hi}</span>`;
     listEl.appendChild(row);
+  });
+  listEl.querySelectorAll('.speak-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      speakWord(btn.getAttribute('data-word'));
+    });
   });
 
   const errEl = $('previewError');
@@ -1543,6 +1836,7 @@ function renderQuestion(){
   $('progressFill').style.width = `${(currentIndex/total)*100}%`;
 
   $('qWord').textContent = q.en.toUpperCase();
+  $('speakQWordBtn').setAttribute('data-word', q.en);
   $('qText').textContent = q.question;
 
   const wrap = $('optionsWrap');
@@ -1646,6 +1940,9 @@ function lockOptions(q, chosenBtn){
   });
 }
 
+$('speakQWordBtn').addEventListener('click', ()=>{
+  speakWord($('speakQWordBtn').getAttribute('data-word'));
+});
 $('prevQBtn').addEventListener('click', ()=>{
   if(currentIndex > 0){
     currentIndex--;
@@ -1706,6 +2003,7 @@ function finishTest(){
     total, correct, wrong, timeout, pct,
     durationSeconds
   });
+  saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds });
 
   showScreen('screen-result');
 }
@@ -1779,6 +2077,8 @@ $('practiceMistakesBtn').addEventListener('click', ()=>{
     return;
   }
   const mistakeVocab = mistakes.map(m => ({en: m.en, hi: m.correct}));
+  currentTestDocId = null; // practice sets don't count toward the leaderboard
+  currentTestName = null;
   startTest(mistakeVocab, true);
 });
 
@@ -1793,6 +2093,42 @@ function saveHistoryEntry(entry){
   }catch(e){}
   history.push(entry);
   try{ localStorage.setItem(STORAGE_HISTORY, JSON.stringify(history)); }catch(e){}
+}
+
+/* =========================================================
+   CLASS LEADERBOARD
+   -----------------------------------------------------------
+   Only attempts on a real published Rebel Test Series test are
+   saved here (currentTestDocId set) — personal uploads and
+   "Practice Mistakes" re-tests are never sent to the leaderboard.
+========================================================= */
+const STORAGE_STUDENT_NAME = 'vocabTestApp_studentName';
+
+function getStudentName(){
+  let name = localStorage.getItem(STORAGE_STUDENT_NAME);
+  if(name) return name;
+  name = prompt('What name should show on the class leaderboard?');
+  if(!name || !name.trim()) return null;
+  name = name.trim().slice(0, 40);
+  localStorage.setItem(STORAGE_STUDENT_NAME, name);
+  return name;
+}
+
+async function saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds }){
+  if(!currentTestDocId || !firebaseReady) return;
+  const studentName = getStudentName();
+  if(!studentName) return; // they skipped entering a name — don't save
+  try{
+    await db.collection('testResults').add({
+      studentName,
+      testDocId: currentTestDocId,
+      testName: currentTestName || 'Untitled Test',
+      total, correct, wrong, timeout, pct, durationSeconds,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(err){
+    console.error('Leaderboard save failed', err);
+  }
 }
 
 function renderHistory(){
