@@ -36,7 +36,7 @@
     --radius-sm: 12px;
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%;}
   body{
     background:
       radial-gradient(900px 500px at 8% -10%, #EFE6FF 0%, transparent 60%),
@@ -55,6 +55,28 @@
     padding:18px 16px 60px;
     min-height:100vh;
   }
+  @media (min-width:700px){
+    .app{ max-width:640px; padding-top:32px; }
+  }
+  @media (min-width:1000px){
+    .app{ max-width:760px; padding-top:44px; }
+    .card, .hero{ box-shadow:0 14px 34px rgba(108,76,224,0.12); }
+  }
+  /* ---------- small phones (e.g. iPhone SE, ~320-360px wide) ---------- */
+  @media (max-width:360px){
+    .app{ padding:14px 12px 50px; }
+    .hero{ padding:22px 18px 26px; }
+    .hero h1{ font-size:22px; }
+    .hero p{ font-size:13.5px; }
+    .card{ padding:18px; }
+    #testNavRow{ gap:6px; }
+    #testNavRow .btn{ font-size:12.5px; padding:12px 4px; }
+    .result-hero .big{ font-size:40px; }
+    .qtext{ font-size:17px; }
+    .opt{ padding:13px 12px; font-size:14.5px; }
+  }
+  /* prevent long test/student names from overflowing their row on any screen */
+  .hist-row .left .date, .notif-row .title{ word-break:break-word; }
   /* ---------- top bar ---------- */
   .topbar{
     display:flex;
@@ -179,23 +201,23 @@
   .test-topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--ink-soft);}
   .progress-track{height:8px;background:var(--violet-10);border-radius:100px;overflow:hidden;margin-bottom:18px;}
   .progress-fill{height:100%;background:linear-gradient(90deg,var(--violet),#B58BFF);border-radius:100px;transition:width .3s ease;}
-  .timer-wrap{display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+  .qtop-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;}
   .timer-ring{
-    position:relative;width:76px;height:76px;border-radius:50%;
+    position:relative;width:46px;height:46px;border-radius:50%;flex-shrink:0;
     display:flex;align-items:center;justify-content:center;
     background:conic-gradient(var(--mint) 0deg, var(--violet-10) 0deg);
     transition:background 0.2s linear;
   }
   .timer-ring::before{
-    content:'';position:absolute;width:62px;height:62px;border-radius:50%;background:var(--cream);
+    content:'';position:absolute;width:36px;height:36px;border-radius:50%;background:var(--cream);
   }
-  .timer-ring span{position:relative;font-family:'Baloo 2';font-size:24px;color:var(--ink);}
+  .timer-ring span{position:relative;font-family:'Baloo 2';font-size:15px;color:var(--ink);}
   .timer-ring.low{background:conic-gradient(var(--coral) 0deg, var(--violet-10) 0deg);}
   .timer-ring.low span{color:var(--coral);}
   @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
   .timer-ring.pulsing{animation:pulse .5s ease infinite;}
   .qword{
-    text-align:center;font-family:'Baloo 2';font-size:15px;color:var(--violet-dark);font-weight:600;margin-bottom:4px;
+    flex:1;text-align:center;font-family:'Baloo 2';font-size:15px;color:var(--violet-dark);font-weight:600;
   }
   .qtext{text-align:center;font-size:19px;font-weight:700;color:var(--ink);margin-bottom:22px;line-height:1.4;}
   .options{display:grid;gap:12px;}
@@ -335,7 +357,11 @@
     background:linear-gradient(135deg,#FFB35C,var(--amber));color:#fff;border-radius:var(--radius-md);
     padding:14px 16px;margin-bottom:14px;font-weight:700;font-size:13.5px;box-shadow:0 10px 20px rgba(255,174,52,.3);
   }
-  .top-actions{display:flex;gap:10px;margin-bottom:16px;}
+  .top-actions{display:flex;gap:10px;margin-bottom:16px;align-items:center;}
+  .top-actions .btn{width:auto;flex:0 1 auto;padding-left:16px;padding-right:16px;}
+  @media (max-width:360px){
+    .top-actions .btn{font-size:13px;padding:11px 12px;}
+  }
   ::-webkit-scrollbar{width:6px;}
   ::-webkit-scrollbar-thumb{background:#D9CCFB;border-radius:10px;}
 </style>
@@ -391,6 +417,16 @@
         <div>
           <div class="section-title" style="margin:0;">🎯 Rebel Test Series</div>
           <p class="muted" id="cloudSummaryMsg" style="margin:6px 0 0;">Loading tests...</p>
+        </div>
+        <div style="font-size:24px;color:var(--violet);">→</div>
+      </div>
+    </div>
+
+    <div class="card" id="mixedTestsCard" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0;">🧩 Mixed Tests</div>
+          <p class="muted" id="mixedSummaryMsg" style="margin:6px 0 0;">Loading tests...</p>
         </div>
         <div style="font-size:24px;color:var(--violet);">→</div>
       </div>
@@ -452,6 +488,17 @@
     <div id="cloudTestsList"></div>
   </section>
 
+  <!-- ============ SCREEN 1B-3: MIXED TESTS (public list) ============ -->
+  <section class="screen" id="screen-mixed-list">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromMixedListBtn">← Back</button>
+      <button class="icon-btn" id="refreshMixedBtn" title="Refresh">🔄</button>
+    </div>
+    <h2 class="section-title">🧩 Mixed Tests</h2>
+    <p class="muted" id="mixedListStatusMsg" style="margin-bottom:14px;">Loading tests...</p>
+    <div id="mixedTestsListPublic"></div>
+  </section>
+
   <!-- ============ SCREEN: NOTIFICATIONS ============ -->
   <section class="screen" id="screen-notifications">
     <div class="top-actions" id="notifNormalToolbar">
@@ -503,6 +550,16 @@
       </div>
     </div>
 
+    <div class="card" id="mixedBuilderNavCard" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0;">🧩 Mixed Test Builder</div>
+          <p class="muted" style="margin:6px 0 0;">Combine multiple tests into one randomized test</p>
+        </div>
+        <div style="font-size:24px;color:var(--violet);">→</div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="section-title" style="margin-bottom:14px;">Add a New Test</div>
       <div class="upload-zone" id="uploadZoneAdmin">
@@ -536,6 +593,37 @@
     <div id="adminTestsList"></div>
   </section>
 
+  <!-- ============ SCREEN: MIXED TEST BUILDER (admin only) ============ -->
+  <section class="screen" id="screen-mixed-builder">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromMixedBuilderBtn">← Back</button>
+    </div>
+    <h2 class="section-title">🧩 Mixed Test Builder</h2>
+    <p class="muted" style="margin-top:-6px;margin-bottom:14px;">Pick tests to combine, choose how many questions, and each student attempt will randomly draw from the whole combined pool.</p>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:10px;font-size:15px;">1. Select tests to combine</div>
+      <div id="mixedTestSourceList"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:10px;font-size:15px;">2. Choose questions &amp; name</div>
+      <p class="muted" id="mixedPoolSummary" style="margin:0 0 12px;">Select at least one test above.</p>
+
+      <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Number of questions</label>
+      <input type="number" id="mixedQuestionCountInput" min="4" placeholder="e.g. 50" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--line);padding:11px 13px;font-family:inherit;font-size:14.5px;background:#FBFAFF;color:var(--ink);" />
+
+      <label class="muted" style="font-weight:700;display:block;margin-top:14px;margin-bottom:6px;">Test name (visible to everyone)</label>
+      <input type="text" id="mixedTestNameInput" placeholder="e.g. Full Revision — 50 Random Words" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--line);padding:11px 13px;font-family:inherit;font-size:14.5px;background:#FBFAFF;color:var(--ink);" />
+
+      <div id="mixedBuilderStatus"></div>
+
+      <div class="btn-row" style="margin-top:16px;">
+        <button class="btn btn-primary" id="createMixedTestBtn">🧩 Create Mixed Test</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ SCREEN: LEADERBOARD ============ -->
   <section class="screen" id="screen-leaderboard">
     <div class="top-actions">
@@ -556,6 +644,10 @@
     <div class="stat-strip">
       <div class="stat-pill"><span class="num" id="previewCount">0</span><span class="lbl">Words Found</span></div>
       <div class="stat-pill"><span class="num" id="previewQCount">0</span><span class="lbl">Test Questions</span></div>
+    </div>
+    <div class="card" id="questionCountCard" style="display:none;">
+      <div class="section-title" style="margin-bottom:6px;font-size:15px;">🧩 Mixed Test</div>
+      <p class="muted" style="margin:0;font-size:12.5px;" id="mixedTestNote"></p>
     </div>
     <div class="card">
       <div class="vocab-list" id="vocabList"></div>
@@ -580,20 +672,17 @@
     </div>
     <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
 
-    <div class="timer-wrap">
-      <div class="timer-ring" id="timerRing"><span id="timerNum">15</span></div>
-    </div>
-
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+      <div class="qtop-row">
+        <div class="timer-ring" id="timerRing"><span id="timerNum">15</span></div>
         <div class="qword" id="qWord">BRAVE</div>
-        <button id="speakQWordBtn" title="Hear pronunciation" style="border:none;background:var(--violet-10);color:var(--violet);width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;">🔊</button>
+        <button id="speakQWordBtn" title="Hear pronunciation" style="border:none;background:var(--violet-10);color:var(--violet);width:40px;height:40px;border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;">🔊</button>
       </div>
       <div class="qtext" id="qText">What is the Hindi meaning of "Brave"?</div>
       <div class="options" id="optionsWrap"></div>
     </div>
 
-    <div class="btn-row" style="margin-top:14px;gap:8px;">
+    <div class="btn-row" id="testNavRow" style="margin-top:14px;gap:8px;">
       <button class="btn btn-ghost" id="prevQBtn" style="flex:1;">⬅ Previous</button>
       <button class="btn" id="attemptLaterBtn" style="flex:1;background:linear-gradient(135deg,#FFB35C,var(--amber));color:#fff;box-shadow:0 10px 20px rgba(255,174,52,.3);">🔖 Later</button>
       <button class="btn btn-primary" id="nextQBtn" style="flex:1.3;">Next ➡</button>
@@ -740,6 +829,7 @@ let isPracticeMode = false;
 let testStartTime = null;
 let currentTestDocId = null;   // set when the active test came from Rebel Test Series (for the leaderboard)
 let currentTestName = null;
+let currentTestQuestionCount = null; // set for "mixed tests" — how many random questions to sample from the word pool
 
 /* =========================================================
    UTILITIES
@@ -1091,6 +1181,7 @@ async function finishParsing(pairs, statusEl, mode){
   vocabulary = pairs;
   currentTestDocId = null;
   currentTestName = null;
+  currentTestQuestionCount = null;
   saveVocabToStorage();
 
   if(mode === 'personal'){
@@ -1195,15 +1286,22 @@ function attachLongPress(el, onLongPress){
 
 function renderHomeSummary(docs){
   const el = $('cloudSummaryMsg');
+  const mixedEl = $('mixedSummaryMsg');
   if(!firebaseReady){
     el.textContent = "Not set up yet — tap for details.";
+    mixedEl.textContent = "Not set up yet — tap for details.";
     return;
   }
-  if(docs.length === 0){
-    el.textContent = "No tests yet — check back soon.";
-    return;
-  }
-  el.textContent = `${docs.length} test${docs.length>1?'s':''} available — tap to view`;
+  const regular = docs.filter(doc=> !doc.data().isMixed);
+  const mixed = docs.filter(doc=> doc.data().isMixed);
+
+  el.textContent = regular.length === 0
+    ? "No tests yet — check back soon."
+    : `${regular.length} test${regular.length>1?'s':''} available — tap to view`;
+
+  mixedEl.textContent = mixed.length === 0
+    ? "No mixed tests yet — check back soon."
+    : `${mixed.length} mixed test${mixed.length>1?'s':''} available — tap to view`;
 }
 
 let notifSelectMode = false;
@@ -1273,6 +1371,7 @@ function renderNotifications(docs){
       pendingAdminPublish = null;
       currentTestDocId = doc.id;
       currentTestName = data.name || 'Untitled Test';
+      currentTestQuestionCount = data.questionCount || null;
       saveVocabToStorage();
       openPreview();
     });
@@ -1319,6 +1418,7 @@ $('deleteSelectedBtn').addEventListener('click', async ()=>{
 function renderCloudUI(docs){
   renderHomeSummary(docs);
   renderRebelList(docs);
+  renderMixedListPublic(docs);
   renderAdminList(docs);
   updateNotifBadge(docs);
 }
@@ -1344,13 +1444,14 @@ function renderRebelList(docs){
     statusEl.innerHTML = `Rebel Test Series isn't active yet. Add your Firebase config (see comments near the top of the code) so tests can be shared with everyone.`;
     return;
   }
-  if(docs.length === 0){
+  const regularDocs = docs.filter(doc=> !doc.data().isMixed);
+  if(regularDocs.length === 0){
     statusEl.textContent = 'No tests available yet. Check back soon!';
     return;
   }
-  statusEl.textContent = `${docs.length} test${docs.length>1?'s':''} available:`;
+  statusEl.textContent = `${regularDocs.length} test${regularDocs.length>1?'s':''} available:`;
 
-  sortCloudDocs(docs).forEach(doc=>{
+  sortCloudDocs(regularDocs).forEach(doc=>{
     const data = doc.data();
     const row = document.createElement('div');
     row.className = 'hist-row';
@@ -1359,7 +1460,7 @@ function renderRebelList(docs){
     row.innerHTML = `
       <div class="left">
         <div class="date" style="font-weight:800;color:var(--ink);">${data.name || 'Untitled Test'}</div>
-        <div class="meta">${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
+        <div class="meta">${(data.wordCount || (data.words? data.words.length : 0))+' words'} · ${dateStr}</div>
       </div>
       <div class="pctbadge" style="font-size:13px;">Start →</div>
     `;
@@ -1368,6 +1469,49 @@ function renderRebelList(docs){
       pendingAdminPublish = null;
       currentTestDocId = doc.id;
       currentTestName = data.name || 'Untitled Test';
+      currentTestQuestionCount = data.questionCount || null;
+      saveVocabToStorage();
+      openPreview();
+    });
+    listEl.appendChild(row);
+  });
+}
+
+function renderMixedListPublic(docs){
+  const listEl = $('mixedTestsListPublic');
+  const statusEl = $('mixedListStatusMsg');
+  listEl.innerHTML = '';
+
+  if(!firebaseReady){
+    statusEl.innerHTML = `Rebel Test Series isn't active yet. Add your Firebase config (see comments near the top of the code) so tests can be shared with everyone.`;
+    return;
+  }
+  const mixedDocs = docs.filter(doc=> doc.data().isMixed);
+  if(mixedDocs.length === 0){
+    statusEl.textContent = 'No mixed tests available yet. Check back soon!';
+    return;
+  }
+  statusEl.textContent = `${mixedDocs.length} mixed test${mixedDocs.length>1?'s':''} available:`;
+
+  sortCloudDocs(mixedDocs).forEach(doc=>{
+    const data = doc.data();
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    row.style.cursor = 'pointer';
+    const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
+    row.innerHTML = `
+      <div class="left">
+        <div class="date" style="font-weight:800;color:var(--ink);">🧩 ${data.name || 'Untitled Test'}</div>
+        <div class="meta">${data.questionCount+' random questions from '+data.wordCount+' words'} · ${dateStr}</div>
+      </div>
+      <div class="pctbadge" style="font-size:13px;">Start →</div>
+    `;
+    row.addEventListener('click', ()=>{
+      vocabulary = data.words || [];
+      pendingAdminPublish = null;
+      currentTestDocId = doc.id;
+      currentTestName = data.name || 'Untitled Test';
+      currentTestQuestionCount = data.questionCount || null;
       saveVocabToStorage();
       openPreview();
     });
@@ -1404,8 +1548,8 @@ function renderAdminList(docs){
     row.innerHTML = `
       <span class="drag-handle" style="cursor:grab;font-size:18px;color:#786C9E;padding:4px 8px;touch-action:none;">☰</span>
       <div class="left" style="flex:1;">
-        <div class="date" style="font-weight:800;color:var(--ink);">${data.name || 'Untitled Test'}</div>
-        <div class="meta">${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
+        <div class="date" style="font-weight:800;color:var(--ink);">${data.isMixed ? '🧩 ' : ''}${data.name || 'Untitled Test'}</div>
+        <div class="meta">${data.isMixed ? (data.questionCount+' random Q from '+data.wordCount+' words') : ((data.wordCount || (data.words? data.words.length : 0))+' words')} · ${dateStr}</div>
       </div>
       <button class="btn btn-ghost btn-sm manage-btn" style="margin-right:8px;">✏️ Edit</button>
       <button class="btn btn-coral btn-sm delete-btn">🗑️</button>
@@ -1465,6 +1609,10 @@ function listenToCloudTests(){
 $('refreshCloudBtn').addEventListener('click', listenToCloudTests);
 $('cloudTestsCard').addEventListener('click', ()=> showScreen('screen-rebel-list'));
 $('backFromRebelListBtn').addEventListener('click', ()=> showScreen('screen-home'));
+
+$('refreshMixedBtn').addEventListener('click', listenToCloudTests);
+$('mixedTestsCard').addEventListener('click', ()=> showScreen('screen-mixed-list'));
+$('backFromMixedListBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
 /* =========================================================
    ADMIN MODE (only the admin can upload/add tests)
@@ -1610,6 +1758,139 @@ $('leaderboardNavCardHome').addEventListener('click', ()=>{
 $('backFromLeaderboardBtn').addEventListener('click', ()=> showScreen(leaderboardReturnScreen));
 $('refreshLeaderboardBtn').addEventListener('click', loadLeaderboard);
 
+/* =========================================================
+   MIXED TEST BUILDER (admin only) — combine multiple published
+   tests into one; each attempt randomly samples N questions from
+   the combined word pool.
+========================================================= */
+let selectedMixedTestIds = new Set();
+
+function renderMixedTestSourceList(){
+  const listEl = $('mixedTestSourceList');
+  listEl.innerHTML = '';
+  if(lastCloudDocs.length === 0){
+    listEl.innerHTML = `<div class="empty-state"><span class="emoji">🗂️</span>No published tests yet to combine. Add some tests first.</div>`;
+    return;
+  }
+  lastCloudDocs.forEach(doc=>{
+    const data = doc.data();
+    const isSelected = selectedMixedTestIds.has(doc.id);
+    const row = document.createElement('div');
+    row.className = 'notif-row';
+    row.style.cursor = 'pointer';
+    if(isSelected) row.classList.add('selected');
+    row.innerHTML = `
+      <div class="notif-checkbox ${isSelected?'checked':''}">${isSelected?'✓':''}</div>
+      <div class="left">
+        <div class="title">${data.name || 'Untitled Test'}</div>
+        <div class="meta">${data.wordCount || (data.words?data.words.length:0)} words${data.isMixed ? ' · 🧩 Mixed test' : ''}</div>
+      </div>
+    `;
+    row.addEventListener('click', ()=>{
+      if(selectedMixedTestIds.has(doc.id)) selectedMixedTestIds.delete(doc.id);
+      else selectedMixedTestIds.add(doc.id);
+      renderMixedTestSourceList();
+      updateMixedPoolSummary();
+    });
+    listEl.appendChild(row);
+  });
+}
+
+function getCombinedMixedWords(){
+  const seen = new Set();
+  const combined = [];
+  lastCloudDocs.forEach(doc=>{
+    if(!selectedMixedTestIds.has(doc.id)) return;
+    const data = doc.data();
+    (data.words || []).forEach(w=>{
+      const key = (w.en||'').toLowerCase();
+      if(key && !seen.has(key)){
+        seen.add(key);
+        combined.push(w);
+      }
+    });
+  });
+  return combined;
+}
+
+function updateMixedPoolSummary(){
+  const combined = getCombinedMixedWords();
+  const summaryEl = $('mixedPoolSummary');
+  const qInput = $('mixedQuestionCountInput');
+  if(selectedMixedTestIds.size === 0){
+    summaryEl.textContent = 'Select at least one test above.';
+    qInput.max = '';
+    return;
+  }
+  summaryEl.textContent = `${combined.length} unique words combined from ${selectedMixedTestIds.size} test${selectedMixedTestIds.size>1?'s':''}.`;
+  qInput.max = String(combined.length);
+  if(!qInput.value || parseInt(qInput.value,10) > combined.length){
+    qInput.value = Math.min(combined.length, 20);
+  }
+}
+
+$('mixedBuilderNavCard').addEventListener('click', ()=>{
+  selectedMixedTestIds = new Set();
+  $('mixedBuilderStatus').innerHTML = '';
+  $('mixedTestNameInput').value = '';
+  $('mixedQuestionCountInput').value = '';
+  renderMixedTestSourceList();
+  updateMixedPoolSummary();
+  showScreen('screen-mixed-builder');
+});
+$('backFromMixedBuilderBtn').addEventListener('click', ()=> showScreen('screen-admin'));
+
+$('createMixedTestBtn').addEventListener('click', async ()=>{
+  const combined = getCombinedMixedWords();
+  if(selectedMixedTestIds.size === 0){
+    $('mixedBuilderStatus').innerHTML = `<div class="error-box">Select at least one test to combine.</div>`;
+    return;
+  }
+  if(combined.length < 4){
+    $('mixedBuilderStatus').innerHTML = `<div class="error-box">Combined pool needs at least 4 unique words.</div>`;
+    return;
+  }
+  let qCount = parseInt($('mixedQuestionCountInput').value, 10);
+  if(!qCount || qCount < 4){
+    $('mixedBuilderStatus').innerHTML = `<div class="error-box">Enter at least 4 questions.</div>`;
+    return;
+  }
+  if(qCount > combined.length) qCount = combined.length;
+  const name = $('mixedTestNameInput').value.trim() || `Mixed Test - ${new Date().toLocaleDateString()}`;
+
+  if(!firebaseReady){
+    $('mixedBuilderStatus').innerHTML = `<div class="error-box">Firebase isn't configured yet — see comments near the top of the code.</div>`;
+    return;
+  }
+
+  const btn = $('createMixedTestBtn');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+  try{
+    await db.collection('vocabTests').add({
+      name,
+      words: combined,
+      wordCount: combined.length,
+      questionCount: qCount,
+      isMixed: true,
+      order: Date.now(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    $('mixedBuilderStatus').innerHTML = `<div class="success-box">🎉 "${name}" created — ${qCount} random questions from a ${combined.length}-word pool every attempt!</div>`;
+    selectedMixedTestIds = new Set();
+    $('mixedTestNameInput').value = '';
+    $('mixedQuestionCountInput').value = '';
+    renderMixedTestSourceList();
+    updateMixedPoolSummary();
+  }catch(err){
+    console.error(err);
+    $('mixedBuilderStatus').innerHTML = `<div class="error-box">Couldn't create the mixed test (check your internet / Firestore rules).</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = originalLabel;
+});
+
 $('adminBtn').addEventListener('click', ()=>{
   if(isAdmin){
     showScreen('screen-admin');
@@ -1706,7 +1987,14 @@ function checkSavedVocabOnLoad(){
 }
 $('continueSavedBtn').addEventListener('click', ()=>{
   const saved = loadVocabFromStorage();
-  if(saved){ vocabulary = saved; pendingAdminPublish = null; openPreview(); }
+  if(saved){
+    vocabulary = saved;
+    pendingAdminPublish = null;
+    currentTestDocId = null;
+    currentTestName = null;
+    currentTestQuestionCount = null;
+    openPreview();
+  }
 });
 
 /* =========================================================
@@ -1759,9 +2047,27 @@ $('publishTestBtn').addEventListener('click', async ()=>{
   }
 });
 
+function updateMixedTestNote(){
+  const card = $('questionCountCard');
+  const total = vocabulary.length;
+  if(currentTestQuestionCount && currentTestQuestionCount < total){
+    card.style.display = 'block';
+    $('mixedTestNote').textContent = `This test picks ${currentTestQuestionCount} random questions out of a ${total}-word pool — a different mix every attempt!`;
+  } else {
+    card.style.display = 'none';
+  }
+}
+
+function updatePreviewQuestionCount(){
+  const total = vocabulary.length;
+  const count = (currentTestQuestionCount && currentTestQuestionCount < total) ? currentTestQuestionCount : total;
+  $('previewQCount').textContent = count;
+}
+
 function renderVocabList(){
   $('previewCount').textContent = vocabulary.length;
-  $('previewQCount').textContent = Math.min(vocabulary.length, vocabulary.length); // uses all words
+  updateMixedTestNote();
+  updatePreviewQuestionCount();
   const listEl = $('vocabList');
   listEl.innerHTML = '';
   vocabulary.forEach((v)=>{
@@ -1929,8 +2235,20 @@ function buildQuestionBank(vocabList){
 /* =========================================================
    START TEST
 ========================================================= */
-$('startTestBtn').addEventListener('click', ()=> startTest(vocabulary, false));
-$('retakeTestBtn').addEventListener('click', ()=> startTest(vocabulary, false));
+$('startTestBtn').addEventListener('click', ()=>{
+  let vocabForTest = vocabulary;
+  if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
+    vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
+  }
+  startTest(vocabForTest, false);
+});
+$('retakeTestBtn').addEventListener('click', ()=>{
+  let vocabForTest = vocabulary;
+  if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
+    vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
+  }
+  startTest(vocabForTest, false);
+});
 
 function startTest(vocabList, practiceMode){
   const bank = buildQuestionBank(vocabList);
@@ -2214,6 +2532,7 @@ $('practiceMistakesBtn').addEventListener('click', ()=>{
   const mistakeVocab = mistakes.map(m => ({en: m.en, hi: m.correct}));
   currentTestDocId = null; // practice sets don't count toward the leaderboard
   currentTestName = null;
+  currentTestQuestionCount = null;
   startTest(mistakeVocab, true);
 });
 
