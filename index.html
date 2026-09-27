@@ -2252,20 +2252,16 @@ function buildQuestionBank(vocabList){
 /* =========================================================
    START TEST
 ========================================================= */
-$('startTestBtn').addEventListener('click', ()=>{
+function prepareAndStartTest() {
   let vocabForTest = vocabulary;
   if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
     vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
   }
   startTest(vocabForTest, false);
-});
-$('retakeTestBtn').addEventListener('click', ()=>{
-  let vocabForTest = vocabulary;
-  if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
-    vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
-  }
-  startTest(vocabForTest, false);
-});
+}
+
+$('startTestBtn').addEventListener('click', prepareAndStartTest);
+$('retakeTestBtn').addEventListener('click', prepareAndStartTest);
 
 function startTest(vocabList, practiceMode){
   const bank = buildQuestionBank(vocabList);
