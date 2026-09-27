@@ -13,6 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Rebel Test">
+<script src="utils.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'">
@@ -1013,9 +1014,6 @@ function shuffle(arr){
     [a[i],a[j]]=[a[j],a[i]];
   }
   return a;
-}
-function isHindi(str){
-  return /[\u0900-\u097F]/.test(str);
 }
 function cleanWord(w){
   return w.replace(/^[•\-\*\d\.\)\s]+/,'').trim();
