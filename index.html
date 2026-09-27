@@ -907,6 +907,13 @@ window.addEventListener('popstate', async (e)=>{
   showScreen(target, { skipHistory: true });
 });
 history.replaceState({ screen: 'screen-home' }, '', '#screen-home');
+
+// Warm up the Speech API to prevent a long delay on the first synthesis
+if(typeof speechSynthesis !== 'undefined') {
+  speechSynthesis.getVoices();
+  // On some devices, attaching to the voiceschanged event or just calling getVoices early mitigates the cold-start delay
+}
+
 function speakWord(word){
   if(!word || typeof speechSynthesis === 'undefined') return;
   try{
