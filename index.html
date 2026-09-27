@@ -2514,6 +2514,7 @@ function renderReport(){
     return;
   }
 
+  const fragment = document.createDocumentFragment();
   filtered.forEach((q)=>{
     const originalIndex = currentTest.indexOf(q) + 1;
     const statusMap = {
@@ -2533,8 +2534,9 @@ function renderReport(){
       <div class="row"><span class="k">Your Answer</span><span class="v ${q.status==='wrong'?'bad':(q.status==='correct'?'good':'')}">${q.userAnswer ? q.userAnswer : 'No answer'}</span></div>
       <div class="row"><span class="k">Correct Answer</span><span class="v good">${q.correct}</span></div>
     `;
-    listEl.appendChild(div);
+    fragment.appendChild(div);
   });
+  listEl.appendChild(fragment);
 }
 
 /* =========================================================
