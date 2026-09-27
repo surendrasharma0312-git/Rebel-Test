@@ -1735,6 +1735,9 @@ function renderLeaderboardList(){
     // same score — faster time ranks higher
     return (da.durationSeconds ?? Infinity) - (db.durationSeconds ?? Infinity);
   });
+
+  const fragment = document.createDocumentFragment();
+
   sorted.forEach((doc, idx)=>{
     const d = doc.data();
     const dateStr = d.createdAt ? d.createdAt.toDate().toLocaleDateString() : '';
@@ -1749,8 +1752,10 @@ function renderLeaderboardList(){
       </div>
       <div class="pctbadge">${d.pct}%</div>
     `;
-    listEl.appendChild(row);
+    fragment.appendChild(row);
   });
+
+  listEl.appendChild(fragment);
 }
 
 let leaderboardReturnScreen = 'screen-home';
