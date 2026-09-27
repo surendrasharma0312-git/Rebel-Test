@@ -421,13 +421,20 @@
       </div>
     </div>
     <div style="display:flex;gap:8px;">
-      <button class="icon-btn" id="themeToggleBtn" title="Toggle Dark Mode">🌙</button>
       <button class="icon-btn" id="notifyBtn" title="Notifications" style="position:relative;">
         🔔
         <span id="notifyBadge" style="display:none;position:absolute;top:2px;right:2px;background:var(--coral);color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:100px;align-items:center;justify-content:center;padding:0 3px;">0</span>
       </button>
-      <button class="icon-btn" id="adminBtn" title="Admin">🔒</button>
-      <button class="icon-btn" id="historyNavBtn" title="Test History">📊</button>
+
+      <!-- Hamburger Menu -->
+      <div style="position:relative;" id="hamburgerMenuContainer">
+        <button class="icon-btn" id="hamburgerBtn" title="Menu" style="font-size: 24px;">☰</button>
+        <div id="hamburgerDropdown" style="display:none; position:absolute; top: 50px; right: 0; background: var(--card); box-shadow: var(--shadow); border-radius: 12px; padding: 8px; flex-direction: column; gap: 8px; z-index: 100;">
+          <button class="icon-btn" id="themeToggleBtn" title="Toggle Dark Mode" style="width:100%;">🌙</button>
+          <button class="icon-btn" id="adminBtn" title="Admin" style="width:100%;">🔒</button>
+          <button class="icon-btn" id="historyNavBtn" title="Test History" style="width:100%;">📊</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -912,6 +919,16 @@ history.replaceState({ screen: 'screen-home' }, '', '#screen-home');
 if(typeof speechSynthesis !== 'undefined') {
   speechSynthesis.getVoices();
   // On some devices, attaching to the voiceschanged event or just calling getVoices early mitigates the cold-start delay
+  // But a robust cross-browser way to initialize the audio context is a dummy speech on the first user interaction
+  const warmUpTTS = () => {
+    const utter = new SpeechSynthesisUtterance('');
+    utter.volume = 0;
+    speechSynthesis.speak(utter);
+    document.removeEventListener('click', warmUpTTS);
+    document.removeEventListener('touchstart', warmUpTTS);
+  };
+  document.addEventListener('click', warmUpTTS, { once: true });
+  document.addEventListener('touchstart', warmUpTTS, { once: true });
 }
 
 function speakWord(word){
@@ -2807,6 +2824,23 @@ $('themeToggleBtn').addEventListener('click', () => {
     document.documentElement.setAttribute('data-theme', 'dark');
     localStorage.setItem('theme', 'dark');
     $('themeToggleBtn').textContent = '☀️';
+  }
+});
+
+/* =========================================================
+   HAMBURGER MENU LOGIC
+========================================================= */
+const hamburgerBtn = $('hamburgerBtn');
+const hamburgerDropdown = $('hamburgerDropdown');
+hamburgerBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isVisible = hamburgerDropdown.style.display === 'flex';
+  hamburgerDropdown.style.display = isVisible ? 'none' : 'flex';
+});
+
+document.addEventListener('click', (e) => {
+  if(!$('hamburgerMenuContainer').contains(e.target)){
+    hamburgerDropdown.style.display = 'none';
   }
 });
 
