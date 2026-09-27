@@ -1332,6 +1332,52 @@ function exitSelectMode(){
   renderNotifications(lastCloudDocs);
 }
 
+function createNotificationRow(doc, data, isUnread, isSelected) {
+  const row = document.createElement('div');
+  row.className = `notif-row ${isUnread ? 'unread' : 'read'} ${isSelected ? 'selected' : ''}`;
+  const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
+  const leadingIcon = notifSelectMode
+    ? `<div class="notif-checkbox ${isSelected ? 'checked' : ''}">${isSelected ? '✓' : ''}</div>`
+    : (isUnread ? '<div class="dot"></div>' : '<div style="width:9px;"></div>');
+  row.innerHTML = `
+    ${leadingIcon}
+    <div class="left">
+      <div class="title">${data.name || 'Untitled Test'}</div>
+      <div class="meta">🎯 New in Rebel Test Series · ${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
+    </div>
+    ${notifSelectMode ? '' : '<div class="arrow">→</div>'}
+  `;
+  row.addEventListener('click', ()=>{
+    if(row._suppressClick){ row._suppressClick = false; return; }
+    if(notifSelectMode){
+      if(selectedNotifIds.has(doc.id)) selectedNotifIds.delete(doc.id);
+      else selectedNotifIds.add(doc.id);
+      updateSelectToolbar();
+      renderNotifications(lastCloudDocs);
+      return;
+    }
+    markTestAsRead(doc.id);
+    updateNotifBadge(lastCloudDocs);
+    vocabulary = data.words || [];
+    pendingAdminPublish = null;
+    currentTestDocId = doc.id;
+    currentTestName = data.name || 'Untitled Test';
+    currentTestQuestionCount = data.questionCount || null;
+    saveVocabToStorage();
+    openPreview();
+  });
+  attachLongPress(row, ()=>{
+    if(!notifSelectMode){
+      notifSelectMode = true;
+      selectedNotifIds.clear();
+    }
+    selectedNotifIds.add(doc.id);
+    updateSelectToolbar();
+    renderNotifications(lastCloudDocs);
+  });
+  return row;
+}
+
 function renderNotifications(docs){
   const listEl = $('notifList');
   listEl.innerHTML = '';
@@ -1354,48 +1400,7 @@ function renderNotifications(docs){
     const data = doc.data();
     const isUnread = !readIds.has(doc.id);
     const isSelected = selectedNotifIds.has(doc.id);
-    const row = document.createElement('div');
-    row.className = `notif-row ${isUnread ? 'unread' : 'read'} ${isSelected ? 'selected' : ''}`;
-    const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
-    const leadingIcon = notifSelectMode
-      ? `<div class="notif-checkbox ${isSelected ? 'checked' : ''}">${isSelected ? '✓' : ''}</div>`
-      : (isUnread ? '<div class="dot"></div>' : '<div style="width:9px;"></div>');
-    row.innerHTML = `
-      ${leadingIcon}
-      <div class="left">
-        <div class="title">${data.name || 'Untitled Test'}</div>
-        <div class="meta">🎯 New in Rebel Test Series · ${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
-      </div>
-      ${notifSelectMode ? '' : '<div class="arrow">→</div>'}
-    `;
-    row.addEventListener('click', ()=>{
-      if(row._suppressClick){ row._suppressClick = false; return; }
-      if(notifSelectMode){
-        if(selectedNotifIds.has(doc.id)) selectedNotifIds.delete(doc.id);
-        else selectedNotifIds.add(doc.id);
-        updateSelectToolbar();
-        renderNotifications(lastCloudDocs);
-        return;
-      }
-      markTestAsRead(doc.id);
-      updateNotifBadge(lastCloudDocs);
-      vocabulary = data.words || [];
-      pendingAdminPublish = null;
-      currentTestDocId = doc.id;
-      currentTestName = data.name || 'Untitled Test';
-      currentTestQuestionCount = data.questionCount || null;
-      saveVocabToStorage();
-      openPreview();
-    });
-    attachLongPress(row, ()=>{
-      if(!notifSelectMode){
-        notifSelectMode = true;
-        selectedNotifIds.clear();
-      }
-      selectedNotifIds.add(doc.id);
-      updateSelectToolbar();
-      renderNotifications(lastCloudDocs);
-    });
+    const row = createNotificationRow(doc, data, isUnread, isSelected);
     listEl.appendChild(row);
   });
 }
