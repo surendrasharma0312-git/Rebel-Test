@@ -1084,39 +1084,44 @@ if(window['pdfjsLib']){
 async function extractTextFromPdf(file){
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-  let fullText = '';
   const Y_TOLERANCE = 4; // groups items into the same visual row even with small baseline differences (common in table PDFs mixing English + Devanagari fonts)
 
+  const pagePromises = [];
   for(let i=1;i<=pdf.numPages;i++){
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
+    pagePromises.push((async () => {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
 
-    // Build a list of {x, y, str} and cluster into rows by y-proximity,
-    // then sort each row left-to-right by x. This handles table PDFs
-    // where the two columns' baselines are a couple of points apart.
-    const items = content.items
-      .filter(it => it.str && it.str.trim().length > 0)
-      .map(it => ({ x: it.transform[4], y: it.transform[5], str: it.str }));
+      // Build a list of {x, y, str} and cluster into rows by y-proximity,
+      // then sort each row left-to-right by x. This handles table PDFs
+      // where the two columns' baselines are a couple of points apart.
+      const items = content.items
+        .filter(it => it.str && it.str.trim().length > 0)
+        .map(it => ({ x: it.transform[4], y: it.transform[5], str: it.str }));
 
-    items.sort((a,b) => b.y - a.y || a.x - b.x);
+      items.sort((a,b) => b.y - a.y || a.x - b.x);
 
-    const rows = [];
-    items.forEach(item=>{
-      let row = rows.find(r => Math.abs(r.y - item.y) <= Y_TOLERANCE);
-      if(!row){
-        row = { y: item.y, items: [] };
-        rows.push(row);
-      }
-      row.items.push(item);
-    });
+      const rows = [];
+      items.forEach(item=>{
+        let row = rows.find(r => Math.abs(r.y - item.y) <= Y_TOLERANCE);
+        if(!row){
+          row = { y: item.y, items: [] };
+          rows.push(row);
+        }
+        row.items.push(item);
+      });
 
-    rows.forEach(row=>{
-      row.items.sort((a,b)=> a.x - b.x);
-      fullText += row.items.map(it=>it.str).join('  ') + '\n';
-    });
-    fullText += '\n';
+      let pageText = '';
+      rows.forEach(row=>{
+        row.items.sort((a,b)=> a.x - b.x);
+        pageText += row.items.map(it=>it.str).join('  ') + '\n';
+      });
+      return pageText + '\n';
+    })());
   }
-  return fullText;
+
+  const pagesText = await Promise.all(pagePromises);
+  return pagesText.join('');
 }
 
 /* =========================================================
