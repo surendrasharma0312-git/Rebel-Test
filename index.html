@@ -825,7 +825,6 @@ let timerInterval = null;
 let timeLeft = 15;
 const QUESTION_TIME = 20;
 let lastReportFilter = 'all';
-let isPracticeMode = false;
 let testStartTime = null;
 let currentTestDocId = null;   // set when the active test came from Rebel Test Series (for the leaderboard)
 let currentTestName = null;
@@ -2257,24 +2256,23 @@ $('startTestBtn').addEventListener('click', ()=>{
   if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
     vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
   }
-  startTest(vocabForTest, false);
+  startTest(vocabForTest);
 });
 $('retakeTestBtn').addEventListener('click', ()=>{
   let vocabForTest = vocabulary;
   if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
     vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
   }
-  startTest(vocabForTest, false);
+  startTest(vocabForTest);
 });
 
-function startTest(vocabList, practiceMode){
+function startTest(vocabList){
   const bank = buildQuestionBank(vocabList);
   if(bank.length < 1){
     $('previewError').innerHTML = `<div class="error-box">Couldn't build enough unique-option questions from this vocabulary. Try adding more distinct words.</div>`;
     showScreen('screen-preview');
     return;
   }
-  isPracticeMode = practiceMode;
   currentTest = shuffle(bank).map(q=>({
     ...q,
     options: shuffle(q.options),
@@ -2552,7 +2550,7 @@ $('practiceMistakesBtn').addEventListener('click', ()=>{
   currentTestDocId = null; // practice sets don't count toward the leaderboard
   currentTestName = null;
   currentTestQuestionCount = null;
-  startTest(mistakeVocab, true);
+  startTest(mistakeVocab);
 });
 
 /* =========================================================
