@@ -1164,25 +1164,18 @@ async function handlePdfUpload(e, mode){
   }
 }
 
-$('parsePastePersonalBtn').addEventListener('click', ()=>{
-  const text = $('pasteTextPersonal').value;
-  const statusEl = $('uploadStatusPersonal');
+function handlePastedText(textId, statusId, mode) {
+  const text = $(textId).value;
+  const statusEl = $(statusId);
   if(!text || text.trim().length === 0){
     statusEl.innerHTML = `<div class="error-box">Please paste some text first, or upload a PDF.</div>`;
     return;
   }
-  finishParsing(parseVocabText(text), statusEl, 'personal');
-});
+  finishParsing(parseVocabText(text), statusEl, mode);
+}
 
-$('parsePasteAdminBtn').addEventListener('click', ()=>{
-  const text = $('pasteTextAdmin').value;
-  const statusEl = $('uploadStatusAdmin');
-  if(!text || text.trim().length === 0){
-    statusEl.innerHTML = `<div class="error-box">Please paste some text first, or upload a PDF.</div>`;
-    return;
-  }
-  finishParsing(parseVocabText(text), statusEl, 'admin');
-});
+$('parsePastePersonalBtn').addEventListener('click', () => handlePastedText('pasteTextPersonal', 'uploadStatusPersonal', 'personal'));
+$('parsePasteAdminBtn').addEventListener('click', () => handlePastedText('pasteTextAdmin', 'uploadStatusAdmin', 'admin'));
 
 async function finishParsing(pairs, statusEl, mode){
   if(pairs.length === 0){
