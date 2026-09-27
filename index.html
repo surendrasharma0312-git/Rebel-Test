@@ -35,16 +35,6 @@
     --radius-md: 18px;
     --radius-sm: 12px;
   }
-
-  :root[data-theme="dark"] {
-    --cream: #121212;
-    --card: #1E1E1E;
-    --ink: #FFFFFF;
-    --ink-soft: #A0A0A0;
-    --line: #333333;
-    --violet-10: #2C2C2C;
-    --shadow: 0 10px 28px rgba(0,0,0,0.5);
-  }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%;}
   body{
@@ -374,39 +364,6 @@
   }
   ::-webkit-scrollbar{width:6px;}
   ::-webkit-scrollbar-thumb{background:#D9CCFB;border-radius:10px;}
-
-  /* ---------- toast notifications ---------- */
-  .toast-container {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    z-index: 10000;
-    pointer-events: none;
-  }
-  .toast {
-    background: var(--violet);
-    color: #fff;
-    padding: 12px 20px;
-    border-radius: 100px;
-    font-size: 14px;
-    font-weight: 600;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    animation: slideUp 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
-    pointer-events: auto;
-    text-align: center;
-  }
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeOut {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(-10px); }
-  }
 </style>
 </head>
 <body>
@@ -421,7 +378,6 @@
       </div>
     </div>
     <div style="display:flex;gap:8px;">
-      <button class="icon-btn" id="themeToggleBtn" title="Toggle Dark Mode">🌙</button>
       <button class="icon-btn" id="notifyBtn" title="Notifications" style="position:relative;">
         🔔
         <span id="notifyBadge" style="display:none;position:absolute;top:2px;right:2px;background:var(--coral);color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:100px;align-items:center;justify-content:center;padding:0 3px;">0</span>
@@ -822,8 +778,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-<div id="toastContainer" class="toast-container"></div>
-
 <script>
 /* =========================================================
    FIREBASE SETUP (REQUIRED FOR SHARED TESTS)
@@ -952,20 +906,6 @@ function showModal({message, type='alert', defaultValue='', placeholder='', conf
 }
 function appAlert(message){
   return showModal({ message, type:'alert' });
-}
-
-function showToast(message) {
-  const container = $('toastContainer');
-  if (!container) return;
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  container.appendChild(toast);
-  setTimeout(() => {
-    if(container.contains(toast)) {
-      container.removeChild(toast);
-    }
-  }, 3000);
 }
 function appConfirm(message, opts={}){
   return showModal({ message, type:'confirm', confirmText: opts.confirmText||'OK', cancelText: opts.cancelText||'Cancel', danger: !!opts.danger });
@@ -1622,7 +1562,7 @@ function renderAdminList(docs){
         await db.collection('vocabTests').doc(doc.id).delete();
       }catch(err){
         console.error(err);
-          showToast("Couldn't delete this test (check your internet / Firestore rules).");
+        appAlert("Couldn't delete this test (check your internet / Firestore rules).");
       }
     });
     listEl.appendChild(row);
@@ -1644,7 +1584,7 @@ function renderAdminList(docs){
           await batch.commit();
         }catch(err){
           console.error(err);
-          showToast("Couldn't save the new order (check your internet / Firestore rules).");
+          appAlert("Couldn't save the new order (check your internet / Firestore rules).");
         }
       }
     });
@@ -1957,7 +1897,6 @@ $('adminBtn').addEventListener('click', ()=>{
     return;
   }
   if(!firebaseReady){
-    showToast("Firebase isn't configured yet!");
     appAlert("Firebase isn't configured yet — admin login needs it. See the code comments near the top.");
     return;
   }
@@ -2242,11 +2181,9 @@ $('manageSaveBtn').addEventListener('click', async ()=>{
       wordCount: managingWords.length
     });
     $('manageStatus').innerHTML = `<div class="success-box">🎉 Changes saved!</div>`;
-    showToast("Changes saved!");
   }catch(err){
     console.error(err);
     $('manageStatus').innerHTML = `<div class="error-box">Couldn't save changes (check your internet / Firestore rules).</div>`;
-    showToast("Couldn't save changes!");
   }
 });
 
@@ -2417,53 +2354,12 @@ function updateTimerUI(){
   }
 }
 
-/* =========================================================
-   AUDIO FEEDBACK
-========================================================= */
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-let audioCtx;
-
-function playFeedbackSound(type) {
-  try {
-    if (!audioCtx) audioCtx = new AudioContext();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    const osc = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    osc.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    if (type === 'correct') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-      gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.3);
-    } else if (type === 'wrong') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
-      gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.2);
-    }
-  } catch(e) {
-    console.warn('Audio context error:', e);
-  }
-}
-
 function selectAnswer(chosen, btnEl){
   clearInterval(timerInterval);
   const q = currentTest[currentIndex];
   if(q.status) return; // already answered
   q.userAnswer = chosen;
   q.status = (chosen === q.correct) ? 'correct' : 'wrong';
-
-  playFeedbackSound(q.status);
 
   lockOptions(q, btnEl);
   $('qCorrectCount').textContent = `✅ ${getScore()}`;
@@ -2777,36 +2673,8 @@ if('serviceWorker' in navigator){
 updateInstallBanner();
 
 /* =========================================================
-   DARK MODE TOGGLE
-========================================================= */
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    $('themeToggleBtn').textContent = '☀️';
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-    $('themeToggleBtn').textContent = '🌙';
-  }
-}
-
-$('themeToggleBtn').addEventListener('click', () => {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  if (isDark) {
-    document.documentElement.removeAttribute('data-theme');
-    localStorage.setItem('theme', 'light');
-    $('themeToggleBtn').textContent = '🌙';
-  } else {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    localStorage.setItem('theme', 'dark');
-    $('themeToggleBtn').textContent = '☀️';
-  }
-});
-
-/* =========================================================
    INIT
 ========================================================= */
-initTheme();
 checkSavedVocabOnLoad();
 listenToCloudTests();
 </script>
