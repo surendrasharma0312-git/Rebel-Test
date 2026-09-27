@@ -978,88 +978,90 @@ function resolveOrder(a, b){
   return { word: a, meaning: b };
 }
 
+const VOCAB_SEPARATORS = [
+  { re: /\s*—\s*/,          requireHindiRight: false }, // em dash
+  { re: /\s*–\s*/,          requireHindiRight: false }, // en dash
+  { re: /\s*:-?\s*/,        requireHindiRight: false }, // colon or ":-"
+  { re: /\t+/,               requireHindiRight: false }, // tab
+  { re: /\s*=\s*/,          requireHindiRight: false }, // equals sign
+  { re: /\s*(?:→|->)\s*/,   requireHindiRight: false }, // arrow
+  { re: /\s*\|\s*/,         requireHindiRight: false }, // pipe
+  { re: /\s+-\s+/,           requireHindiRight: false }, // hyphen w/ mandatory spaces
+  { re: /\s*,\s*/,           requireHindiRight: true  }, // bare comma (last resort)
+];
+
+function parseLine(line) {
+  // skip obvious headers/noise lines
+  if(/^(page|unit|chapter|lesson|s\.?no|word list|vocabulary)\b/i.test(line) && line.length < 30) return null;
+  // skip table header rows like "English   हिंदी अर्थ"
+  if(/^english\s+/i.test(line) && /अर्थ|meaning/i.test(line)) return null;
+
+  let word = null, meaning = null;
+
+  for(const {re, requireHindiRight} of VOCAB_SEPARATORS){
+    if(re.test(line)){
+      const parts = line.split(re);
+      if(parts.length >= 2){
+        const left = cleanWord(parts[0]);
+        const right = cleanWord(parts.slice(1).join(' '));
+        if(!left || !right) continue;
+        if(requireHindiRight && !isHindi(right)) continue;
+        const resolved = resolveOrder(left, right);
+        word = resolved.word; meaning = resolved.meaning;
+        break;
+      }
+    }
+  }
+
+  // fallback 1: English chunk then Devanagari chunk with only spacing between
+  // (common in table-format PDFs where columns are just spaced apart)
+  if(!word){
+    const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s{1,}([\u0900-\u097F][\u0900-\u097F\s,\/\-()]*)$/);
+    if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
+  }
+  // fallback 2: reversed layout — Devanagari chunk then English chunk, no separator
+  if(!word){
+    const m = line.match(/^([\u0900-\u097F][\u0900-\u097F\s,\/\-()]*?)\s{1,}([A-Za-z][A-Za-z\s'\-]*)$/);
+    if(m){ meaning = cleanWord(m[1]); word = cleanWord(m[2]); }
+  }
+  // fallback 3: "Word (Meaning)" parenthetical
+  if(!word){
+    const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s*\(([^)]+)\)\s*$/);
+    if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
+  }
+
+  if(!word || !meaning) return null;
+
+  // Some lists give multiple word-forms/synonyms separated by commas or
+  // slashes (e.g. "Attack, Attacked, Attacked - आक्रमण करना" or
+  // "Nab / Arrest - पकड़ लेना") — use only the first/base form as the
+  // actual vocabulary word.
+  if(word.includes(',')){
+    word = word.split(',')[0].trim();
+  }
+  if(word.includes('/')){
+    word = word.split('/')[0].trim();
+  }
+  if(!word) return null;
+
+  // sanity: word should be mostly English letters, meaning should ideally contain Hindi
+  // (we still accept English-English meanings, just prefer Hindi ones)
+  if(!/^[A-Za-z][A-Za-z\s'\-]*$/.test(word)) return null;
+  if(meaning.length === 0) return null;
+
+  return { word, meaning };
+}
+
 function parseVocabText(text){
   const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
   const pairs = [];
   const seen = new Set();
 
-  // Separators tried in priority order. Most accept optional surrounding
-  // whitespace since people paste from many different sources/apps.
-  // Plain hyphen requires spaces on both sides so it doesn't break
-  // hyphenated words like "well-known". Comma is tried last and only
-  // accepted if the resulting "meaning" side is actually Hindi text,
-  // since a bare comma is also used to separate multiple word-forms
-  // (e.g. "Attack, Attacked, Attacked").
-  const seps = [
-    { re: /\s*—\s*/,          requireHindiRight: false }, // em dash
-    { re: /\s*–\s*/,          requireHindiRight: false }, // en dash
-    { re: /\s*:-?\s*/,        requireHindiRight: false }, // colon or ":-"
-    { re: /\t+/,               requireHindiRight: false }, // tab
-    { re: /\s*=\s*/,          requireHindiRight: false }, // equals sign
-    { re: /\s*(?:→|->)\s*/,   requireHindiRight: false }, // arrow
-    { re: /\s*\|\s*/,         requireHindiRight: false }, // pipe
-    { re: /\s+-\s+/,           requireHindiRight: false }, // hyphen w/ mandatory spaces
-    { re: /\s*,\s*/,           requireHindiRight: true  }, // bare comma (last resort)
-  ];
-
   for(const line of lines){
-    // skip obvious headers/noise lines
-    if(/^(page|unit|chapter|lesson|s\.?no|word list|vocabulary)\b/i.test(line) && line.length < 30) continue;
-    // skip table header rows like "English   हिंदी अर्थ"
-    if(/^english\s+/i.test(line) && /अर्थ|meaning/i.test(line)) continue;
+    const parsed = parseLine(line);
+    if(!parsed) continue;
 
-    let word = null, meaning = null;
-
-    for(const {re, requireHindiRight} of seps){
-      if(re.test(line)){
-        const parts = line.split(re);
-        if(parts.length >= 2){
-          const left = cleanWord(parts[0]);
-          const right = cleanWord(parts.slice(1).join(' '));
-          if(!left || !right) continue;
-          if(requireHindiRight && !isHindi(right)) continue;
-          const resolved = resolveOrder(left, right);
-          word = resolved.word; meaning = resolved.meaning;
-          break;
-        }
-      }
-    }
-
-    // fallback 1: English chunk then Devanagari chunk with only spacing between
-    // (common in table-format PDFs where columns are just spaced apart)
-    if(!word){
-      const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s{1,}([\u0900-\u097F][\u0900-\u097F\s,\/\-()]*)$/);
-      if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
-    }
-    // fallback 2: reversed layout — Devanagari chunk then English chunk, no separator
-    if(!word){
-      const m = line.match(/^([\u0900-\u097F][\u0900-\u097F\s,\/\-()]*?)\s{1,}([A-Za-z][A-Za-z\s'\-]*)$/);
-      if(m){ meaning = cleanWord(m[1]); word = cleanWord(m[2]); }
-    }
-    // fallback 3: "Word (Meaning)" parenthetical
-    if(!word){
-      const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s*\(([^)]+)\)\s*$/);
-      if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
-    }
-
-    if(!word || !meaning) continue;
-
-    // Some lists give multiple word-forms/synonyms separated by commas or
-    // slashes (e.g. "Attack, Attacked, Attacked - आक्रमण करना" or
-    // "Nab / Arrest - पकड़ लेना") — use only the first/base form as the
-    // actual vocabulary word.
-    if(word.includes(',')){
-      word = word.split(',')[0].trim();
-    }
-    if(word.includes('/')){
-      word = word.split('/')[0].trim();
-    }
-    if(!word) continue;
-
-    // sanity: word should be mostly English letters, meaning should ideally contain Hindi
-    // (we still accept English-English meanings, just prefer Hindi ones)
-    if(!/^[A-Za-z][A-Za-z\s'\-]*$/.test(word)) continue;
-    if(meaning.length === 0) continue;
+    let { word, meaning } = parsed;
 
     const key = word.toLowerCase();
     if(seen.has(key)) continue;
