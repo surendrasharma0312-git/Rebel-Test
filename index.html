@@ -34,6 +34,7 @@
     --danger: #FF6B6B;
     --danger-light: #FFEEEE;
     --warning: #FFAE34;
+    --warning-text: #B87A0E;
     --warning-light: #FFF4E1;
     --shadow: 0 10px 28px rgba(108,76,224,0.14);
     --radius-lg: 26px;
@@ -56,6 +57,7 @@
     --danger: #FF7A7A;
     --danger-light: rgba(255, 122, 122, 0.15);
     --warning: #FFB35C;
+    --warning-text: #FFB35C;
     --warning-light: rgba(255, 179, 92, 0.15);
     --shadow: 0 10px 28px rgba(0,0,0,0.4);
   }
@@ -64,6 +66,8 @@
   html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%;}
   body{
     background:
+      radial-gradient(circle at 100% 0%, rgba(108,76,224,0.06) 0%, transparent 40%),
+      radial-gradient(circle at 0% 100%, rgba(31,191,143,0.06) 0%, transparent 40%),
       var(--bg);
     color:var(--text);
     font-family:'Inter',sans-serif;
@@ -147,11 +151,11 @@
     box-shadow: 0 16px 34px rgba(108,76,224,0.35);
   }
   .hero .bubble{
-    position:absolute;border-radius:50%;background:var(--primary-light);
+    position:absolute;border-radius:50%;background:rgba(255,255,255,0.14);
   }
   .hero .b1{width:120px;height:120px;top:-40px;right:-30px;}
-  .hero .b2{width:70px;height:70px;bottom:-20px;right:60px;background:var(--primary-light);}
-  .hero .b3{width:46px;height:46px;top:30px;left:-14px;background:var(--primary-light);}
+  .hero .b2{width:70px;height:70px;bottom:-20px;right:60px;background:rgba(255,255,255,0.14);}
+  .hero .b3{width:46px;height:46px;top:30px;left:-14px;background:rgba(255,255,255,0.14);}
   .hero h1{font-size:26px;margin:0 0 8px;position:relative;}
   .hero p{margin:0;opacity:.92;font-size:14.5px;line-height:1.5;position:relative;max-width:330px;}
   .hero .hindi{font-size:13px;opacity:.85;display:block;margin-top:6px;}
@@ -159,8 +163,8 @@
     position:relative;margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;
   }
   .word-chip{
-    background:var(--surface-2);
-    border:1px solid var(--border);
+    background:rgba(255,255,255,0.15);
+    border:1px solid rgba(255, 255, 255, 0.3);
     padding:6px 12px;border-radius:100px;font-size:12.5px;font-weight:600;
   }
   /* ---------- upload ---------- */
@@ -186,7 +190,7 @@
   }
   .paste-box textarea:focus{outline:none;border-color:var(--primary);}
   .format-hint{
-    background:var(--warning-light);border-radius:var(--radius-sm);padding:12px 14px;margin-top:14px;font-size:12.5px;color:var(--warning);line-height:1.6;
+    background:var(--warning-light);border-radius:var(--radius-sm);padding:12px 14px;margin-top:14px;font-size:12.5px;color:var(--warning-text);line-height:1.6;
   }
   .format-hint code{background:var(--surface);padding:1px 6px;border-radius:6px;}
   /* ---------- buttons ---------- */
@@ -278,7 +282,7 @@
   .rstat .lbl{font-size:11px;color:var(--text-muted);font-weight:700;}
   .rstat.correct .num{color:var(--success);}
   .rstat.wrong .num{color:var(--danger);}
-  .rstat.timeout .num{color:var(--warning);}
+  .rstat.timeout .num{color:var(--warning-text);}
   /* ---------- report ---------- */
   .filter-row{display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;}
   .filter-btn{
@@ -292,13 +296,13 @@
   }
   .report-item.st-correct{border-left-color:var(--success);}
   .report-item.st-wrong{border-left-color:var(--danger);}
-  .report-item.st-timeout{border-left-color:var(--warning);}
+  .report-item.st-timeout{border-left-color:var(--warning-text);}
   .report-item .rhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .report-item .qn{font-size:11.5px;color:var(--text-muted);font-weight:700;}
   .report-item .status-badge{font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:100px;}
   .status-badge.st-correct{background:var(--success-light);color:var(--success);}
   .status-badge.st-wrong{background:var(--danger-light);color:var(--danger);}
-  .status-badge.st-timeout{background:var(--warning-light);color:var(--warning);}
+  .status-badge.st-timeout{background:var(--warning-light);color:var(--warning-text);}
   .report-item .word{font-family:'Baloo 2';font-size:16px;color:var(--primary-hover);margin-bottom:6px;}
   .report-item .row{display:flex;justify-content:space-between;font-size:13.5px;margin-top:3px;}
   .report-item .row .k{color:var(--text-muted);}
