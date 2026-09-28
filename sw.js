@@ -1,5 +1,5 @@
 // sw.js — Service worker with Stale-While-Revalidate caching strategy
-const CACHE_NAME = 'rebel-test-v3';
+const CACHE_NAME = 'rebel-test-v4';
 
 const APP_SHELL = [
   './',
