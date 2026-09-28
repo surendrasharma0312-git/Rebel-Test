@@ -2,14 +2,24 @@
 // browser's "installability" requirement so the custom Install button
 // (and the native Chrome install banner) can appear. As a bonus it lets
 // already-visited pages keep working if the connection drops.
-const CACHE_NAME = 'rebel-test-v1';
+const CACHE_NAME = 'rebel-test-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
