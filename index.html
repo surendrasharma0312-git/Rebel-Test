@@ -876,9 +876,26 @@ window.addEventListener('popstate', async (e)=>{
 history.replaceState({ screen: 'screen-home' }, '', '#screen-home');
 
 // Warm up the Speech API to prevent a long delay on the first synthesis
+let speechWarmedUp = false;
 if(typeof speechSynthesis !== 'undefined') {
   speechSynthesis.getVoices();
-  // On some devices, attaching to the voiceschanged event or just calling getVoices early mitigates the cold-start delay
+
+  // On some devices (especially iOS Safari), TTS must be triggered by a direct user interaction first
+  const warmupSpeech = () => {
+    if (speechWarmedUp) return;
+    try {
+      const utter = new SpeechSynthesisUtterance('');
+      utter.volume = 0;
+      speechSynthesis.speak(utter);
+      speechWarmedUp = true;
+      document.removeEventListener('click', warmupSpeech);
+      document.removeEventListener('touchstart', warmupSpeech);
+    } catch (e) {
+      console.warn('Speech warm-up failed', e);
+    }
+  };
+  document.addEventListener('click', warmupSpeech, { once: true, passive: true });
+  document.addEventListener('touchstart', warmupSpeech, { once: true, passive: true });
 }
 
 function speakWord(word){
