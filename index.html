@@ -35,16 +35,6 @@
     --radius-md: 18px;
     --radius-sm: 12px;
   }
-
-  :root[data-theme="dark"] {
-    --cream: #121212;
-    --card: #1E1E1E;
-    --ink: #FFFFFF;
-    --ink-soft: #A0A0A0;
-    --line: #333333;
-    --violet-10: #2C2C2C;
-    --shadow: 0 10px 28px rgba(0,0,0,0.5);
-  }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;overflow-x:hidden;max-width:100%;}
   body{
@@ -374,39 +364,6 @@
   }
   ::-webkit-scrollbar{width:6px;}
   ::-webkit-scrollbar-thumb{background:#D9CCFB;border-radius:10px;}
-
-  /* ---------- toast notifications ---------- */
-  .toast-container {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    z-index: 10000;
-    pointer-events: none;
-  }
-  .toast {
-    background: var(--violet);
-    color: #fff;
-    padding: 12px 20px;
-    border-radius: 100px;
-    font-size: 14px;
-    font-weight: 600;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    animation: slideUp 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
-    pointer-events: auto;
-    text-align: center;
-  }
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes fadeOut {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(-10px); }
-  }
 </style>
 </head>
 <body>
@@ -421,7 +378,6 @@
       </div>
     </div>
     <div style="display:flex;gap:8px;">
-      <button class="icon-btn" id="themeToggleBtn" title="Toggle Dark Mode">🌙</button>
       <button class="icon-btn" id="notifyBtn" title="Notifications" style="position:relative;">
         🔔
         <span id="notifyBadge" style="display:none;position:absolute;top:2px;right:2px;background:var(--coral);color:#fff;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:100px;align-items:center;justify-content:center;padding:0 3px;">0</span>
@@ -822,8 +778,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
-<div id="toastContainer" class="toast-container"></div>
-
 <script>
 /* =========================================================
    FIREBASE SETUP (REQUIRED FOR SHARED TESTS)
@@ -871,7 +825,6 @@ let timerInterval = null;
 let timeLeft = 15;
 const QUESTION_TIME = 20;
 let lastReportFilter = 'all';
-let isPracticeMode = false;
 let testStartTime = null;
 let currentTestDocId = null;   // set when the active test came from Rebel Test Series (for the leaderboard)
 let currentTestName = null;
@@ -974,20 +927,6 @@ function showModal({message, type='alert', defaultValue='', placeholder='', conf
 function appAlert(message){
   return showModal({ message, type:'alert' });
 }
-
-function showToast(message) {
-  const container = $('toastContainer');
-  if (!container) return;
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  container.appendChild(toast);
-  setTimeout(() => {
-    if(container.contains(toast)) {
-      container.removeChild(toast);
-    }
-  }, 3000);
-}
 function appConfirm(message, opts={}){
   return showModal({ message, type:'confirm', confirmText: opts.confirmText||'OK', cancelText: opts.cancelText||'Cancel', danger: !!opts.danger });
 }
@@ -1053,88 +992,90 @@ function resolveOrder(a, b){
   return { word: a, meaning: b };
 }
 
+const VOCAB_SEPARATORS = [
+  { re: /\s*—\s*/,          requireHindiRight: false }, // em dash
+  { re: /\s*–\s*/,          requireHindiRight: false }, // en dash
+  { re: /\s*:-?\s*/,        requireHindiRight: false }, // colon or ":-"
+  { re: /\t+/,               requireHindiRight: false }, // tab
+  { re: /\s*=\s*/,          requireHindiRight: false }, // equals sign
+  { re: /\s*(?:→|->)\s*/,   requireHindiRight: false }, // arrow
+  { re: /\s*\|\s*/,         requireHindiRight: false }, // pipe
+  { re: /\s+-\s+/,           requireHindiRight: false }, // hyphen w/ mandatory spaces
+  { re: /\s*,\s*/,           requireHindiRight: true  }, // bare comma (last resort)
+];
+
+function parseLine(line) {
+  // skip obvious headers/noise lines
+  if(/^(page|unit|chapter|lesson|s\.?no|word list|vocabulary)\b/i.test(line) && line.length < 30) return null;
+  // skip table header rows like "English   हिंदी अर्थ"
+  if(/^english\s+/i.test(line) && /अर्थ|meaning/i.test(line)) return null;
+
+  let word = null, meaning = null;
+
+  for(const {re, requireHindiRight} of VOCAB_SEPARATORS){
+    if(re.test(line)){
+      const parts = line.split(re);
+      if(parts.length >= 2){
+        const left = cleanWord(parts[0]);
+        const right = cleanWord(parts.slice(1).join(' '));
+        if(!left || !right) continue;
+        if(requireHindiRight && !isHindi(right)) continue;
+        const resolved = resolveOrder(left, right);
+        word = resolved.word; meaning = resolved.meaning;
+        break;
+      }
+    }
+  }
+
+  // fallback 1: English chunk then Devanagari chunk with only spacing between
+  // (common in table-format PDFs where columns are just spaced apart)
+  if(!word){
+    const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s{1,}([\u0900-\u097F][\u0900-\u097F\s,\/\-()]*)$/);
+    if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
+  }
+  // fallback 2: reversed layout — Devanagari chunk then English chunk, no separator
+  if(!word){
+    const m = line.match(/^([\u0900-\u097F][\u0900-\u097F\s,\/\-()]*?)\s{1,}([A-Za-z][A-Za-z\s'\-]*)$/);
+    if(m){ meaning = cleanWord(m[1]); word = cleanWord(m[2]); }
+  }
+  // fallback 3: "Word (Meaning)" parenthetical
+  if(!word){
+    const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s*\(([^)]+)\)\s*$/);
+    if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
+  }
+
+  if(!word || !meaning) return null;
+
+  // Some lists give multiple word-forms/synonyms separated by commas or
+  // slashes (e.g. "Attack, Attacked, Attacked - आक्रमण करना" or
+  // "Nab / Arrest - पकड़ लेना") — use only the first/base form as the
+  // actual vocabulary word.
+  if(word.includes(',')){
+    word = word.split(',')[0].trim();
+  }
+  if(word.includes('/')){
+    word = word.split('/')[0].trim();
+  }
+  if(!word) return null;
+
+  // sanity: word should be mostly English letters, meaning should ideally contain Hindi
+  // (we still accept English-English meanings, just prefer Hindi ones)
+  if(!/^[A-Za-z][A-Za-z\s'\-]*$/.test(word)) return null;
+  if(meaning.length === 0) return null;
+
+  return { word, meaning };
+}
+
 function parseVocabText(text){
   const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
   const pairs = [];
   const seen = new Set();
 
-  // Separators tried in priority order. Most accept optional surrounding
-  // whitespace since people paste from many different sources/apps.
-  // Plain hyphen requires spaces on both sides so it doesn't break
-  // hyphenated words like "well-known". Comma is tried last and only
-  // accepted if the resulting "meaning" side is actually Hindi text,
-  // since a bare comma is also used to separate multiple word-forms
-  // (e.g. "Attack, Attacked, Attacked").
-  const seps = [
-    { re: /\s*—\s*/,          requireHindiRight: false }, // em dash
-    { re: /\s*–\s*/,          requireHindiRight: false }, // en dash
-    { re: /\s*:-?\s*/,        requireHindiRight: false }, // colon or ":-"
-    { re: /\t+/,               requireHindiRight: false }, // tab
-    { re: /\s*=\s*/,          requireHindiRight: false }, // equals sign
-    { re: /\s*(?:→|->)\s*/,   requireHindiRight: false }, // arrow
-    { re: /\s*\|\s*/,         requireHindiRight: false }, // pipe
-    { re: /\s+-\s+/,           requireHindiRight: false }, // hyphen w/ mandatory spaces
-    { re: /\s*,\s*/,           requireHindiRight: true  }, // bare comma (last resort)
-  ];
-
   for(const line of lines){
-    // skip obvious headers/noise lines
-    if(/^(page|unit|chapter|lesson|s\.?no|word list|vocabulary)\b/i.test(line) && line.length < 30) continue;
-    // skip table header rows like "English   हिंदी अर्थ"
-    if(/^english\s+/i.test(line) && /अर्थ|meaning/i.test(line)) continue;
+    const parsed = parseLine(line);
+    if(!parsed) continue;
 
-    let word = null, meaning = null;
-
-    for(const {re, requireHindiRight} of seps){
-      if(re.test(line)){
-        const parts = line.split(re);
-        if(parts.length >= 2){
-          const left = cleanWord(parts[0]);
-          const right = cleanWord(parts.slice(1).join(' '));
-          if(!left || !right) continue;
-          if(requireHindiRight && !isHindi(right)) continue;
-          const resolved = resolveOrder(left, right);
-          word = resolved.word; meaning = resolved.meaning;
-          break;
-        }
-      }
-    }
-
-    // fallback 1: English chunk then Devanagari chunk with only spacing between
-    // (common in table-format PDFs where columns are just spaced apart)
-    if(!word){
-      const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s{1,}([\u0900-\u097F][\u0900-\u097F\s,\/\-()]*)$/);
-      if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
-    }
-    // fallback 2: reversed layout — Devanagari chunk then English chunk, no separator
-    if(!word){
-      const m = line.match(/^([\u0900-\u097F][\u0900-\u097F\s,\/\-()]*?)\s{1,}([A-Za-z][A-Za-z\s'\-]*)$/);
-      if(m){ meaning = cleanWord(m[1]); word = cleanWord(m[2]); }
-    }
-    // fallback 3: "Word (Meaning)" parenthetical
-    if(!word){
-      const m = line.match(/^([A-Za-z][A-Za-z\s'\-]*?)\s*\(([^)]+)\)\s*$/);
-      if(m){ word = cleanWord(m[1]); meaning = cleanWord(m[2]); }
-    }
-
-    if(!word || !meaning) continue;
-
-    // Some lists give multiple word-forms/synonyms separated by commas or
-    // slashes (e.g. "Attack, Attacked, Attacked - आक्रमण करना" or
-    // "Nab / Arrest - पकड़ लेना") — use only the first/base form as the
-    // actual vocabulary word.
-    if(word.includes(',')){
-      word = word.split(',')[0].trim();
-    }
-    if(word.includes('/')){
-      word = word.split('/')[0].trim();
-    }
-    if(!word) continue;
-
-    // sanity: word should be mostly English letters, meaning should ideally contain Hindi
-    // (we still accept English-English meanings, just prefer Hindi ones)
-    if(!/^[A-Za-z][A-Za-z\s'\-]*$/.test(word)) continue;
-    if(meaning.length === 0) continue;
+    let { word, meaning } = parsed;
 
     const key = word.toLowerCase();
     if(seen.has(key)) continue;
@@ -1158,39 +1099,44 @@ if(window['pdfjsLib']){
 async function extractTextFromPdf(file){
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-  let fullText = '';
   const Y_TOLERANCE = 4; // groups items into the same visual row even with small baseline differences (common in table PDFs mixing English + Devanagari fonts)
 
+  const pagePromises = [];
   for(let i=1;i<=pdf.numPages;i++){
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
+    pagePromises.push((async () => {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
 
-    // Build a list of {x, y, str} and cluster into rows by y-proximity,
-    // then sort each row left-to-right by x. This handles table PDFs
-    // where the two columns' baselines are a couple of points apart.
-    const items = content.items
-      .filter(it => it.str && it.str.trim().length > 0)
-      .map(it => ({ x: it.transform[4], y: it.transform[5], str: it.str }));
+      // Build a list of {x, y, str} and cluster into rows by y-proximity,
+      // then sort each row left-to-right by x. This handles table PDFs
+      // where the two columns' baselines are a couple of points apart.
+      const items = content.items
+        .filter(it => it.str && it.str.trim().length > 0)
+        .map(it => ({ x: it.transform[4], y: it.transform[5], str: it.str }));
 
-    items.sort((a,b) => b.y - a.y || a.x - b.x);
+      items.sort((a,b) => b.y - a.y || a.x - b.x);
 
-    const rows = [];
-    items.forEach(item=>{
-      let row = rows.find(r => Math.abs(r.y - item.y) <= Y_TOLERANCE);
-      if(!row){
-        row = { y: item.y, items: [] };
-        rows.push(row);
-      }
-      row.items.push(item);
-    });
+      const rows = [];
+      items.forEach(item=>{
+        let row = rows.find(r => Math.abs(r.y - item.y) <= Y_TOLERANCE);
+        if(!row){
+          row = { y: item.y, items: [] };
+          rows.push(row);
+        }
+        row.items.push(item);
+      });
 
-    rows.forEach(row=>{
-      row.items.sort((a,b)=> a.x - b.x);
-      fullText += row.items.map(it=>it.str).join('  ') + '\n';
-    });
-    fullText += '\n';
+      let pageText = '';
+      rows.forEach(row=>{
+        row.items.sort((a,b)=> a.x - b.x);
+        pageText += row.items.map(it=>it.str).join('  ') + '\n';
+      });
+      return pageText + '\n';
+    })());
   }
-  return fullText;
+
+  const pagesText = await Promise.all(pagePromises);
+  return pagesText.join('');
 }
 
 /* =========================================================
@@ -1234,25 +1180,18 @@ async function handlePdfUpload(e, mode){
   }
 }
 
-$('parsePastePersonalBtn').addEventListener('click', ()=>{
-  const text = $('pasteTextPersonal').value;
-  const statusEl = $('uploadStatusPersonal');
+function handlePastedText(textId, statusId, mode) {
+  const text = $(textId).value;
+  const statusEl = $(statusId);
   if(!text || text.trim().length === 0){
     statusEl.innerHTML = `<div class="error-box">Please paste some text first, or upload a PDF.</div>`;
     return;
   }
-  finishParsing(parseVocabText(text), statusEl, 'personal');
-});
+  finishParsing(parseVocabText(text), statusEl, mode);
+}
 
-$('parsePasteAdminBtn').addEventListener('click', ()=>{
-  const text = $('pasteTextAdmin').value;
-  const statusEl = $('uploadStatusAdmin');
-  if(!text || text.trim().length === 0){
-    statusEl.innerHTML = `<div class="error-box">Please paste some text first, or upload a PDF.</div>`;
-    return;
-  }
-  finishParsing(parseVocabText(text), statusEl, 'admin');
-});
+$('parsePastePersonalBtn').addEventListener('click', () => handlePastedText('pasteTextPersonal', 'uploadStatusPersonal', 'personal'));
+$('parsePasteAdminBtn').addEventListener('click', () => handlePastedText('pasteTextAdmin', 'uploadStatusAdmin', 'admin'));
 
 async function finishParsing(pairs, statusEl, mode){
   if(pairs.length === 0){
@@ -1401,6 +1340,52 @@ function exitSelectMode(){
   renderNotifications(lastCloudDocs);
 }
 
+function createNotificationRow(doc, data, isUnread, isSelected) {
+  const row = document.createElement('div');
+  row.className = `notif-row ${isUnread ? 'unread' : 'read'} ${isSelected ? 'selected' : ''}`;
+  const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
+  const leadingIcon = notifSelectMode
+    ? `<div class="notif-checkbox ${isSelected ? 'checked' : ''}">${isSelected ? '✓' : ''}</div>`
+    : (isUnread ? '<div class="dot"></div>' : '<div style="width:9px;"></div>');
+  row.innerHTML = `
+    ${leadingIcon}
+    <div class="left">
+      <div class="title">${data.name || 'Untitled Test'}</div>
+      <div class="meta">🎯 New in Rebel Test Series · ${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
+    </div>
+    ${notifSelectMode ? '' : '<div class="arrow">→</div>'}
+  `;
+  row.addEventListener('click', ()=>{
+    if(row._suppressClick){ row._suppressClick = false; return; }
+    if(notifSelectMode){
+      if(selectedNotifIds.has(doc.id)) selectedNotifIds.delete(doc.id);
+      else selectedNotifIds.add(doc.id);
+      updateSelectToolbar();
+      renderNotifications(lastCloudDocs);
+      return;
+    }
+    markTestAsRead(doc.id);
+    updateNotifBadge(lastCloudDocs);
+    vocabulary = data.words || [];
+    pendingAdminPublish = null;
+    currentTestDocId = doc.id;
+    currentTestName = data.name || 'Untitled Test';
+    currentTestQuestionCount = data.questionCount || null;
+    saveVocabToStorage();
+    openPreview();
+  });
+  attachLongPress(row, ()=>{
+    if(!notifSelectMode){
+      notifSelectMode = true;
+      selectedNotifIds.clear();
+    }
+    selectedNotifIds.add(doc.id);
+    updateSelectToolbar();
+    renderNotifications(lastCloudDocs);
+  });
+  return row;
+}
+
 function renderNotifications(docs){
   const listEl = $('notifList');
   listEl.innerHTML = '';
@@ -1423,48 +1408,7 @@ function renderNotifications(docs){
     const data = doc.data();
     const isUnread = !readIds.has(doc.id);
     const isSelected = selectedNotifIds.has(doc.id);
-    const row = document.createElement('div');
-    row.className = `notif-row ${isUnread ? 'unread' : 'read'} ${isSelected ? 'selected' : ''}`;
-    const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
-    const leadingIcon = notifSelectMode
-      ? `<div class="notif-checkbox ${isSelected ? 'checked' : ''}">${isSelected ? '✓' : ''}</div>`
-      : (isUnread ? '<div class="dot"></div>' : '<div style="width:9px;"></div>');
-    row.innerHTML = `
-      ${leadingIcon}
-      <div class="left">
-        <div class="title">${escapeHTML(data.name || 'Untitled Test')}</div>
-        <div class="meta">🎯 New in Rebel Test Series · ${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
-      </div>
-      ${notifSelectMode ? '' : '<div class="arrow">→</div>'}
-    `;
-    row.addEventListener('click', ()=>{
-      if(row._suppressClick){ row._suppressClick = false; return; }
-      if(notifSelectMode){
-        if(selectedNotifIds.has(doc.id)) selectedNotifIds.delete(doc.id);
-        else selectedNotifIds.add(doc.id);
-        updateSelectToolbar();
-        renderNotifications(lastCloudDocs);
-        return;
-      }
-      markTestAsRead(doc.id);
-      updateNotifBadge(lastCloudDocs);
-      vocabulary = data.words || [];
-      pendingAdminPublish = null;
-      currentTestDocId = doc.id;
-      currentTestName = data.name || 'Untitled Test';
-      currentTestQuestionCount = data.questionCount || null;
-      saveVocabToStorage();
-      openPreview();
-    });
-    attachLongPress(row, ()=>{
-      if(!notifSelectMode){
-        notifSelectMode = true;
-        selectedNotifIds.clear();
-      }
-      selectedNotifIds.add(doc.id);
-      updateSelectToolbar();
-      renderNotifications(lastCloudDocs);
-    });
+   const row = createNotificationRow(doc, data, isUnread. isSelected);
     listEl.appendChild(row);
   });
 }
@@ -1643,7 +1587,7 @@ function renderAdminList(docs){
         await db.collection('vocabTests').doc(doc.id).delete();
       }catch(err){
         console.error(err);
-          showToast("Couldn't delete this test (check your internet / Firestore rules).");
+        appAlert("Couldn't delete this test (check your internet / Firestore rules).");
       }
     });
     listEl.appendChild(row);
@@ -1665,7 +1609,7 @@ function renderAdminList(docs){
           await batch.commit();
         }catch(err){
           console.error(err);
-          showToast("Couldn't save the new order (check your internet / Firestore rules).");
+          appAlert("Couldn't save the new order (check your internet / Firestore rules).");
         }
       }
     });
@@ -1804,6 +1748,9 @@ function renderLeaderboardList(){
     // same score — faster time ranks higher
     return (da.durationSeconds ?? Infinity) - (db.durationSeconds ?? Infinity);
   });
+
+  const fragment = document.createDocumentFragment();
+
   sorted.forEach((doc, idx)=>{
     const d = doc.data();
     const dateStr = d.createdAt ? d.createdAt.toDate().toLocaleDateString() : '';
@@ -1818,8 +1765,10 @@ function renderLeaderboardList(){
       </div>
       <div class="pctbadge">${d.pct}%</div>
     `;
-    listEl.appendChild(row);
+    fragment.appendChild(row);
   });
+
+  listEl.appendChild(fragment);
 }
 
 let leaderboardReturnScreen = 'screen-home';
@@ -1978,7 +1927,6 @@ $('adminBtn').addEventListener('click', ()=>{
     return;
   }
   if(!firebaseReady){
-    showToast("Firebase isn't configured yet!");
     appAlert("Firebase isn't configured yet — admin login needs it. See the code comments near the top.");
     return;
   }
@@ -2263,11 +2211,9 @@ $('manageSaveBtn').addEventListener('click', async ()=>{
       wordCount: managingWords.length
     });
     $('manageStatus').innerHTML = `<div class="success-box">🎉 Changes saved!</div>`;
-    showToast("Changes saved!");
   }catch(err){
     console.error(err);
     $('manageStatus').innerHTML = `<div class="error-box">Couldn't save changes (check your internet / Firestore rules).</div>`;
-    showToast("Couldn't save changes!");
   }
 });
 
@@ -2324,24 +2270,23 @@ $('startTestBtn').addEventListener('click', ()=>{
   if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
     vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
   }
-  startTest(vocabForTest, false);
+  startTest(vocabForTest);
 });
 $('retakeTestBtn').addEventListener('click', ()=>{
   let vocabForTest = vocabulary;
   if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
     vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
   }
-  startTest(vocabForTest, false);
+  startTest(vocabForTest);
 });
 
-function startTest(vocabList, practiceMode){
+function startTest(vocabList){
   const bank = buildQuestionBank(vocabList);
   if(bank.length < 1){
     $('previewError').innerHTML = `<div class="error-box">Couldn't build enough unique-option questions from this vocabulary. Try adding more distinct words.</div>`;
     showScreen('screen-preview');
     return;
   }
-  isPracticeMode = practiceMode;
   currentTest = shuffle(bank).map(q=>({
     ...q,
     options: shuffle(q.options),
@@ -2438,53 +2383,12 @@ function updateTimerUI(){
   }
 }
 
-/* =========================================================
-   AUDIO FEEDBACK
-========================================================= */
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-let audioCtx;
-
-function playFeedbackSound(type) {
-  try {
-    if (!audioCtx) audioCtx = new AudioContext();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    const osc = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    osc.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    if (type === 'correct') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-      gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.3);
-    } else if (type === 'wrong') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.2);
-      gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.2);
-    }
-  } catch(e) {
-    console.warn('Audio context error:', e);
-  }
-}
-
 function selectAnswer(chosen, btnEl){
   clearInterval(timerInterval);
   const q = currentTest[currentIndex];
   if(q.status) return; // already answered
   q.userAnswer = chosen;
   q.status = (chosen === q.correct) ? 'correct' : 'wrong';
-
-  playFeedbackSound(q.status);
 
   lockOptions(q, btnEl);
   $('qCorrectCount').textContent = `✅ ${getScore()}`;
@@ -2622,6 +2526,7 @@ function renderReport(){
     return;
   }
 
+  const fragment = document.createDocumentFragment();
   filtered.forEach((q)=>{
     const originalIndex = currentTest.indexOf(q) + 1;
     const statusMap = {
@@ -2641,8 +2546,9 @@ function renderReport(){
       <div class="row"><span class="k">Your Answer</span><span class="v ${q.status==='wrong'?'bad':(q.status==='correct'?'good':'')}">${escapeHTML(q.userAnswer ? q.userAnswer : 'No answer')}</span></div>
       <div class="row"><span class="k">Correct Answer</span><span class="v good">${escapeHTML(q.correct)}</span></div>
     `;
-    listEl.appendChild(div);
+    fragment.appendChild(div);
   });
+  listEl.appendChild(fragment);
 }
 
 /* =========================================================
@@ -2658,7 +2564,7 @@ $('practiceMistakesBtn').addEventListener('click', ()=>{
   currentTestDocId = null; // practice sets don't count toward the leaderboard
   currentTestName = null;
   currentTestQuestionCount = null;
-  startTest(mistakeVocab, true);
+  startTest(mistakeVocab);
 });
 
 /* =========================================================
@@ -2798,36 +2704,8 @@ if('serviceWorker' in navigator){
 updateInstallBanner();
 
 /* =========================================================
-   DARK MODE TOGGLE
-========================================================= */
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    $('themeToggleBtn').textContent = '☀️';
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-    $('themeToggleBtn').textContent = '🌙';
-  }
-}
-
-$('themeToggleBtn').addEventListener('click', () => {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  if (isDark) {
-    document.documentElement.removeAttribute('data-theme');
-    localStorage.setItem('theme', 'light');
-    $('themeToggleBtn').textContent = '🌙';
-  } else {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    localStorage.setItem('theme', 'dark');
-    $('themeToggleBtn').textContent = '☀️';
-  }
-});
-
-/* =========================================================
    INIT
 ========================================================= */
-initTheme();
 checkSavedVocabOnLoad();
 listenToCloudTests();
 </script>
