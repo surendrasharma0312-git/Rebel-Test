@@ -2810,5 +2810,17 @@ initTheme();
 checkSavedVocabOnLoad();
 listenToCloudTests();
 </script>
+<script>
+// --- TEST: formatDuration ---
+(function testFormatDuration() {
+  console.assert(formatDuration(0) === "0s", "formatDuration(0) failed");
+  console.assert(formatDuration(45) === "45s", "formatDuration(45) failed");
+  console.assert(formatDuration(60) === "1m 0s", "formatDuration(60) failed");
+  console.assert(formatDuration(65) === "1m 5s", "formatDuration(65) failed");
+  console.assert(formatDuration(120) === "2m 0s", "formatDuration(120) failed");
+  console.assert(formatDuration(125) === "2m 5s", "formatDuration(125) failed");
+  console.log("✅ All formatDuration tests passed.");
+})();
+</script>
 </body>
 </html>
