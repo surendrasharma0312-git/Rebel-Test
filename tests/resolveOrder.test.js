@@ -25,11 +25,6 @@ const dom = new JSDOM(htmlContent, {
                         })
                     })
                 })
-            }),
-            auth: () => ({
-                onAuthStateChanged: () => {},
-                signInWithEmailAndPassword: () => Promise.resolve(),
-                signOut: () => Promise.resolve()
             })
         };
         // Mock matchMedia to prevent errors

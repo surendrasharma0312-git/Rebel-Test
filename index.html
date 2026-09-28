@@ -523,8 +523,7 @@
     <div class="card">
       <h2 class="section-title" style="margin-bottom:16px;">🔒 Admin Login</h2>
       <form id="adminLoginForm" autocomplete="on">
-        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Email</label>
-        <input type="email" id="adminEmailInput" name="username" autocomplete="username" placeholder="Enter admin email" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--line);padding:13px 14px;font-family:inherit;font-size:15px;background:#FBFAFF;color:var(--ink);margin-bottom:12px;" required />
+        <input type="text" name="username" autocomplete="username" value="rebel-admin" style="position:absolute;left:-9999px;" tabindex="-1" aria-hidden="true" />
         <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Password</label>
         <input type="password" id="adminPasswordInput" name="password" autocomplete="current-password" placeholder="Enter admin password" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--line);padding:13px 14px;font-family:inherit;font-size:15px;background:#FBFAFF;color:var(--ink);" required />
         <div id="adminLoginError"></div>
@@ -778,7 +777,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script>
 /* =========================================================
@@ -1630,10 +1628,19 @@ $('backFromMixedListBtn').addEventListener('click', ()=> showScreen('screen-home
 /* =========================================================
    ADMIN MODE (only the admin can upload/add tests)
    -----------------------------------------------------------
-   Authentication is now handled securely via Firebase Auth
-   to prevent offline brute-force attacks against stored hashes.
+   The password itself now lives in Firestore (config/admin →
+   passwordHash), NOT in this file — so viewing the page source
+   never reveals it. See the setup instructions given alongside
+   this file for how to create that document.
+   We only ever compare a SHA-256 HASH of what's typed, never the
+   plain text, so even Firestore never stores the real password.
 ========================================================= */
 let isAdmin = false;
+
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
 
 function updateAdminUI(){
   $('adminBtn').textContent = isAdmin ? '🔓' : '🔒';
@@ -1918,47 +1925,47 @@ $('backFromAdminLoginBtn').addEventListener('click', ()=> showScreen('screen-hom
 
 $('adminLoginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const email = $('adminEmailInput').value;
-  const password = $('adminPasswordInput').value;
-  if(!email || !password) return;
+  const entered = $('adminPasswordInput').value;
+  if(!entered) return;
   $('adminLoginError').innerHTML = '';
 
   try{
-    await firebase.auth().signInWithEmailAndPassword(email, password);
-    isAdmin = true;
-    sessionStorage.setItem('isAdmin_rebeltest', 'true');
-
-    // Explicitly offer to save this password (Chrome/Edge support this API;
-    // other browsers may still offer their own save-password prompt on submit).
-    if(window.PasswordCredential){
-      try{
-        const cred = new PasswordCredential({
-          id: email,
-          password: password,
-          name: 'Rebel Test Series Admin'
-        });
-        await navigator.credentials.store(cred);
-      }catch(credErr){ console.warn('Credential save skipped', credErr); }
+    const configDoc = await db.collection('config').doc('admin').get();
+    if(!configDoc.exists || !configDoc.data().passwordHash){
+      $('adminLoginError').innerHTML = `<div class="error-box">Admin password isn't set up in Firestore yet. See the setup instructions to create config/admin with a passwordHash field.</div>`;
+      return;
     }
+    const enteredHash = await sha256Hex(entered);
+    if(enteredHash === configDoc.data().passwordHash){
+      isAdmin = true;
+      sessionStorage.setItem('isAdmin_rebeltest', 'true');
 
-    $('adminEmailInput').value = '';
-    $('adminPasswordInput').value = '';
-    updateAdminUI();
-    showScreen('screen-admin');
+      // Explicitly offer to save this password (Chrome/Edge support this API;
+      // other browsers may still offer their own save-password prompt on submit).
+      if(window.PasswordCredential){
+        try{
+          const cred = new PasswordCredential({
+            id: 'rebel-admin',
+            password: entered,
+            name: 'Rebel Test Series Admin'
+          });
+          await navigator.credentials.store(cred);
+        }catch(credErr){ console.warn('Credential save skipped', credErr); }
+      }
+
+      $('adminPasswordInput').value = '';
+      updateAdminUI();
+      showScreen('screen-admin');
+    } else {
+      $('adminLoginError').innerHTML = `<div class="error-box">Incorrect password.</div>`;
+    }
   }catch(err){
     console.error(err);
-    $('adminLoginError').innerHTML = `<div class="error-box">Login failed. Please check your credentials.</div>`;
+    $('adminLoginError').innerHTML = `<div class="error-box">Couldn't verify the password (check your internet / Firestore rules).</div>`;
   }
 });
 
-$('logoutAdminBtn').addEventListener('click', async ()=>{
-  try {
-    if (firebaseReady) {
-      await firebase.auth().signOut();
-    }
-  } catch (err) {
-    console.error('Logout error', err);
-  }
+$('logoutAdminBtn').addEventListener('click', ()=>{
   isAdmin = false;
   sessionStorage.removeItem('isAdmin_rebeltest');
   updateAdminUI();
@@ -1966,32 +1973,10 @@ $('logoutAdminBtn').addEventListener('click', async ()=>{
 });
 $('backFromAdminBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
-// Optionally persist session state if firebase says we are logged in,
-// but the sessionStorage approach works as a quick initial check.
 if(sessionStorage.getItem('isAdmin_rebeltest') === 'true'){
   isAdmin = true;
 }
 updateAdminUI();
-
-// Watch for real firebase auth state changes
-if (firebaseReady) {
-  firebase.auth().onAuthStateChanged((user) => {
-    if (user) {
-      isAdmin = true;
-      sessionStorage.setItem('isAdmin_rebeltest', 'true');
-      updateAdminUI();
-    } else {
-      isAdmin = false;
-      sessionStorage.removeItem('isAdmin_rebeltest');
-      updateAdminUI();
-      // If we are currently on an admin screen, kick them out
-      if (document.getElementById('screen-admin').classList.contains('active') ||
-          document.getElementById('screen-admin-login').classList.contains('active')) {
-          showScreen('screen-home');
-      }
-    }
-  });
-}
 
 /* =========================================================
    SAVED VOCAB (localStorage)
