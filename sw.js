@@ -62,6 +62,7 @@ self.addEventListener('fetch', (event) => {
       }).catch((err) => {
         // Network failed, we'll rely on the cache if available
         console.warn('Network request failed, relying on cache', err);
+        return Response.error();
       });
 
       // Return cached immediately if available, otherwise wait for network
