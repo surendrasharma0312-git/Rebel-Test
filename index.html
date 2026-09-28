@@ -833,6 +833,20 @@ let currentTestQuestionCount = null; // set for "mixed tests" — how many rando
 /* =========================================================
    UTILITIES
 ========================================================= */
+function escapeHTML(str) {
+  if (typeof str !== 'string') str = String(str);
+  return str.replace(/[&<>"']/g, function(match) {
+    switch (match) {
+      case '&': return '&amp;';
+      case '<': return '&lt;';
+      case '>': return '&gt;';
+      case '"': return '&quot;';
+      case "'": return '&#39;';
+      default: return match;
+    }
+  });
+}
+
 function $(id){ return document.getElementById(id); }
 function showScreen(id, opts){
   opts = opts || {};
@@ -888,11 +902,11 @@ function showModal({message, type='alert', defaultValue='', placeholder='', conf
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
       <div class="modal-box">
-        <div class="modal-msg">${message}</div>
-        ${type==='prompt' ? `<input type="text" class="modal-input" placeholder="${placeholder}" />` : ''}
+        <div class="modal-msg">${escapeHTML(message)}</div>
+        ${type==='prompt' ? `<input type="text" class="modal-input" placeholder="${escapeHTML(placeholder)}" />` : ''}
         <div class="modal-btns">
-          ${type!=='alert' ? `<button class="btn btn-ghost modal-cancel">${cancelText}</button>` : ''}
-          <button class="btn ${danger?'btn-coral':'btn-primary'} modal-ok">${confirmText}</button>
+          ${type!=='alert' ? `<button class="btn btn-ghost modal-cancel">${escapeHTML(cancelText)}</button>` : ''}
+          <button class="btn ${danger?'btn-coral':'btn-primary'} modal-ok">${escapeHTML(confirmText)}</button>
         </div>
       </div>
     `;
@@ -1394,7 +1408,7 @@ function renderNotifications(docs){
     const data = doc.data();
     const isUnread = !readIds.has(doc.id);
     const isSelected = selectedNotifIds.has(doc.id);
-    const row = createNotificationRow(doc, data, isUnread, isSelected);
+   const row = createNotificationRow(doc, data, isUnread. isSelected);
     listEl.appendChild(row);
   });
 }
@@ -1470,7 +1484,7 @@ function renderRebelList(docs){
     const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
     row.innerHTML = `
       <div class="left">
-        <div class="date" style="font-weight:800;color:var(--ink);">${data.name || 'Untitled Test'}</div>
+        <div class="date" style="font-weight:800;color:var(--ink);">${escapeHTML(data.name || 'Untitled Test')}</div>
         <div class="meta">${(data.wordCount || (data.words? data.words.length : 0))+' words'} · ${dateStr}</div>
       </div>
       <div class="pctbadge" style="font-size:13px;">Start →</div>
@@ -1512,7 +1526,7 @@ function renderMixedListPublic(docs){
     const dateStr = data.createdAt ? data.createdAt.toDate().toLocaleDateString() : '';
     row.innerHTML = `
       <div class="left">
-        <div class="date" style="font-weight:800;color:var(--ink);">🧩 ${data.name || 'Untitled Test'}</div>
+        <div class="date" style="font-weight:800;color:var(--ink);">🧩 ${escapeHTML(data.name || 'Untitled Test')}</div>
         <div class="meta">${data.questionCount+' random questions from '+data.wordCount+' words'} · ${dateStr}</div>
       </div>
       <div class="pctbadge" style="font-size:13px;">Start →</div>
@@ -1559,7 +1573,7 @@ function renderAdminList(docs){
     row.innerHTML = `
       <span class="drag-handle" style="cursor:grab;font-size:18px;color:#786C9E;padding:4px 8px;touch-action:none;">☰</span>
       <div class="left" style="flex:1;">
-        <div class="date" style="font-weight:800;color:var(--ink);">${data.isMixed ? '🧩 ' : ''}${data.name || 'Untitled Test'}</div>
+        <div class="date" style="font-weight:800;color:var(--ink);">${data.isMixed ? '🧩 ' : ''}${escapeHTML(data.name || 'Untitled Test')}</div>
         <div class="meta">${data.isMixed ? (data.questionCount+' random Q from '+data.wordCount+' words') : ((data.wordCount || (data.words? data.words.length : 0))+' words')} · ${dateStr}</div>
       </div>
       <button class="btn btn-ghost btn-sm manage-btn" style="margin-right:8px;">✏️ Edit</button>
@@ -1746,8 +1760,8 @@ function renderLeaderboardList(){
     row.className = 'hist-row';
     row.innerHTML = `
       <div class="left">
-        <div class="date" style="font-weight:800;color:var(--ink);">${medal} ${d.studentName || 'Anonymous'}</div>
-        <div class="meta">${leaderboardFilter==='all' ? ((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+timeStr : ''} · ${dateStr}</div>
+        <div class="date" style="font-weight:800;color:var(--ink);">${medal} ${escapeHTML(d.studentName || 'Anonymous')}</div>
+        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+timeStr : ''} · ${dateStr}</div>
       </div>
       <div class="pctbadge">${d.pct}%</div>
     `;
@@ -1798,7 +1812,7 @@ function renderMixedTestSourceList(){
     row.innerHTML = `
       <div class="notif-checkbox ${isSelected?'checked':''}">${isSelected?'✓':''}</div>
       <div class="left">
-        <div class="title">${data.name || 'Untitled Test'}</div>
+        <div class="title">${escapeHTML(data.name || 'Untitled Test')}</div>
         <div class="meta">${data.wordCount || (data.words?data.words.length:0)} words${data.isMixed ? ' · 🧩 Mixed test' : ''}</div>
       </div>
     `;
@@ -1893,7 +1907,7 @@ $('createMixedTestBtn').addEventListener('click', async ()=>{
       order: Date.now(),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    $('mixedBuilderStatus').innerHTML = `<div class="success-box">🎉 "${name}" created — ${qCount} random questions from a ${combined.length}-word pool every attempt!</div>`;
+    $('mixedBuilderStatus').innerHTML = `<div class="success-box">🎉 "${escapeHTML(name)}" created — ${qCount} random questions from a ${combined.length}-word pool every attempt!</div>`;
     selectedMixedTestIds = new Set();
     $('mixedTestNameInput').value = '';
     $('mixedQuestionCountInput').value = '';
@@ -2089,7 +2103,7 @@ function renderVocabList(){
   vocabulary.forEach((v)=>{
     const row = document.createElement('div');
     row.className = 'vocab-row';
-    row.innerHTML = `<button class="speak-btn" data-word="${v.en}" title="Hear pronunciation" style="border:none;background:none;color:var(--violet);font-size:15px;cursor:pointer;padding:4px 6px;flex-shrink:0;">🔊</button><span class="en">${v.en}</span><span class="hi">${v.hi}</span>`;
+    row.innerHTML = `<button class="speak-btn" data-word="${escapeHTML(v.en)}" title="Hear pronunciation" style="border:none;background:none;color:var(--violet);font-size:15px;cursor:pointer;padding:4px 6px;flex-shrink:0;">🔊</button><span class="en">${escapeHTML(v.en)}</span><span class="hi">${escapeHTML(v.hi)}</span>`;
     listEl.appendChild(row);
   });
   listEl.querySelectorAll('.speak-btn').forEach(btn=>{
@@ -2133,7 +2147,7 @@ function renderManageVocabList(){
   managingWords.forEach((v, idx)=>{
     const row = document.createElement('div');
     row.className = 'vocab-row';
-    row.innerHTML = `<span class="en">${v.en}</span><span class="hi">${v.hi}</span>
+    row.innerHTML = `<span class="en">${escapeHTML(v.en)}</span><span class="hi">${escapeHTML(v.hi)}</span>
       <button class="rm" data-idx="${idx}" title="Edit" style="color:var(--violet);">✏️</button>
       <button class="rm" data-idx="${idx}" title="Remove">✕</button>`;
     listEl.appendChild(row);
@@ -2313,7 +2327,7 @@ function renderQuestion(){
   q.options.forEach((opt, i)=>{
     const btn = document.createElement('button');
     btn.className = 'opt';
-    btn.innerHTML = `<span class="tag">${letters[i]}</span><span>${opt}</span>`;
+    btn.innerHTML = `<span class="tag">${letters[i]}</span><span>${escapeHTML(opt)}</span>`;
     if(answered){
       btn.classList.add('disabled');
     } else {
@@ -2528,9 +2542,9 @@ function renderReport(){
         <span class="qn">Question ${originalIndex}</span>
         <span class="status-badge ${s.cls}">${s.label}</span>
       </div>
-      <div class="word">${q.en}</div>
-      <div class="row"><span class="k">Your Answer</span><span class="v ${q.status==='wrong'?'bad':(q.status==='correct'?'good':'')}">${q.userAnswer ? q.userAnswer : 'No answer'}</span></div>
-      <div class="row"><span class="k">Correct Answer</span><span class="v good">${q.correct}</span></div>
+      <div class="word">${escapeHTML(q.en)}</div>
+      <div class="row"><span class="k">Your Answer</span><span class="v ${q.status==='wrong'?'bad':(q.status==='correct'?'good':'')}">${escapeHTML(q.userAnswer ? q.userAnswer : 'No answer')}</span></div>
+      <div class="row"><span class="k">Correct Answer</span><span class="v good">${escapeHTML(q.correct)}</span></div>
     `;
     fragment.appendChild(div);
   });
