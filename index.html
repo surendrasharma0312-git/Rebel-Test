@@ -835,6 +835,14 @@
         <button id="toggleTestSoundBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); width: 60px;">ON</button>
       </div>
 
+      <div id="pushNotifContainer" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+        <div>
+          <div style="font-weight:600; color:var(--text);">Push Notifications</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Get notified when new tests are published</div>
+        </div>
+        <button id="togglePushBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); width: 60px;">OFF</button>
+      </div>
+
       <div style="margin-bottom: 16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
           <div style="font-weight:600; color:var(--text);">Volume</div>
@@ -867,6 +875,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script>
 /* =========================================================
@@ -890,10 +899,13 @@ const firebaseConfig = {
 
 let db = null;
 let firebaseReady = false;
+let messaging = null;
+
 try{
   if(firebaseConfig.apiKey && firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY"){
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    messaging = typeof firebase.messaging === 'function' ? firebase.messaging() : null;
     firebaseReady = true;
   }
 }catch(e){
@@ -1542,6 +1554,134 @@ $('deleteSelectedBtn').addEventListener('click', async ()=>{
     exitSelectMode();
     updateNotifBadge(lastCloudDocs);
   }
+});
+
+
+/* =========================================================
+   PUSH NOTIFICATIONS
+========================================================= */
+const VAPID_KEY = "BDr1kP7J0uL1c8F6iGj9z2Rk5tM4Nn7O-pQv3Xy8A9sCw6Dq0_E4uF1gH5jK7mL2xP5rS4vW9nB2kM1qZ8xR3yA"; // Replace with actual VAPID key if needed, or leave it to Firebase
+
+async function checkNotificationPermission() {
+  if (!('Notification' in window) || !messaging) return 'unsupported';
+  return Notification.permission;
+}
+
+async function subscribeToPush() {
+  if (!messaging) return false;
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.log('Notification permission not granted');
+      return false;
+    }
+    const token = await messaging.getToken();
+    if (token) {
+      console.log('FCM Token:', token);
+      await saveTokenToFirestore(token);
+      localStorage.setItem('pushEnabled', 'true');
+      updatePushUI();
+      return true;
+    }
+  } catch (error) {
+    console.error('Error subscribing to push:', error);
+  }
+  return false;
+}
+
+async function unsubscribeFromPush() {
+  if (!messaging) return;
+  try {
+    const token = await messaging.getToken();
+    if (token) {
+      await messaging.deleteToken();
+      await removeTokenFromFirestore(token);
+    }
+    localStorage.setItem('pushEnabled', 'false');
+    updatePushUI();
+  } catch (error) {
+    console.error('Error unsubscribing from push:', error);
+  }
+}
+
+async function saveTokenToFirestore(token) {
+  if (!db) return;
+  try {
+    const tokensRef = db.collection('fcmTokens');
+    await tokensRef.doc(token).set({
+      token: token,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  } catch (e) {
+    console.error("Error saving token", e);
+  }
+}
+
+async function removeTokenFromFirestore(token) {
+  if (!db) return;
+  try {
+    await db.collection('fcmTokens').doc(token).delete();
+  } catch (e) {
+    console.error("Error deleting token", e);
+  }
+}
+
+function updatePushUI() {
+  const container = $('pushNotifContainer');
+  if (container) {
+    if (!('Notification' in window) || !messaging) {
+      container.style.display = 'none';
+      return;
+    }
+  }
+
+  const btn = $('togglePushBtn');
+  if (!btn) return;
+  const isEnabled = localStorage.getItem('pushEnabled') === 'true';
+  btn.textContent = isEnabled ? 'ON' : 'OFF';
+  btn.style.color = isEnabled ? 'var(--primary-hover)' : 'var(--text)';
+  btn.style.borderColor = isEnabled ? 'var(--primary)' : 'var(--border)';
+  btn.style.background = isEnabled ? 'var(--primary-light)' : 'var(--surface-2)';
+}
+
+$('togglePushBtn')?.addEventListener('click', async () => {
+  const isEnabled = localStorage.getItem('pushEnabled') === 'true';
+  if (isEnabled) {
+    await unsubscribeFromPush();
+  } else {
+    await subscribeToPush();
+  }
+});
+
+// Foreground messages
+if (messaging) {
+  messaging.onMessage((payload) => {
+    console.log('Message received. ', payload);
+    // The existing snapshot listener handles the in-app notification UI,
+    // so we don't necessarily need to show a custom banner here unless desired.
+    // If we wanted to, we could show a toast.
+  });
+}
+
+
+// Handle navigation from SW
+navigator.serviceWorker?.addEventListener('message', event => {
+  if (event.data && event.data.type === 'NAVIGATE' && event.data.url) {
+    const url = new URL(event.data.url, window.location.origin);
+    const testId = url.searchParams.get('test');
+    if (testId) {
+      // In this SPA, we can switch screens or load the test directly
+      // Since there's no native URL routing, we just reload for simplicity
+      // Or if the app handles ?test= query param on load, this works.
+      window.location.href = event.data.url;
+    }
+  }
+});
+
+// Initialize UI
+document.addEventListener('DOMContentLoaded', () => {
+  updatePushUI();
 });
 
 /* =========================================================

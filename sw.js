@@ -1,5 +1,34 @@
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDqH_MHlDoOutizI4-Htcc18UIXouA2xDo",
+  authDomain: "rebel-test-9a453.firebaseapp.com",
+  projectId: "rebel-test-9a453",
+  storageBucket: "rebel-test-9a453.firebasestorage.app",
+  messagingSenderId: "39692234468",
+  appId: "1:39692234468:web:12c07b504765114522c6f1"
+};
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
+  messaging.onBackgroundMessage((payload) => {
+    console.log('[sw.js] Received background message ', payload);
+    const notificationTitle = payload.data.title || payload.notification?.title || 'Rebel Test Series';
+    const notificationOptions = {
+      body: payload.data.body || payload.notification?.body || '',
+      icon: './icon-192.png',
+      data: payload.data
+    };
+    self.registration.showNotification(notificationTitle, notificationOptions);
+  });
+} catch(e) {
+  console.error("Firebase SW init error:", e);
+}
+
 // sw.js — Service worker with Stale-While-Revalidate caching strategy
-const CACHE_NAME = 'rebel-test-v3';
+const CACHE_NAME = 'rebel-test-v4';
 
 const APP_SHELL = [
   './',
@@ -45,7 +74,8 @@ self.addEventListener('fetch', (event) => {
   // Skip caching for Firebase Firestore / Auth API calls to prevent stale data
   if (url.hostname.includes('firestore.googleapis.com') ||
       url.hostname.includes('securetoken.googleapis.com') ||
-      url.hostname.includes('identitytoolkit.googleapis.com')) {
+      url.hostname.includes('identitytoolkit.googleapis.com') ||
+      url.hostname.includes('fcmregistrations.googleapis.com')) {
     return; // let the browser handle it directly
   }
 
@@ -72,6 +102,36 @@ self.addEventListener('fetch', (event) => {
 
       // Return cached immediately if available, otherwise wait for network
       return cachedResponse || fetchPromise;
+    })
+  );
+});
+
+
+
+self.addEventListener('notificationclick', function(event) {
+  console.log('Notification click received.');
+  event.notification.close();
+
+  let targetPath = '/';
+  if (event.notification.data && event.notification.data.testId) {
+    targetPath = '/?test=' + event.notification.data.testId;
+  }
+  const urlToOpen = new URL(targetPath, self.location.origin).href;
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          // If a client is open, focus it and optionally send a message to navigate
+          client.focus();
+          client.postMessage({ type: 'NAVIGATE', url: targetPath });
+          return;
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
     })
   );
 });
