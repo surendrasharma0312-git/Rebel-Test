@@ -818,7 +818,7 @@
       <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
         <span id="qCounter">Question 1 of 20</span>
         <span id="qCorrectCount">✅ 0</span>
-        <button id="reviewTopBtn" class="tag" style="display:none; cursor:pointer; background:var(--warning-light); color:var(--warning-text); border:none; padding:4px 8px; border-radius:12px; align-items:center; justify-content:center; font-weight:600; font-size:13px;" aria-label="0 questions marked for review">🔖 <span id="reviewTopCount">0</span></button>
+        <button id="reviewTopBtn" onclick="handleReviewTopClick()" class="tag" style="display:none; cursor:pointer; background:var(--warning-light); color:var(--warning-text); border:none; padding:4px 8px; border-radius:12px; align-items:center; justify-content:center; font-weight:600; font-size:13px;" aria-label="0 questions marked for review">🔖 <span id="reviewTopCount">0</span></button>
       </div>
       <button id="inTestMuteBtn" class="audio-circle-btn" title="Test sound effects" aria-label="Test sound effects">
         <div class="audio-ring"></div>
@@ -838,9 +838,9 @@
     </div>
 
     <div class="btn-row" id="testNavRow" style="margin-top:14px;gap:8px;">
-      <button class="btn btn-ghost" id="prevQBtn" style="flex:1;">⬅ Previous</button>
-      <button class="btn" id="attemptLaterBtn" style="flex:1;background:linear-gradient(135deg,#FFB35C,var(--warning));color:#FFFFFF;box-shadow:0 10px 20px rgba(255,174,52,.3);">🔖 Later</button>
-      <button class="btn btn-primary" id="nextQBtn" style="flex:1.3;">Next ➡</button>
+      <button class="btn btn-ghost" id="prevQBtn" onclick="handlePrevQClick()" style="flex:1;">⬅ Previous</button>
+      <button class="btn" id="attemptLaterBtn" onclick="handleAttemptLater()" style="flex:1;background:linear-gradient(135deg,#FFB35C,var(--warning));color:#FFFFFF;box-shadow:0 10px 20px rgba(255,174,52,.3);">🔖 Later</button>
+      <button class="btn btn-primary" id="nextQBtn" onclick="handleNextQClick()" style="flex:1.3;">Next ➡</button>
     </div>
   </section>
 
@@ -986,6 +986,51 @@
 
 </div>
 
+  <!-- Review Later Modal -->
+  <div id="reviewModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🔖 Marked for Review (<span id="reviewModalCount">0</span>)</h3>
+        <button class="icon-btn" id="closeReviewModalBtn" onclick="document.getElementById('reviewModal').style.display='none'" style="font-size:16px;">❌</button>
+      </div>
+      <div id="reviewModalList" style="display:flex; flex-direction:column;"></div>
+    </div>
+  </div>
+
+  <!-- Unanswered Warning Modal -->
+  <div id="unansweredModal" class="modal-overlay">
+    <div class="modal-content" style="text-align:center;">
+      <h3 style="margin-top:0; color:var(--text);">⚠️ <span id="unansweredModalCount">0</span> Questions Unanswered</h3>
+      <p class="text-muted">You haven't attempted these questions yet.</p>
+      <div class="modal-actions">
+        <button class="btn" id="attemptUnansweredBtn" onclick="handleAttemptUnanswered()" style="background:var(--primary-light); color:var(--primary);">Attempt Unanswered Questions</button>
+        <button class="btn" id="unansweredReviewLaterBtn" onclick="handleUnansweredReviewLater()" style="display:none; background:var(--warning-light); color:var(--warning-text);">Review Later</button>
+        <button class="btn" id="unansweredSubmitBtn" onclick="handleUnansweredSubmit()" style="background:var(--danger-light); color:var(--danger);">Submit Test</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unanswered List Modal -->
+  <div id="unansweredListModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Unanswered Questions</h3>
+        <button class="icon-btn" id="closeUnansweredListBtn" onclick="document.getElementById('unansweredListModal').style.display='none'" style="font-size:16px;">❌</button>
+      </div>
+      <div id="unansweredList" style="display:flex; flex-direction:column;"></div>
+    </div>
+  </div>
+
+  <!-- Submit Confirmation Modal -->
+  <div id="submitConfirmModal" class="modal-overlay">
+    <div class="modal-content" style="text-align:center;">
+      <h3 style="margin-top:0; color:var(--text);">You still have <span id="submitConfirmCount">0</span> unanswered questions.</h3>
+      <div class="modal-actions">
+        <button class="btn" id="goBackAttemptBtn" onclick="handleGoBackAttempt()" style="background:var(--primary-light); color:var(--primary);">Go Back & Attempt</button>
+        <button class="btn" id="submitAnywayBtn" onclick="handleSubmitAnyway()" style="background:var(--danger-light); color:var(--danger);">Submit Anyway</button>
+      </div>
+    </div>
+  </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -2837,20 +2882,20 @@ function lockOptions(q, chosenBtn){
 $('speakQWordBtn').addEventListener('click', ()=>{
   speakWord($('speakQWordBtn').getAttribute('data-word'));
 });
-$('prevQBtn').addEventListener('click', ()=>{
+window.handlePrevQClick = function() {
   if(currentIndex > 0){
     currentIndex--;
     renderQuestion();
   }
-});
-$('nextQBtn').addEventListener('click', ()=>{
+};
+window.handleNextQClick = function() {
   if(currentIndex < currentTest.length - 1){
     currentIndex++;
     renderQuestion();
   } else {
     checkUnansweredBeforeFinish();
   }
-});
+};
 
 function getUnansweredQuestions() {
   return currentTest.filter(q => !q.status);
@@ -2869,7 +2914,7 @@ function checkUnansweredBeforeFinish() {
   }
 }
 
-$('attemptUnansweredBtn')?.addEventListener('click', () => {
+window.handleAttemptUnanswered = function() {
   $('unansweredModal').style.display = 'none';
   const list = $('unansweredList');
   list.innerHTML = '';
@@ -2878,7 +2923,7 @@ $('attemptUnansweredBtn')?.addEventListener('click', () => {
     const item = document.createElement('div');
     item.className = 'review-list-item';
     const index = currentTest.indexOf(q);
-    item.innerHTML = `<span>Q${index + 1}</span>`;
+    item.innerHTML = `<span>Q${index + 1} — ${escapeHTML(q.en)}</span>`;
     item.addEventListener('click', () => {
       $('unansweredListModal').style.display = 'none';
       currentIndex = index;
@@ -2887,35 +2932,31 @@ $('attemptUnansweredBtn')?.addEventListener('click', () => {
     list.appendChild(item);
   });
   $('unansweredListModal').style.display = 'flex';
-});
+};
 
-$('unansweredReviewLaterBtn')?.addEventListener('click', () => {
+window.handleUnansweredReviewLater = function() {
   $('unansweredModal').style.display = 'none';
   $('reviewTopBtn').click();
-});
+};
 
-$('closeUnansweredListBtn')?.addEventListener('click', () => {
-  $('unansweredListModal').style.display = 'none';
-});
-
-$('unansweredSubmitBtn')?.addEventListener('click', () => {
+window.handleUnansweredSubmit = function() {
   $('unansweredModal').style.display = 'none';
   const unanswered = getUnansweredQuestions();
   $('submitConfirmCount').textContent = unanswered.length;
   $('submitConfirmModal').style.display = 'flex';
-});
+};
 
-$('goBackAttemptBtn')?.addEventListener('click', () => {
+window.handleGoBackAttempt = function() {
   $('submitConfirmModal').style.display = 'none';
-  $('attemptUnansweredBtn').click();
-});
+  window.handleAttemptUnanswered();
+};
 
-$('submitAnywayBtn')?.addEventListener('click', () => {
+window.handleSubmitAnyway = function() {
   $('submitConfirmModal').style.display = 'none';
   finishTest();
-});
+};
 
-$('attemptLaterBtn').addEventListener('click', ()=>{
+window.handleAttemptLater = function() {
   const q = currentTest[currentIndex];
   if (q.markedLater) {
     // Unmark
@@ -2933,10 +2974,10 @@ $('attemptLaterBtn').addEventListener('click', ()=>{
       updateNavButtons();
     }
   }
-});
+};
 
 // Top bar review later button click handler
-$('reviewTopBtn')?.addEventListener('click', () => {
+window.handleReviewTopClick = function() {
   const list = $('reviewModalList');
   list.innerHTML = '';
   const marked = currentTest.filter(q => q.markedLater);
@@ -2954,11 +2995,8 @@ $('reviewTopBtn')?.addEventListener('click', () => {
     list.appendChild(item);
   });
   $('reviewModal').style.display = 'flex';
-});
+};
 
-$('closeReviewModalBtn')?.addEventListener('click', () => {
-  $('reviewModal').style.display = 'none';
-});
 
 
 /* =========================================================
@@ -3502,51 +3540,7 @@ listenToCloudTests();
 })();
 </script>
 
-  <!-- Review Later Modal -->
-  <div id="reviewModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>🔖 Marked for Review (<span id="reviewModalCount">0</span>)</h3>
-        <button class="icon-btn" id="closeReviewModalBtn" style="font-size:16px;">❌</button>
-      </div>
-      <div id="reviewModalList" style="display:flex; flex-direction:column;"></div>
-    </div>
-  </div>
 
-  <!-- Unanswered Warning Modal -->
-  <div id="unansweredModal" class="modal-overlay">
-    <div class="modal-content" style="text-align:center;">
-      <h3 style="margin-top:0; color:var(--text);">⚠️ <span id="unansweredModalCount">0</span> Questions Unanswered</h3>
-      <p class="text-muted">You haven't attempted these questions yet.</p>
-      <div class="modal-actions">
-        <button class="btn" id="attemptUnansweredBtn" style="background:var(--primary-light); color:var(--primary);">Attempt Unanswered Questions</button>
-        <button class="btn" id="unansweredReviewLaterBtn" style="display:none; background:var(--warning-light); color:var(--warning-text);">Review Later</button>
-        <button class="btn" id="unansweredSubmitBtn" style="background:var(--danger-light); color:var(--danger);">Submit Test</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Unanswered List Modal -->
-  <div id="unansweredListModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Unanswered Questions</h3>
-        <button class="icon-btn" id="closeUnansweredListBtn" style="font-size:16px;">❌</button>
-      </div>
-      <div id="unansweredList" style="display:flex; flex-direction:column;"></div>
-    </div>
-  </div>
-
-  <!-- Submit Confirmation Modal -->
-  <div id="submitConfirmModal" class="modal-overlay">
-    <div class="modal-content" style="text-align:center;">
-      <h3 style="margin-top:0; color:var(--text);">You still have <span id="submitConfirmCount">0</span> unanswered questions.</h3>
-      <div class="modal-actions">
-        <button class="btn" id="goBackAttemptBtn" style="background:var(--primary-light); color:var(--primary);">Go Back & Attempt</button>
-        <button class="btn" id="submitAnywayBtn" style="background:var(--danger-light); color:var(--danger);">Submit Anyway</button>
-      </div>
-    </div>
-  </div>
 </body>
 
 </html>

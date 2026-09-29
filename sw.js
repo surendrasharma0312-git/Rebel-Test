@@ -28,7 +28,7 @@ try {
 }
 
 // sw.js — Service worker with Stale-While-Revalidate caching strategy
-const CACHE_NAME = 'rebel-test-v5';
+const CACHE_NAME = 'rebel-test-v6';
 
 const APP_SHELL = [
   './',
