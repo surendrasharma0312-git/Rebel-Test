@@ -417,14 +417,11 @@
       </div>
     </div>
     <div style="display:flex;gap:8px;">
-      <button class="icon-btn" id="themeToggleBtn" title="Toggle Theme" aria-label="Toggle Dark Mode">🌙</button>
-      <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">⚙️</button>
       <button class="icon-btn" id="notifyBtn" title="Notifications" style="position:relative;">
         🔔
         <span id="notifyBadge" style="display:none;position:absolute;top:2px;right:2px;background:var(--danger);color:#FFFFFF;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:100px;align-items:center;justify-content:center;padding:0 3px;">0</span>
       </button>
-      <button class="icon-btn" id="adminBtn" title="Admin">🔒</button>
-      <button class="icon-btn" id="historyNavBtn" title="Test History">📊</button>
+      <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">⚙️</button>
     </div>
   </div>
 
@@ -823,6 +820,14 @@
     <h2 class="section-title">Settings</h2>
 
     <div class="card" style="margin-bottom: 14px;">
+      <h3 style="margin-top:0;margin-bottom:12px;font-size:16px;">Appearance</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:600; color:var(--text);">Light / Dark Mode</div>
+        <button id="themeToggleBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); font-size: 16px; padding: 4px 10px;">🌙</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 14px;">
       <h3 style="margin-top:0;margin-bottom:12px;font-size:16px;">Test Experience</h3>
 
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
@@ -841,6 +846,18 @@
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div style="font-weight:600; color:var(--text);">Haptic Feedback</div>
         <button id="toggleHapticBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); width: 60px;">ON</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 14px;">
+      <h3 style="margin-top:0;margin-bottom:12px;font-size:16px;">Account / Tools</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; cursor: pointer;" id="historyNavBtn">
+        <div style="font-weight:600; color:var(--text);">📚 Test History</div>
+        <div style="color:var(--text-muted);">→</div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; cursor: pointer;" id="adminBtn">
+        <div style="font-weight:600; color:var(--text);" id="adminBtnText">⚙️ Admin Panel</div>
+        <div style="color:var(--text-muted);">→</div>
       </div>
     </div>
   </section>
@@ -1754,7 +1771,10 @@ async function sha256Hex(str){
 }
 
 function updateAdminUI(){
-  $('adminBtn').textContent = isAdmin ? '🔓' : '🔒';
+  const adminTextDiv = document.getElementById('adminBtnText');
+  if (adminTextDiv) {
+    adminTextDiv.textContent = isAdmin ? '🔓 Admin Panel' : '⚙️ Admin Panel';
+  }
   $('adminBtn').title = isAdmin ? 'Admin dashboard' : 'Admin login';
   renderCloudUI(lastCloudDocs);
 }
