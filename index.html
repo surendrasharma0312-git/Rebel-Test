@@ -986,51 +986,6 @@
 
 </div>
 
-  <!-- Review Later Modal -->
-  <div id="reviewModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>🔖 Marked for Review (<span id="reviewModalCount">0</span>)</h3>
-        <button class="icon-btn" id="closeReviewModalBtn" onclick="document.getElementById('reviewModal').style.display='none'" style="font-size:16px;">❌</button>
-      </div>
-      <div id="reviewModalList" style="display:flex; flex-direction:column;"></div>
-    </div>
-  </div>
-
-  <!-- Unanswered Warning Modal -->
-  <div id="unansweredModal" class="modal-overlay">
-    <div class="modal-content" style="text-align:center;">
-      <h3 style="margin-top:0; color:var(--text);">⚠️ <span id="unansweredModalCount">0</span> Questions Unanswered</h3>
-      <p class="text-muted">You haven't attempted these questions yet.</p>
-      <div class="modal-actions">
-        <button class="btn" id="attemptUnansweredBtn" onclick="handleAttemptUnanswered()" style="background:var(--primary-light); color:var(--primary);">Attempt Unanswered Questions</button>
-        <button class="btn" id="unansweredReviewLaterBtn" onclick="handleUnansweredReviewLater()" style="display:none; background:var(--warning-light); color:var(--warning-text);">Review Later</button>
-        <button class="btn" id="unansweredSubmitBtn" onclick="handleUnansweredSubmit()" style="background:var(--danger-light); color:var(--danger);">Submit Test</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Unanswered List Modal -->
-  <div id="unansweredListModal" class="modal-overlay">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>Unanswered Questions</h3>
-        <button class="icon-btn" id="closeUnansweredListBtn" onclick="document.getElementById('unansweredListModal').style.display='none'" style="font-size:16px;">❌</button>
-      </div>
-      <div id="unansweredList" style="display:flex; flex-direction:column;"></div>
-    </div>
-  </div>
-
-  <!-- Submit Confirmation Modal -->
-  <div id="submitConfirmModal" class="modal-overlay">
-    <div class="modal-content" style="text-align:center;">
-      <h3 style="margin-top:0; color:var(--text);">You still have <span id="submitConfirmCount">0</span> unanswered questions.</h3>
-      <div class="modal-actions">
-        <button class="btn" id="goBackAttemptBtn" onclick="handleGoBackAttempt()" style="background:var(--primary-light); color:var(--primary);">Go Back & Attempt</button>
-        <button class="btn" id="submitAnywayBtn" onclick="handleSubmitAnyway()" style="background:var(--danger-light); color:var(--danger);">Submit Anyway</button>
-      </div>
-    </div>
-  </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -2936,7 +2891,7 @@ window.handleAttemptUnanswered = function() {
 
 window.handleUnansweredReviewLater = function() {
   $('unansweredModal').style.display = 'none';
-  $('reviewTopBtn').click();
+  window.handleReviewTopClick();
 };
 
 window.handleUnansweredSubmit = function() {
@@ -2996,7 +2951,6 @@ window.handleReviewTopClick = function() {
   });
   $('reviewModal').style.display = 'flex';
 };
-
 
 
 /* =========================================================
@@ -3540,7 +3494,51 @@ listenToCloudTests();
 })();
 </script>
 
+  <!-- Review Later Modal -->
+  <div id="reviewModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🔖 Marked for Review (<span id="reviewModalCount">0</span>)</h3>
+        <button class="icon-btn" id="closeReviewModalBtn" onclick="document.getElementById('reviewModal').style.display='none'" style="font-size:16px;">❌</button>
+      </div>
+      <div id="reviewModalList" style="display:flex; flex-direction:column;"></div>
+    </div>
+  </div>
 
+  <!-- Unanswered Warning Modal -->
+  <div id="unansweredModal" class="modal-overlay">
+    <div class="modal-content" style="text-align:center;">
+      <h3 style="margin-top:0; color:var(--text);">⚠️ <span id="unansweredModalCount">0</span> Questions Unanswered</h3>
+      <p class="text-muted">You haven't attempted these questions yet.</p>
+      <div class="modal-actions">
+        <button class="btn" id="attemptUnansweredBtn" onclick="handleAttemptUnanswered()" style="background:var(--primary-light); color:var(--primary);">Attempt Unanswered Questions</button>
+        <button class="btn" id="unansweredReviewLaterBtn" onclick="handleUnansweredReviewLater()" style="display:none; background:var(--warning-light); color:var(--warning-text);">Review Later</button>
+        <button class="btn" id="unansweredSubmitBtn" onclick="handleUnansweredSubmit()" style="background:var(--danger-light); color:var(--danger);">Submit Test</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unanswered List Modal -->
+  <div id="unansweredListModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Unanswered Questions</h3>
+        <button class="icon-btn" id="closeUnansweredListBtn" onclick="document.getElementById('unansweredListModal').style.display='none'" style="font-size:16px;">❌</button>
+      </div>
+      <div id="unansweredList" style="display:flex; flex-direction:column;"></div>
+    </div>
+  </div>
+
+  <!-- Submit Confirmation Modal -->
+  <div id="submitConfirmModal" class="modal-overlay">
+    <div class="modal-content" style="text-align:center;">
+      <h3 style="margin-top:0; color:var(--text);">You still have <span id="submitConfirmCount">0</span> unanswered questions.</h3>
+      <div class="modal-actions">
+        <button class="btn" id="goBackAttemptBtn" onclick="handleGoBackAttempt()" style="background:var(--primary-light); color:var(--primary);">Go Back & Attempt</button>
+        <button class="btn" id="submitAnywayBtn" onclick="handleSubmitAnyway()" style="background:var(--danger-light); color:var(--danger);">Submit Anyway</button>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>
