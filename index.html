@@ -954,7 +954,7 @@
           <div style="font-weight:600; color:var(--text);">Push Notifications</div>
           <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Get notified when new tests are published</div>
         </div>
-        <button id="togglePushBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); width: 60px;">OFF</button>
+        <button id="togglePushBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); width: 60px;" onclick="window.handleTogglePush()">OFF</button>
       </div>
 
       <div style="margin-bottom: 16px;">
@@ -1689,12 +1689,13 @@ async function subscribeToPush() {
       console.log('Notification permission not granted');
       return false;
     }
-    const token = await messaging.getToken();
+    const reg = await navigator.serviceWorker.ready;
+    const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
     if (token) {
       console.log('FCM Token:', token);
       await saveTokenToFirestore(token);
       localStorage.setItem('pushEnabled', 'true');
-      updatePushUI();
+      updatePushUI().catch(err => console.error('UI update failed:', err));
       return true;
     }
   } catch (error) {
@@ -1706,13 +1707,14 @@ async function subscribeToPush() {
 async function unsubscribeFromPush() {
   if (!messaging) return;
   try {
-    const token = await messaging.getToken();
+    const reg = await navigator.serviceWorker.ready;
+    const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
     if (token) {
       await messaging.deleteToken();
       await removeTokenFromFirestore(token);
     }
     localStorage.setItem('pushEnabled', 'false');
-    updatePushUI();
+    updatePushUI().catch(err => console.error('UI update failed:', err));
   } catch (error) {
     console.error('Error unsubscribing from push:', error);
   }
@@ -1741,7 +1743,7 @@ async function removeTokenFromFirestore(token) {
   }
 }
 
-function updatePushUI() {
+async function updatePushUI() {
   const container = $('pushNotifContainer');
   if (container) {
     if (!('Notification' in window) || !messaging) {
@@ -1752,21 +1754,38 @@ function updatePushUI() {
 
   const btn = $('togglePushBtn');
   if (!btn) return;
-  const isEnabled = localStorage.getItem('pushEnabled') === 'true';
+
+  let isEnabled = false;
+  if (Notification.permission === 'granted' && messaging) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        isEnabled = true;
+      }
+    } catch (err) {
+      console.log('Error checking FCM token state:', err);
+    }
+  }
+
+  localStorage.setItem('pushEnabled', isEnabled ? 'true' : 'false');
+
   btn.textContent = isEnabled ? 'ON' : 'OFF';
   btn.style.color = isEnabled ? 'var(--primary-hover)' : 'var(--text)';
   btn.style.borderColor = isEnabled ? 'var(--primary)' : 'var(--border)';
   btn.style.background = isEnabled ? 'var(--primary-light)' : 'var(--surface-2)';
 }
 
-$('togglePushBtn')?.addEventListener('click', async () => {
-  const isEnabled = localStorage.getItem('pushEnabled') === 'true';
+window.handleTogglePush = async () => {
+  const btn = $('togglePushBtn');
+  const isEnabled = btn.textContent === 'ON';
+
   if (isEnabled) {
     await unsubscribeFromPush();
   } else {
     await subscribeToPush();
   }
-});
+};
 
 // Foreground messages
 if (messaging) {
@@ -1795,7 +1814,7 @@ navigator.serviceWorker?.addEventListener('message', event => {
 
 // Initialize UI
 document.addEventListener('DOMContentLoaded', () => {
-  updatePushUI();
+  updatePushUI().catch(err => console.error('UI update failed:', err));
 });
 
 /* =========================================================
@@ -2869,7 +2888,7 @@ function checkUnansweredBeforeFinish() {
   }
 }
 
-$('attemptUnansweredBtn')?.addEventListener('click', () => {
+window.handleAttemptUnanswered = () => {
   $('unansweredModal').style.display = 'none';
   const list = $('unansweredList');
   list.innerHTML = '';
@@ -2887,33 +2906,33 @@ $('attemptUnansweredBtn')?.addEventListener('click', () => {
     list.appendChild(item);
   });
   $('unansweredListModal').style.display = 'flex';
-});
+};
 
-$('unansweredReviewLaterBtn')?.addEventListener('click', () => {
+window.handleUnansweredReviewLater = () => {
   $('unansweredModal').style.display = 'none';
   $('reviewTopBtn').click();
-});
+};
 
-$('closeUnansweredListBtn')?.addEventListener('click', () => {
+window.handleCloseUnansweredList = () => {
   $('unansweredListModal').style.display = 'none';
-});
+};
 
-$('unansweredSubmitBtn')?.addEventListener('click', () => {
+window.handleUnansweredSubmit = () => {
   $('unansweredModal').style.display = 'none';
   const unanswered = getUnansweredQuestions();
   $('submitConfirmCount').textContent = unanswered.length;
   $('submitConfirmModal').style.display = 'flex';
-});
+};
 
-$('goBackAttemptBtn')?.addEventListener('click', () => {
+window.handleGoBackAttempt = () => {
   $('submitConfirmModal').style.display = 'none';
-  $('attemptUnansweredBtn').click();
-});
+  window.handleAttemptUnanswered();
+};
 
-$('submitAnywayBtn')?.addEventListener('click', () => {
+window.handleSubmitAnyway = () => {
   $('submitConfirmModal').style.display = 'none';
   finishTest();
-});
+};
 
 $('attemptLaterBtn').addEventListener('click', ()=>{
   const q = currentTest[currentIndex];
@@ -2956,9 +2975,9 @@ $('reviewTopBtn')?.addEventListener('click', () => {
   $('reviewModal').style.display = 'flex';
 });
 
-$('closeReviewModalBtn')?.addEventListener('click', () => {
+window.handleCloseReviewModal = () => {
   $('reviewModal').style.display = 'none';
-});
+};
 
 
 /* =========================================================
@@ -3507,7 +3526,7 @@ listenToCloudTests();
     <div class="modal-content">
       <div class="modal-header">
         <h3>🔖 Marked for Review (<span id="reviewModalCount">0</span>)</h3>
-        <button class="icon-btn" id="closeReviewModalBtn" style="font-size:16px;">❌</button>
+        <button class="icon-btn" id="closeReviewModalBtn" style="font-size:16px;" onclick="window.handleCloseReviewModal()">❌</button>
       </div>
       <div id="reviewModalList" style="display:flex; flex-direction:column;"></div>
     </div>
@@ -3519,9 +3538,9 @@ listenToCloudTests();
       <h3 style="margin-top:0; color:var(--text);">⚠️ <span id="unansweredModalCount">0</span> Questions Unanswered</h3>
       <p class="text-muted">You haven't attempted these questions yet.</p>
       <div class="modal-actions">
-        <button class="btn" id="attemptUnansweredBtn" style="background:var(--primary-light); color:var(--primary);">Attempt Unanswered Questions</button>
-        <button class="btn" id="unansweredReviewLaterBtn" style="display:none; background:var(--warning-light); color:var(--warning-text);">Review Later</button>
-        <button class="btn" id="unansweredSubmitBtn" style="background:var(--danger-light); color:var(--danger);">Submit Test</button>
+        <button class="btn" id="attemptUnansweredBtn" style="background:var(--primary-light); color:var(--primary);" onclick="window.handleAttemptUnanswered()">Attempt Unanswered Questions</button>
+        <button class="btn" id="unansweredReviewLaterBtn" style="display:none; background:var(--warning-light); color:var(--warning-text);" onclick="window.handleUnansweredReviewLater()">Review Later</button>
+        <button class="btn" id="unansweredSubmitBtn" style="background:var(--danger-light); color:var(--danger);" onclick="window.handleUnansweredSubmit()">Submit Test</button>
       </div>
     </div>
   </div>
@@ -3531,7 +3550,7 @@ listenToCloudTests();
     <div class="modal-content">
       <div class="modal-header">
         <h3>Unanswered Questions</h3>
-        <button class="icon-btn" id="closeUnansweredListBtn" style="font-size:16px;">❌</button>
+        <button class="icon-btn" id="closeUnansweredListBtn" style="font-size:16px;" onclick="window.handleCloseUnansweredList()">❌</button>
       </div>
       <div id="unansweredList" style="display:flex; flex-direction:column;"></div>
     </div>
@@ -3542,8 +3561,8 @@ listenToCloudTests();
     <div class="modal-content" style="text-align:center;">
       <h3 style="margin-top:0; color:var(--text);">You still have <span id="submitConfirmCount">0</span> unanswered questions.</h3>
       <div class="modal-actions">
-        <button class="btn" id="goBackAttemptBtn" style="background:var(--primary-light); color:var(--primary);">Go Back & Attempt</button>
-        <button class="btn" id="submitAnywayBtn" style="background:var(--danger-light); color:var(--danger);">Submit Anyway</button>
+        <button class="btn" id="goBackAttemptBtn" style="background:var(--primary-light); color:var(--primary);" onclick="window.handleGoBackAttempt()">Go Back & Attempt</button>
+        <button class="btn" id="submitAnywayBtn" style="background:var(--danger-light); color:var(--danger);" onclick="window.handleSubmitAnyway()">Submit Anyway</button>
       </div>
     </div>
   </div>
