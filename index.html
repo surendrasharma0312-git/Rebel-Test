@@ -1573,9 +1573,15 @@ async function subscribeToPush() {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
       console.log('Notification permission not granted');
+      localStorage.setItem('pushEnabled', 'false');
+      updatePushUI();
       return false;
     }
-    const token = await messaging.getToken();
+    const swRegistration = await navigator.serviceWorker.ready;
+    const token = await messaging.getToken({
+      serviceWorkerRegistration: swRegistration,
+      vapidKey: 'BDr1kP7J0uL1c8F6iGj9z2Rk5tM4Nn7O-pQv3Xy8A9sCw6Dq0_E4uF1gH5jK7mL2xP5rS4vW9nB2kM1qZ8xR3yA'
+    });
     if (token) {
       console.log('FCM Token:', token);
       await saveTokenToFirestore(token);
@@ -1585,6 +1591,8 @@ async function subscribeToPush() {
     }
   } catch (error) {
     console.error('Error subscribing to push:', error);
+    localStorage.setItem('pushEnabled', 'false');
+    updatePushUI();
   }
   return false;
 }
@@ -1638,7 +1646,28 @@ function updatePushUI() {
 
   const btn = $('togglePushBtn');
   if (!btn) return;
-  const isEnabled = localStorage.getItem('pushEnabled') === 'true';
+
+  const permission = Notification.permission;
+  let isEnabled = localStorage.getItem('pushEnabled') === 'true';
+
+  // If permission is already granted natively but localstorage doesn't reflect it,
+  // we could automatically subscribe in the background, but for now we just reflect state.
+  // Actually, if it's granted, we should reflect that in the UI.
+  // Let's assume if they granted it natively, they want it ON, unless they explicitly turned it OFF in our app.
+  if (permission === 'granted') {
+    // if it's not explicitly false in localstorage, assume true
+    if (localStorage.getItem('pushEnabled') !== 'false') {
+        isEnabled = true;
+        // optionally, we could call subscribeToPush() here silently to ensure token is captured
+    }
+  } else if (permission === 'denied') {
+    isEnabled = false;
+    localStorage.setItem('pushEnabled', 'false');
+  } else if (permission === 'default') {
+    isEnabled = false;
+    // Don't overwrite localstorage yet, wait for them to click
+  }
+
   btn.textContent = isEnabled ? 'ON' : 'OFF';
   btn.style.color = isEnabled ? 'var(--primary-hover)' : 'var(--text)';
   btn.style.borderColor = isEnabled ? 'var(--primary)' : 'var(--border)';
