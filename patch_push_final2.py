@@ -14,14 +14,7 @@ search = """function updatePushUI() {
 
   const btn = $('togglePushBtn');
   if (!btn) return;
-
-  const permission = Notification.permission;
-  let isEnabled = false;
-
-  if (permission === 'granted') {
-    isEnabled = localStorage.getItem('pushEnabled') !== 'false';
-  }
-
+  const isEnabled = localStorage.getItem('pushEnabled') === 'true';
   btn.textContent = isEnabled ? 'ON' : 'OFF';
   btn.style.color = isEnabled ? 'var(--primary-hover)' : 'var(--text)';
   btn.style.borderColor = isEnabled ? 'var(--primary)' : 'var(--border)';
@@ -41,13 +34,16 @@ replace = """function updatePushUI() {
   if (!btn) return;
 
   const permission = Notification.permission;
-  let isEnabled = localStorage.getItem('pushEnabled') === 'true';
 
-  if (permission === 'denied') {
+  // We only show ON if the permission is granted AND our token setup was successful
+  let isEnabled = (permission === 'granted') && (localStorage.getItem('pushEnabled') === 'true');
+
+  if (permission === 'denied' || permission === 'default') {
     isEnabled = false;
-    localStorage.setItem('pushEnabled', 'false');
-  } else if (permission === 'default') {
-    isEnabled = false;
+    // If it was somehow true in localstorage but permission is denied/default, reset it
+    if (localStorage.getItem('pushEnabled') === 'true') {
+        localStorage.setItem('pushEnabled', 'false');
+    }
   }
 
   btn.textContent = isEnabled ? 'ON' : 'OFF';

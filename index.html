@@ -391,7 +391,117 @@
   }
   ::-webkit-scrollbar{width:6px;}
   ::-webkit-scrollbar-thumb{background:#D9CCFB;border-radius:10px;}
+
+/* New Audio Circle Button Styles */
+.audio-circle-btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+  flex-shrink: 0;
+  padding: 0;
+}
+.audio-ring {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0%, var(--primary) 20%, transparent 40%);
+  animation: spinRing 2s linear infinite;
+  opacity: 1;
+  transition: opacity 0.3s;
+}
+@keyframes spinRing {
+  100% { transform: rotate(360deg); }
+}
+.audio-circle-btn::after {
+  content: "";
+  position: absolute;
+  top: 2px; left: 2px; right: 2px; bottom: 2px;
+  background: var(--surface);
+  border-radius: 50%;
+  z-index: 1;
+}
+.audio-circle-btn .audio-icon {
+  position: relative;
+  z-index: 2;
+  font-size: 14px;
+}
+.audio-circle-btn.muted .audio-ring {
+  opacity: 0;
+  animation: none;
+}
+.audio-circle-btn.muted .audio-icon {
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .audio-ring {
+    animation: none;
+    background: var(--primary-light);
+  }
+}
+
+/* Modals */
+.modal-overlay {
+  display: none;
+  z-index: 1000;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  align-items: center;
+  justify-content: center;
+}
+.modal-content {
+  width: 90%;
+  max-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.modal-header h3 { margin: 0; font-size: 18px; color: var(--text); }
+.review-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  margin-bottom: 8px;
+  color: var(--text);
+  font-weight: 500;
+  text-align: left;
+}
+.review-list-item:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
 </style>
+
 
 <script>
   (function() {
@@ -705,11 +815,15 @@
   <section class="screen" id="screen-test">
     <div class="score-chip">Score: <span id="liveScore">0</span></div>
     <div class="test-topline" style="display:flex; justify-content:space-between; align-items:center;">
-      <div>
+      <div style="display:flex; align-items:center; flex-wrap:wrap; gap:8px;">
         <span id="qCounter">Question 1 of 20</span>
-        <span id="qCorrectCount" style="margin-left:8px;">✅ 0</span>
+        <span id="qCorrectCount">✅ 0</span>
+        <button id="reviewTopBtn" class="tag" style="display:none; cursor:pointer; background:var(--warning-light); color:var(--warning-text); border:none; padding:4px 8px; border-radius:12px; align-items:center; justify-content:center; font-weight:600; font-size:13px;" aria-label="0 questions marked for review">🔖 <span id="reviewTopCount">0</span></button>
       </div>
-      <button id="inTestMuteBtn" class="icon-btn" title="Test sound effects" aria-label="Test sound effects" style="width:32px; height:32px; font-size:14px; border-radius:10px; background:transparent; box-shadow:none;">🎵</button>
+      <button id="inTestMuteBtn" class="audio-circle-btn" title="Test sound effects" aria-label="Test sound effects">
+        <div class="audio-ring"></div>
+        <span class="audio-icon">🎵</span>
+      </button>
     </div>
     <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
 
@@ -1648,24 +1762,16 @@ function updatePushUI() {
   if (!btn) return;
 
   const permission = Notification.permission;
-  let isEnabled = localStorage.getItem('pushEnabled') === 'true';
 
-  // If permission is already granted natively but localstorage doesn't reflect it,
-  // we could automatically subscribe in the background, but for now we just reflect state.
-  // Actually, if it's granted, we should reflect that in the UI.
-  // Let's assume if they granted it natively, they want it ON, unless they explicitly turned it OFF in our app.
-  if (permission === 'granted') {
-    // if it's not explicitly false in localstorage, assume true
-    if (localStorage.getItem('pushEnabled') !== 'false') {
-        isEnabled = true;
-        // optionally, we could call subscribeToPush() here silently to ensure token is captured
+  // We only show ON if the permission is granted AND our token setup was successful
+  let isEnabled = (permission === 'granted') && (localStorage.getItem('pushEnabled') === 'true');
+
+  if (permission === 'denied' || permission === 'default') {
+    isEnabled = false;
+    // If it was somehow true in localstorage but permission is denied/default, reset it
+    if (localStorage.getItem('pushEnabled') === 'true') {
+        localStorage.setItem('pushEnabled', 'false');
     }
-  } else if (permission === 'denied') {
-    isEnabled = false;
-    localStorage.setItem('pushEnabled', 'false');
-  } else if (permission === 'default') {
-    isEnabled = false;
-    // Don't overwrite localstorage yet, wait for them to click
   }
 
   btn.textContent = isEnabled ? 'ON' : 'OFF';
@@ -2592,11 +2698,25 @@ function getScore(){
   return currentTest.filter(q=>q.status==='correct').length;
 }
 
+function updateTopUI() {
+  let reviewCount = currentTest.filter(q => q.markedLater).length;
+  const btn = $('reviewTopBtn');
+  const cnt = $('reviewTopCount');
+  if(reviewCount > 0) {
+    btn.style.display = 'flex';
+    cnt.textContent = reviewCount;
+    btn.setAttribute('aria-label', `${reviewCount} questions marked for review`);
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
 function renderQuestion(){
   clearInterval(timerInterval);
   const total = currentTest.length;
   const q = currentTest[currentIndex];
   const answered = !!q.status; // already answered or timed out earlier
+  updateTopUI();
 
   $('qCounter').textContent = `Question ${currentIndex+1} of ${total}`;
   $('qCorrectCount').textContent = `✅ ${getScore()}`;
@@ -2651,8 +2771,23 @@ function updateNavButtons(){
 
   $('nextQBtn').textContent = isLast ? 'Finish Test ✅' : 'Next ➡';
 
-  const canSkip = !q.status && !isLast;
-  $('attemptLaterBtn').style.display = canSkip ? 'flex' : 'none';
+  // Later button logic
+  const laterBtn = $('attemptLaterBtn');
+  if (q.markedLater) {
+    laterBtn.style.display = 'flex';
+    laterBtn.innerHTML = '✓ Marked';
+    laterBtn.style.background = 'var(--primary-light)';
+    laterBtn.style.color = 'var(--primary)';
+    laterBtn.style.boxShadow = 'none';
+  } else if (!q.status && !isLast) {
+    laterBtn.style.display = 'flex';
+    laterBtn.innerHTML = '🔖 Later';
+    laterBtn.style.background = 'linear-gradient(135deg,#FFB35C,var(--warning))';
+    laterBtn.style.color = '#FFFFFF';
+    laterBtn.style.boxShadow = '0 10px 20px rgba(255,174,52,.3)';
+  } else {
+    laterBtn.style.display = 'none';
+  }
 }
 
 function updateTimerUI(){
@@ -2734,15 +2869,118 @@ $('nextQBtn').addEventListener('click', ()=>{
     currentIndex++;
     renderQuestion();
   } else {
+    checkUnansweredBeforeFinish();
+  }
+});
+
+function getUnansweredQuestions() {
+  return currentTest.filter(q => !q.status);
+}
+
+function checkUnansweredBeforeFinish() {
+  const unanswered = getUnansweredQuestions();
+  if (unanswered.length > 0) {
+    $('unansweredModalCount').textContent = unanswered.length;
+    // Show review later button in unanswered modal if there are marked questions
+    const marked = currentTest.filter(q => q.markedLater);
+    $('unansweredReviewLaterBtn').style.display = marked.length > 0 ? 'inline-block' : 'none';
+    $('unansweredModal').style.display = 'flex';
+  } else {
     finishTest();
   }
+}
+
+$('attemptUnansweredBtn')?.addEventListener('click', () => {
+  $('unansweredModal').style.display = 'none';
+  const list = $('unansweredList');
+  list.innerHTML = '';
+  const unanswered = getUnansweredQuestions();
+  unanswered.forEach(q => {
+    const item = document.createElement('div');
+    item.className = 'review-list-item';
+    const index = currentTest.indexOf(q);
+    item.innerHTML = `<span>Q${index + 1}</span>`;
+    item.addEventListener('click', () => {
+      $('unansweredListModal').style.display = 'none';
+      currentIndex = index;
+      renderQuestion();
+    });
+    list.appendChild(item);
+  });
+  $('unansweredListModal').style.display = 'flex';
 });
+
+$('unansweredReviewLaterBtn')?.addEventListener('click', () => {
+  $('unansweredModal').style.display = 'none';
+  $('reviewTopBtn').click();
+});
+
+$('closeUnansweredListBtn')?.addEventListener('click', () => {
+  $('unansweredListModal').style.display = 'none';
+});
+
+$('unansweredSubmitBtn')?.addEventListener('click', () => {
+  $('unansweredModal').style.display = 'none';
+  const unanswered = getUnansweredQuestions();
+  $('submitConfirmCount').textContent = unanswered.length;
+  $('submitConfirmModal').style.display = 'flex';
+});
+
+$('goBackAttemptBtn')?.addEventListener('click', () => {
+  $('submitConfirmModal').style.display = 'none';
+  $('attemptUnansweredBtn').click();
+});
+
+$('submitAnywayBtn')?.addEventListener('click', () => {
+  $('submitConfirmModal').style.display = 'none';
+  finishTest();
+});
+
 $('attemptLaterBtn').addEventListener('click', ()=>{
-  if(currentIndex < currentTest.length - 1){
-    currentIndex++;
-    renderQuestion();
+  const q = currentTest[currentIndex];
+  if (q.markedLater) {
+    // Unmark
+    q.markedLater = false;
+    updateTopUI();
+    updateNavButtons();
+  } else {
+    // Mark
+    q.markedLater = true;
+    updateTopUI();
+    if(currentIndex < currentTest.length - 1){
+      currentIndex++;
+      renderQuestion();
+    } else {
+      updateNavButtons();
+    }
   }
 });
+
+// Top bar review later button click handler
+$('reviewTopBtn')?.addEventListener('click', () => {
+  const list = $('reviewModalList');
+  list.innerHTML = '';
+  const marked = currentTest.filter(q => q.markedLater);
+  $('reviewModalCount').textContent = marked.length;
+  marked.forEach(q => {
+    const item = document.createElement('div');
+    item.className = 'review-list-item';
+    const index = currentTest.indexOf(q);
+    item.innerHTML = `<span>Q${index + 1} — ${escapeHTML(q.en)}</span>`;
+    item.addEventListener('click', () => {
+      $('reviewModal').style.display = 'none';
+      currentIndex = index;
+      renderQuestion();
+    });
+    list.appendChild(item);
+  });
+  $('reviewModal').style.display = 'flex';
+});
+
+$('closeReviewModalBtn')?.addEventListener('click', () => {
+  $('reviewModal').style.display = 'none';
+});
+
 
 /* =========================================================
    RESULT
@@ -3038,16 +3276,15 @@ function updateInTestMuteBtn() {
   const btn = $('inTestMuteBtn');
   if (btn) {
     if (testSoundEnabled) {
-      btn.textContent = '🎵';
+      btn.classList.remove('muted');
       btn.title = 'Test sound effects';
-      btn.setAttribute('aria-label', 'Test sound effects');
-      btn.style.opacity = '1';
-      btn.style.textDecoration = 'none';
+      btn.setAttribute('aria-label', 'Test sound effects enabled');
+      btn.setAttribute('aria-pressed', 'true');
     } else {
-      btn.textContent = '🎵';
+      btn.classList.add('muted');
       btn.title = 'Test sound effects muted';
       btn.setAttribute('aria-label', 'Test sound effects muted');
-      btn.style.opacity = '0.5';
+      btn.setAttribute('aria-pressed', 'false');
     }
   }
 }
@@ -3285,5 +3522,52 @@ listenToCloudTests();
   console.log("✅ All formatDuration tests passed.");
 })();
 </script>
+
+  <!-- Review Later Modal -->
+  <div id="reviewModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🔖 Marked for Review (<span id="reviewModalCount">0</span>)</h3>
+        <button class="icon-btn" id="closeReviewModalBtn" style="font-size:16px;">❌</button>
+      </div>
+      <div id="reviewModalList" style="display:flex; flex-direction:column;"></div>
+    </div>
+  </div>
+
+  <!-- Unanswered Warning Modal -->
+  <div id="unansweredModal" class="modal-overlay">
+    <div class="modal-content" style="text-align:center;">
+      <h3 style="margin-top:0; color:var(--text);">⚠️ <span id="unansweredModalCount">0</span> Questions Unanswered</h3>
+      <p class="text-muted">You haven't attempted these questions yet.</p>
+      <div class="modal-actions">
+        <button class="btn" id="attemptUnansweredBtn" style="background:var(--primary-light); color:var(--primary);">Attempt Unanswered Questions</button>
+        <button class="btn" id="unansweredReviewLaterBtn" style="display:none; background:var(--warning-light); color:var(--warning-text);">Review Later</button>
+        <button class="btn" id="unansweredSubmitBtn" style="background:var(--danger-light); color:var(--danger);">Submit Test</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unanswered List Modal -->
+  <div id="unansweredListModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Unanswered Questions</h3>
+        <button class="icon-btn" id="closeUnansweredListBtn" style="font-size:16px;">❌</button>
+      </div>
+      <div id="unansweredList" style="display:flex; flex-direction:column;"></div>
+    </div>
+  </div>
+
+  <!-- Submit Confirmation Modal -->
+  <div id="submitConfirmModal" class="modal-overlay">
+    <div class="modal-content" style="text-align:center;">
+      <h3 style="margin-top:0; color:var(--text);">You still have <span id="submitConfirmCount">0</span> unanswered questions.</h3>
+      <div class="modal-actions">
+        <button class="btn" id="goBackAttemptBtn" style="background:var(--primary-light); color:var(--primary);">Go Back & Attempt</button>
+        <button class="btn" id="submitAnywayBtn" style="background:var(--danger-light); color:var(--danger);">Submit Anyway</button>
+      </div>
+    </div>
+  </div>
 </body>
+
 </html>

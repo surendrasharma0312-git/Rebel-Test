@@ -49,7 +49,7 @@ exports.sendTestNotification = functions.firestore
 
       // Cleanup invalid tokens
       const tokensToRemove = [];
-      response.responses.forEach((result, index) => {
+      response.results.forEach((result, index) => {
         const error = result.error;
         if (error) {
           console.error('Failure sending notification to', tokens[index], error);
@@ -115,7 +115,7 @@ exports.sendUpdateNotification = functions.firestore
 
 
       const tokensToRemove = [];
-      response.responses.forEach((result, index) => {
+      response.results.forEach((result, index) => {
         const error = result.error;
         if (error) {
           if (error.code === 'messaging/invalid-registration-token' ||
