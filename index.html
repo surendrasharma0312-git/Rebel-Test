@@ -500,7 +500,48 @@
   gap: 12px;
   margin-top: 20px;
 }
+
+  /* Compact UI for Mixed Test Preview on Mobile */
+  @media (max-width: 500px) {
+    #screen-preview.is-mixed-test .section-title:first-child {
+      margin-bottom: 10px;
+    }
+    #screen-preview.is-mixed-test .stat-strip {
+      margin-bottom: 10px;
+      gap: 8px;
+    }
+    #screen-preview.is-mixed-test .stat-pill {
+      padding: 8px 8px;
+    }
+    #screen-preview.is-mixed-test .stat-pill .num {
+      font-size: 20px;
+    }
+    #screen-preview.is-mixed-test #questionCountCard {
+      padding: 10px 14px;
+      margin-bottom: 10px;
+    }
+    #screen-preview.is-mixed-test #questionCountCard .section-title {
+      font-size: 14px !important;
+      margin-bottom: 4px !important;
+    }
+    #screen-preview.is-mixed-test #mixedTestNote {
+      font-size: 12px !important;
+      line-height: 1.35;
+    }
+    #screen-preview.is-mixed-test .card:not(#questionCountCard) {
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    #screen-preview.is-mixed-test .vocab-list {
+      max-height: 200px;
+    }
+    #screen-preview.is-mixed-test .vocab-row {
+      padding: 6px 10px;
+      margin-bottom: 6px;
+    }
+  }
 </style>
+
 
 
 <script>
@@ -2423,6 +2464,11 @@ $('continueSavedBtn').addEventListener('click', ()=>{
 let pendingAdminPublish = null; // {name} set only when previewing a newly-uploaded admin test that hasn't been published yet
 
 function openPreview(){
+  if (currentTestQuestionCount && currentTestQuestionCount < vocabulary.length) {
+    document.getElementById('screen-preview').classList.add('is-mixed-test');
+  } else {
+    document.getElementById('screen-preview').classList.remove('is-mixed-test');
+  }
   renderVocabList();
   updatePublishUI();
   showScreen('screen-preview');
