@@ -418,6 +418,7 @@
     </div>
     <div style="display:flex;gap:8px;">
       <button class="icon-btn" id="themeToggleBtn" title="Toggle Theme" aria-label="Toggle Dark Mode">🌙</button>
+      <button class="icon-btn" id="settingsBtn" title="Settings" aria-label="Settings">⚙️</button>
       <button class="icon-btn" id="notifyBtn" title="Notifications" style="position:relative;">
         🔔
         <span id="notifyBadge" style="display:none;position:absolute;top:2px;right:2px;background:var(--danger);color:#FFFFFF;font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:100px;align-items:center;justify-content:center;padding:0 3px;">0</span>
@@ -706,9 +707,12 @@
   <!-- ============ SCREEN 3: TEST ============ -->
   <section class="screen" id="screen-test">
     <div class="score-chip">Score: <span id="liveScore">0</span></div>
-    <div class="test-topline">
-      <span id="qCounter">Question 1 of 20</span>
-      <span id="qCorrectCount">✅ 0</span>
+    <div class="test-topline" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <span id="qCounter">Question 1 of 20</span>
+        <span id="qCorrectCount" style="margin-left:8px;">✅ 0</span>
+      </div>
+      <button id="inTestMuteBtn" class="icon-btn" title="Test sound effects" aria-label="Test sound effects" style="width:32px; height:32px; font-size:14px; border-radius:10px; background:transparent; box-shadow:none;">🎵</button>
     </div>
     <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
 
@@ -809,6 +813,35 @@
     </div>
     <div class="btn-row">
       <button class="btn btn-coral" id="manageDeleteBtn">Delete This Test</button>
+    </div>
+  </section>
+  <!-- ============ SCREEN: SETTINGS ============ -->
+  <section class="screen" id="screen-settings">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromSettingsBtn">← Back</button>
+    </div>
+    <h2 class="section-title">Settings</h2>
+
+    <div class="card" style="margin-bottom: 14px;">
+      <h3 style="margin-top:0;margin-bottom:12px;font-size:16px;">Test Experience</h3>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+        <div style="font-weight:600; color:var(--text);">Test Sound Effects</div>
+        <button id="toggleTestSoundBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); width: 60px;">ON</button>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+          <div style="font-weight:600; color:var(--text);">Volume</div>
+          <div id="volumeLabel" style="font-size:13px; color:var(--text-muted); font-weight:700;">50%</div>
+        </div>
+        <input type="range" id="testVolumeSlider" min="0" max="100" value="50" style="width:100%; accent-color:var(--primary);">
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-weight:600; color:var(--text);">Haptic Feedback</div>
+        <button id="toggleHapticBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); width: 60px;">ON</button>
+      </div>
     </div>
   </section>
 
@@ -2441,7 +2474,10 @@ function updateTimerUI(){
   $('timerNum').textContent = timeLeft;
   if(timeLeft <= 5){
     ring.classList.add('low','pulsing');
-    if(navigator.vibrate) navigator.vibrate(60);
+    // Only play warning once when it HITS 5 seconds
+    if (timeLeft === 5) {
+      playTestSound('warning');
+    }
   } else {
     ring.classList.remove('low','pulsing');
   }
@@ -2454,6 +2490,14 @@ function selectAnswer(chosen, btnEl){
   q.userAnswer = chosen;
   q.status = (chosen === q.correct) ? 'correct' : 'wrong';
 
+  if (q.status === 'correct') {
+    playTestSound('correct');
+    triggerHaptic('correct');
+  } else {
+    playTestSound('wrong');
+    triggerHaptic('wrong');
+  }
+
   lockOptions(q, btnEl);
   $('qCorrectCount').textContent = `✅ ${getScore()}`;
   $('liveScore').textContent = getScore();
@@ -2465,8 +2509,9 @@ function handleTimeout(){
   if(q.status) return;
   q.userAnswer = null;
   q.status = 'timeout';
+  playTestSound('timeout');
+  triggerHaptic('timeout');
   lockOptions(q, null);
-  if(navigator.vibrate) navigator.vibrate([80,60,80]);
   updateNavButtons();
 }
 
@@ -2520,6 +2565,8 @@ function formatDuration(totalSeconds){
 }
 
 function finishTest(){
+  playTestSound('finish');
+  triggerHaptic('finish');
   clearInterval(timerInterval);
   // Any question the user navigated away from without ever answering or
   // timing out counts as "Not Answered" (same scoring bucket as Time Out).
@@ -2767,6 +2814,250 @@ if('serviceWorker' in navigator){
 }
 updateInstallBanner();
 
+
+
+/* =========================================================
+   SETTINGS SYSTEM
+========================================================= */
+let testSoundEnabled = localStorage.getItem('testSoundEnabled') !== 'false';
+let testVolume = localStorage.getItem('testVolume') ? parseInt(localStorage.getItem('testVolume'), 10) : 50;
+let hapticEnabled = localStorage.getItem('hapticEnabled') !== 'false';
+
+function updateSettingsUI() {
+  const soundBtn = $('toggleTestSoundBtn');
+  if (soundBtn) {
+    soundBtn.textContent = testSoundEnabled ? 'ON' : 'OFF';
+    soundBtn.style.color = testSoundEnabled ? 'var(--success)' : 'var(--danger)';
+    soundBtn.style.borderColor = testSoundEnabled ? 'var(--success)' : 'var(--danger)';
+  }
+
+  const slider = $('testVolumeSlider');
+  if (slider) slider.value = testVolume;
+
+  const volLabel = $('volumeLabel');
+  if (volLabel) volLabel.textContent = testVolume + '%';
+
+  const hapticBtn = $('toggleHapticBtn');
+  if (hapticBtn) {
+    hapticBtn.textContent = hapticEnabled ? 'ON' : 'OFF';
+    hapticBtn.style.color = hapticEnabled ? 'var(--success)' : 'var(--danger)';
+    hapticBtn.style.borderColor = hapticEnabled ? 'var(--success)' : 'var(--danger)';
+  }
+}
+
+function updateInTestMuteBtn() {
+  const btn = $('inTestMuteBtn');
+  if (btn) {
+    if (testSoundEnabled) {
+      btn.textContent = '🎵';
+      btn.title = 'Test sound effects';
+      btn.setAttribute('aria-label', 'Test sound effects');
+      btn.style.opacity = '1';
+      btn.style.textDecoration = 'none';
+    } else {
+      btn.textContent = '🎵';
+      btn.title = 'Test sound effects muted';
+      btn.setAttribute('aria-label', 'Test sound effects muted');
+      btn.style.opacity = '0.5';
+    }
+  }
+}
+
+// Initialize mute button state on load
+document.addEventListener('DOMContentLoaded', () => {
+    updateInTestMuteBtn();
+});
+
+
+// Event Listeners for Settings Screen
+$('settingsBtn')?.addEventListener('click', () => {
+  updateSettingsUI();
+  showScreen('screen-settings');
+});
+
+$('backFromSettingsBtn')?.addEventListener('click', () => showScreen('screen-home'));
+
+$('toggleTestSoundBtn')?.addEventListener('click', () => {
+  testSoundEnabled = !testSoundEnabled;
+  localStorage.setItem('testSoundEnabled', testSoundEnabled);
+  updateSettingsUI();
+  updateInTestMuteBtn();
+});
+
+$('testVolumeSlider')?.addEventListener('input', (e) => {
+  testVolume = parseInt(e.target.value, 10);
+  $('volumeLabel').textContent = testVolume + '%';
+});
+$('testVolumeSlider')?.addEventListener('change', (e) => {
+  localStorage.setItem('testVolume', testVolume);
+});
+
+$('toggleHapticBtn')?.addEventListener('click', () => {
+  hapticEnabled = !hapticEnabled;
+  localStorage.setItem('hapticEnabled', hapticEnabled);
+  updateSettingsUI();
+  if (hapticEnabled && navigator.vibrate) {
+    navigator.vibrate(30);
+  }
+});
+
+$('inTestMuteBtn')?.addEventListener('click', () => {
+  testSoundEnabled = !testSoundEnabled;
+  localStorage.setItem('testSoundEnabled', testSoundEnabled);
+  updateSettingsUI();
+  updateInTestMuteBtn();
+});
+
+/* =========================================================
+   AUDIO FEEDBACK SYSTEM (WEB AUDIO API)
+========================================================= */
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) {
+      audioCtx = new AudioContext();
+    }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+// Initialize audio on first user interaction to bypass autoplay restrictions
+document.addEventListener('click', initAudio, { once: true, passive: true });
+document.addEventListener('touchstart', initAudio, { once: true, passive: true });
+
+
+function triggerHaptic(type) {
+  if (!hapticEnabled || !navigator.vibrate) return;
+
+  if (type === 'tap') {
+    navigator.vibrate(20);
+  } else if (type === 'correct') {
+    navigator.vibrate([30, 50, 30]);
+  } else if (type === 'wrong') {
+    navigator.vibrate([60, 40, 60]);
+  } else if (type === 'timeout') {
+    navigator.vibrate([80, 60, 80]);
+  } else if (type === 'finish') {
+    navigator.vibrate([30, 40, 30, 40, 50]);
+  }
+}
+
+function playTestSound(type) {
+  if (!testSoundEnabled || !audioCtx) return;
+  initAudio();
+
+  const volumeNode = audioCtx.createGain();
+  const volRatio = testVolume / 100;
+  // Use a sensible max volume curve
+  volumeNode.gain.value = volRatio * 0.3;
+  volumeNode.connect(audioCtx.destination);
+
+  const t = audioCtx.currentTime;
+
+  if (type === 'tap') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, t);
+    osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
+
+    volumeNode.gain.setValueAtTime(volRatio * 0.2, t);
+    volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+
+    osc.connect(volumeNode);
+    osc.start(t);
+    osc.stop(t + 0.05);
+  }
+  else if (type === 'correct') {
+    const osc1 = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    osc1.type = 'sine';
+    osc2.type = 'sine';
+
+    osc1.frequency.setValueAtTime(523.25, t); // C5
+    osc2.frequency.setValueAtTime(659.25, t + 0.1); // E5
+
+    volumeNode.gain.setValueAtTime(0, t);
+    volumeNode.gain.linearRampToValueAtTime(volRatio * 0.3, t + 0.02);
+    volumeNode.gain.setValueAtTime(volRatio * 0.3, t + 0.1);
+    volumeNode.gain.linearRampToValueAtTime(0, t + 0.3);
+
+    osc1.connect(volumeNode);
+    osc2.connect(volumeNode);
+
+    osc1.start(t);
+    osc1.stop(t + 0.1);
+    osc2.start(t + 0.1);
+    osc2.stop(t + 0.3);
+  }
+  else if (type === 'wrong') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(200, t);
+    osc.frequency.exponentialRampToValueAtTime(100, t + 0.2);
+
+    volumeNode.gain.setValueAtTime(volRatio * 0.3, t);
+    volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+    osc.connect(volumeNode);
+    osc.start(t);
+    osc.stop(t + 0.2);
+  }
+  else if (type === 'timeout') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.linearRampToValueAtTime(100, t + 0.4);
+
+    // low-pass filter to make the square wave less harsh
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 500;
+
+    volumeNode.gain.setValueAtTime(volRatio * 0.2, t);
+    volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+
+    osc.connect(filter);
+    filter.connect(volumeNode);
+    osc.start(t);
+    osc.stop(t + 0.4);
+  }
+  else if (type === 'warning') {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, t);
+
+    volumeNode.gain.setValueAtTime(volRatio * 0.1, t);
+    volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+    osc.connect(volumeNode);
+    osc.start(t);
+    osc.stop(t + 0.1);
+  }
+  else if (type === 'finish') {
+    // A simple C major arpeggio
+    const freqs = [523.25, 659.25, 783.99, 1046.50];
+    freqs.forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+
+      const oscVol = audioCtx.createGain();
+      oscVol.gain.setValueAtTime(0, t + i * 0.1);
+      oscVol.gain.linearRampToValueAtTime(volRatio * 0.2, t + i * 0.1 + 0.05);
+      oscVol.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.4);
+
+      osc.connect(oscVol);
+      oscVol.connect(audioCtx.destination);
+
+      osc.start(t + i * 0.1);
+      osc.stop(t + i * 0.1 + 0.4);
+    });
+  }
+}
 
 // Theme Toggle Logic
 const themeToggleBtn = document.getElementById('themeToggleBtn');
