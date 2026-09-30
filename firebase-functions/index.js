@@ -48,18 +48,25 @@ exports.sendTestNotification = functions.firestore
 
 
       // Cleanup invalid tokens
-      const tokensToRemove = [];
+      const batch = admin.firestore().batch();
+      let hasDeletes = false;
+
       response.results.forEach((result, index) => {
         const error = result.error;
         if (error) {
           console.error('Failure sending notification to', tokens[index], error);
           if (error.code === 'messaging/invalid-registration-token' ||
               error.code === 'messaging/registration-token-not-registered') {
-            tokensToRemove.push(tokensSnapshot.docs[index].ref.delete());
+            batch.delete(tokensSnapshot.docs[index].ref);
+            hasDeletes = true;
           }
         }
       });
-      return Promise.all(tokensToRemove);
+
+      if (hasDeletes) {
+        return batch.commit();
+      }
+      return null;
     } catch (error) {
       console.error('Error sending push notification:', error);
       return null;
@@ -114,17 +121,24 @@ exports.sendUpdateNotification = functions.firestore
       const response = await admin.messaging().sendEachForMulticast(message);
 
 
-      const tokensToRemove = [];
+      const batch = admin.firestore().batch();
+      let hasDeletes = false;
+
       response.results.forEach((result, index) => {
         const error = result.error;
         if (error) {
           if (error.code === 'messaging/invalid-registration-token' ||
               error.code === 'messaging/registration-token-not-registered') {
-            tokensToRemove.push(tokensSnapshot.docs[index].ref.delete());
+            batch.delete(tokensSnapshot.docs[index].ref);
+            hasDeletes = true;
           }
         }
       });
-      return Promise.all(tokensToRemove);
+
+      if (hasDeletes) {
+        return batch.commit();
+      }
+      return null;
     } catch (error) {
       console.error('Error sending update notification:', error);
       return null;
