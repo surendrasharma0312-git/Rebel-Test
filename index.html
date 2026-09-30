@@ -802,16 +802,6 @@
       </div>
     </div>
 
-    <div class="card" id="studentManagerNavCard" style="cursor:pointer;">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div>
-          <div class="section-title" style="margin:0;">🧑‍🎓 Student Manager</div>
-          <p class="muted" style="margin:6px 0 0;">Add and manage registered students</p>
-        </div>
-        <div style="font-size:24px;color:var(--primary);">→</div>
-      </div>
-    </div>
-
     <div class="card" id="mixedBuilderNavCard" style="cursor:pointer;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
@@ -853,33 +843,6 @@
 
     <h2 class="section-title">All Tests <span id="adminTestCount" class="muted" style="font-size:13px;font-weight:600;"></span></h2>
     <div id="adminTestsList"></div>
-  </section>
-
-  <!-- ============ SCREEN: STUDENT MANAGER (admin only) ============ -->
-  <section class="screen" id="screen-admin-students">
-    <div class="top-actions">
-      <button class="btn btn-ghost" id="backFromAdminStudentsBtn">← Back</button>
-    </div>
-    <h2 class="section-title">👥 Student Manager</h2>
-
-    <div class="card">
-      <div class="section-title" style="margin-bottom:12px;">Add New Student</div>
-      <form id="addStudentForm">
-        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Student ID</label>
-        <input type="text" id="addStudentId" placeholder="e.g. S101" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:14.5px;background:var(--surface-2);color:var(--text);margin-bottom:12px;" required />
-
-        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Student Name</label>
-        <input type="text" id="addStudentName" placeholder="e.g. John Doe" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:14.5px;background:var(--surface-2);color:var(--text);margin-bottom:12px;" required />
-
-        <button type="submit" class="btn btn-primary" id="addStudentBtn">Add Student</button>
-        <div id="addStudentStatus" style="margin-top:10px;"></div>
-      </form>
-    </div>
-
-    <div class="card">
-      <div class="section-title" style="margin-bottom:12px;">Registered Students <span id="adminStudentsCount" class="muted" style="font-size:13px;font-weight:600;"></span></div>
-      <div id="adminStudentsList"></div>
-    </div>
   </section>
 
   <!-- ============ SCREEN: MIXED TEST BUILDER (admin only) ============ -->
@@ -2210,106 +2173,6 @@ function updateAdminUI(){
 }
 
 /* =========================================================
-   STUDENT MANAGER (admin only)
-========================================================= */
-$('studentManagerNavCard').addEventListener('click', ()=>{
-  showScreen('screen-admin-students');
-  loadAdminStudents();
-});
-$('backFromAdminStudentsBtn').addEventListener('click', ()=> showScreen('screen-admin'));
-
-async function loadAdminStudents(){
-  const listEl = $('adminStudentsList');
-  const countEl = $('adminStudentsCount');
-  listEl.innerHTML = `<div class="empty-state"><span class="emoji">⏳</span>Loading...</div>`;
-  countEl.textContent = '';
-
-  if(!firebaseReady){
-    listEl.innerHTML = `<div class="error-box">Firebase isn't configured yet.</div>`;
-    return;
-  }
-
-  try{
-    const snap = await db.collection('students').orderBy('name').get();
-    countEl.textContent = `(${snap.docs.length})`;
-
-    if(snap.empty){
-      listEl.innerHTML = `<div class="empty-state"><span class="emoji">👥</span>No students registered yet.</div>`;
-      return;
-    }
-
-    listEl.innerHTML = '';
-    snap.docs.forEach(doc => {
-      const data = doc.data();
-      const row = document.createElement('div');
-      row.className = 'hist-row';
-      row.innerHTML = `
-        <div class="left">
-          <div class="date" style="font-weight:800;color:var(--text);">${escapeHTML(data.name)}</div>
-          <div class="meta">ID: ${escapeHTML(doc.id)}</div>
-        </div>
-        <button class="btn btn-sm btn-ghost" style="color:var(--danger);" onclick="deleteAdminStudent('${escapeHTML(doc.id)}')">Remove</button>
-      `;
-      listEl.appendChild(row);
-    });
-  }catch(err){
-    listEl.innerHTML = `<div class="error-box">Failed to load students: ${escapeHTML(err.message)}</div>`;
-  }
-}
-
-$('addStudentForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  if(!firebaseReady) return;
-
-  const idInput = $('addStudentId');
-  const nameInput = $('addStudentName');
-  const btn = $('addStudentBtn');
-  const statusEl = $('addStudentStatus');
-
-  const studentId = idInput.value.trim().toUpperCase();
-  const studentName = nameInput.value.trim();
-
-  if(!studentId || !studentName) return;
-
-  btn.disabled = true;
-  btn.textContent = 'Adding...';
-  statusEl.innerHTML = '';
-
-  try {
-    const docRef = db.collection('students').doc(studentId);
-    const docSnap = await docRef.get();
-
-    if(docSnap.exists) {
-      statusEl.innerHTML = `<div class="error-box">Student ID already exists!</div>`;
-    } else {
-      await docRef.set({
-        name: studentName,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      statusEl.innerHTML = `<div class="success-box">Student added successfully!</div>`;
-      idInput.value = '';
-      nameInput.value = '';
-      loadAdminStudents();
-    }
-  } catch(err) {
-    statusEl.innerHTML = `<div class="error-box">Failed to add student: ${escapeHTML(err.message)}</div>`;
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Add Student';
-});
-
-window.deleteAdminStudent = async function(studentId) {
-  if(!confirm(`Are you sure you want to remove student ID ${studentId}?`)) return;
-  try {
-    await db.collection('students').doc(studentId).delete();
-    loadAdminStudents();
-  } catch(err) {
-    alert('Failed to delete student: ' + err.message);
-  }
-};
-
-/* =========================================================
    LEADERBOARD (admin only)
 ========================================================= */
 let lastLeaderboardDocs = [];
@@ -3394,39 +3257,109 @@ function saveHistoryEntry(entry){
    "Practice Mistakes" re-tests are never sent to the leaderboard.
 ========================================================= */
 const STORAGE_STUDENT_NAME = 'vocabTestApp_studentName';
-const STORAGE_STUDENT_ID = 'vocabTestApp_studentId';
+const STORAGE_STUDENT_PHOTO = 'vocabTestApp_studentPhoto';
 
-async function getStudentName(){
+async function getStudentName(forcePrompt = false) {
   let name = localStorage.getItem(STORAGE_STUDENT_NAME);
-  if(name) return name;
+  if (name && !forcePrompt) return name;
 
-  if(!firebaseReady) {
-    appAlert("Firebase isn't configured, unable to login.");
-    return null;
-  }
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
 
-  let studentId = await appPrompt('Enter your Student ID to continue:', '', 'e.g. S101');
-  if(!studentId || !studentId.trim()) return null;
-  studentId = studentId.trim().toUpperCase();
+    // We create a temporary file input for the photo picker
+    overlay.innerHTML = `
+      <div class="modal-box">
+        <div class="modal-msg" style="font-weight:800;font-size:18px;margin-bottom:6px;">Student Details</div>
+        <p class="muted" style="margin-top:0;margin-bottom:16px;font-size:13px;">Please enter your details before starting the test.</p>
 
-  try {
-    const docRef = db.collection('students').doc(studentId);
-    const docSnap = await docRef.get();
+        <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
+          <div id="modalPhotoWrapper" style="width:70px; height:70px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); cursor:pointer; position:relative;">
+            <img id="modalPhotoImg" style="width:100%; height:100%; object-fit:cover; display:none;">
+            <div id="modalPhotoPlaceholder" style="font-size:32px;">👤</div>
+            <div style="position:absolute; bottom:0; background:rgba(0,0,0,0.5); width:100%; text-align:center; color:white; font-size:10px; padding:2px 0;">EDIT</div>
+          </div>
+          <input type="file" id="modalPhotoInput" accept="image/*" style="display:none;">
+        </div>
 
-    if(docSnap.exists) {
-      name = docSnap.data().name;
-      localStorage.setItem(STORAGE_STUDENT_NAME, name);
-      localStorage.setItem(STORAGE_STUDENT_ID, studentId);
-      appAlert(`Welcome, ${name}!`);
-      return name;
-    } else {
-      appAlert(`Invalid Student ID: ${studentId}. Please contact your admin.`);
-      return null;
+        <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Full Name (Required)</label>
+        <input type="text" class="modal-input" id="modalNameInput" placeholder="Enter your full name" value="${name || ''}" style="margin-bottom:16px;" />
+
+        <div class="modal-btns">
+          ${forcePrompt ? '<button class="btn btn-ghost modal-cancel">Cancel</button>' : ''}
+          <button class="btn btn-primary modal-ok">Continue</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const nameInput = overlay.querySelector('#modalNameInput');
+    const photoWrapper = overlay.querySelector('#modalPhotoWrapper');
+    const photoInput = overlay.querySelector('#modalPhotoInput');
+    const photoImg = overlay.querySelector('#modalPhotoImg');
+    const photoPlaceholder = overlay.querySelector('#modalPhotoPlaceholder');
+    const okBtn = overlay.querySelector('.modal-ok');
+    const cancelBtn = overlay.querySelector('.modal-cancel');
+
+    let currentPhoto = localStorage.getItem(STORAGE_STUDENT_PHOTO);
+    if (currentPhoto) {
+      photoImg.src = currentPhoto;
+      photoImg.style.display = 'block';
+      photoPlaceholder.style.display = 'none';
     }
-  } catch(err) {
-    appAlert(`Failed to verify Student ID: ${err.message}`);
-    return null;
-  }
+
+    photoWrapper.addEventListener('click', () => {
+      photoInput.click();
+    });
+
+    photoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          currentPhoto = event.target.result;
+          photoImg.src = currentPhoto;
+          photoImg.style.display = 'block';
+          photoPlaceholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    function finish(result) {
+      overlay.remove();
+      resolve(result);
+    }
+
+    okBtn.addEventListener('click', () => {
+      const enteredName = nameInput.value.trim();
+      if (!enteredName) {
+        appAlert("Full Name is required.");
+        return;
+      }
+      localStorage.setItem(STORAGE_STUDENT_NAME, enteredName);
+      if (currentPhoto) {
+        localStorage.setItem(STORAGE_STUDENT_PHOTO, currentPhoto);
+      }
+
+      // Update Settings UI if it exists in window scope
+      if (window.updateSettingsUI) {
+        window.updateSettingsUI();
+      }
+      finish(enteredName);
+    });
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => finish(null));
+    }
+
+    // if not forced prompt, they can't dismiss without entering name
+    if (forcePrompt) {
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) finish(null);
+      });
+    }
+  });
 }
 
 async function saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds }){
@@ -3542,21 +3475,9 @@ let testSoundEnabled = localStorage.getItem('testSoundEnabled') !== 'false';
 let testVolume = localStorage.getItem('testVolume') ? parseInt(localStorage.getItem('testVolume'), 10) : 50;
 let hapticEnabled = localStorage.getItem('hapticEnabled') !== 'false';
 
-window.handleStudentLoginClick = async function(e) {
-  if (e && e.target && e.target.id === 'studentLogoutBtn') return; // Handled separately
-  const studentName = localStorage.getItem(STORAGE_STUDENT_NAME);
-  if (!studentName) {
-    await getStudentName();
-    window.updateSettingsUI();
-  }
-};
-
-window.handleStudentLogoutClick = function(e) {
+window.handleEditProfileClick = async function(e) {
   if(e) e.stopPropagation();
-  localStorage.removeItem(STORAGE_STUDENT_NAME);
-  localStorage.removeItem(STORAGE_STUDENT_ID);
-  window.updateSettingsUI();
-  window.appAlert('You have been logged out.');
+  await getStudentName(true);
 };
 
 function updateSettingsUI() {
@@ -3581,7 +3502,6 @@ function updateSettingsUI() {
   }
 
   const studentName = localStorage.getItem(STORAGE_STUDENT_NAME);
-  const studentId = localStorage.getItem(STORAGE_STUDENT_ID);
 
   const studentProfileName = $('studentProfileName');
   const actionContainer = $('studentLoginActionContainer');
@@ -3592,30 +3512,29 @@ function updateSettingsUI() {
   const profilePicWrapper = $('profilePicWrapper');
 
   if (studentProfileName && actionContainer) {
-    if (studentName && studentId) {
+    if (studentName) {
       studentProfileName.textContent = escapeHTML(studentName);
-      actionContainer.innerHTML = '<button id="studentLogoutBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); margin-top: 8px;" onclick="handleStudentLogoutClick(event)">Logout</button>';
-      profileEditBtn.style.display = 'flex';
-      profilePicWrapper.onclick = () => document.getElementById('profilePhotoInput').click();
-      profilePicWrapper.style.cursor = 'pointer';
-
-      const savedPhoto = localStorage.getItem('vocabTestApp_studentPhoto');
-      if (savedPhoto) {
-        profilePicImg.src = savedPhoto;
-        profilePicImg.style.display = 'block';
-        profilePicPlaceholder.style.display = 'none';
-      } else {
-        profilePicImg.style.display = 'none';
-        profilePicPlaceholder.style.display = 'block';
-      }
     } else {
-      studentProfileName.textContent = 'Not Logged In';
-      actionContainer.innerHTML = '<button id="studentLoginBtn" class="btn btn-sm" style="background:var(--primary); color:white; border:none; margin-top: 8px;" onclick="handleStudentLoginClick(event)">Student Login</button>';
-      profileEditBtn.style.display = 'none';
+      studentProfileName.textContent = 'No Name Set';
+    }
+
+    actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); margin-top: 8px;" onclick="handleEditProfileClick(event)">Edit Details</button>';
+
+    // Unbind direct file input logic as it is now handled via getStudentName modal
+    if (profileEditBtn) profileEditBtn.style.display = 'none';
+    if (profilePicWrapper) {
+      profilePicWrapper.onclick = (e) => window.handleEditProfileClick(e);
+      profilePicWrapper.style.cursor = 'pointer';
+    }
+
+    const savedPhoto = localStorage.getItem(STORAGE_STUDENT_PHOTO);
+    if (savedPhoto && profilePicImg && profilePicPlaceholder) {
+      profilePicImg.src = savedPhoto;
+      profilePicImg.style.display = 'block';
+      profilePicPlaceholder.style.display = 'none';
+    } else if (profilePicImg && profilePicPlaceholder) {
       profilePicImg.style.display = 'none';
       profilePicPlaceholder.style.display = 'block';
-      profilePicWrapper.onclick = null;
-      profilePicWrapper.style.cursor = 'default';
     }
   }
 }
