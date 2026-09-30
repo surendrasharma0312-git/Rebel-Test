@@ -739,6 +739,16 @@
       </div>
     </div>
 
+    <div class="card" id="studentManagerNavCard" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0;">🧑‍🎓 Student Manager</div>
+          <p class="muted" style="margin:6px 0 0;">Add and manage registered students</p>
+        </div>
+        <div style="font-size:24px;color:var(--primary);">→</div>
+      </div>
+    </div>
+
     <div class="card" id="mixedBuilderNavCard" style="cursor:pointer;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
@@ -780,6 +790,33 @@
 
     <h2 class="section-title">All Tests <span id="adminTestCount" class="muted" style="font-size:13px;font-weight:600;"></span></h2>
     <div id="adminTestsList"></div>
+  </section>
+
+  <!-- ============ SCREEN: STUDENT MANAGER (admin only) ============ -->
+  <section class="screen" id="screen-admin-students">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromAdminStudentsBtn">← Back</button>
+    </div>
+    <h2 class="section-title">👥 Student Manager</h2>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:12px;">Add New Student</div>
+      <form id="addStudentForm">
+        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Student ID</label>
+        <input type="text" id="addStudentId" placeholder="e.g. S101" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:14.5px;background:var(--surface-2);color:var(--text);margin-bottom:12px;" required />
+
+        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Student Name</label>
+        <input type="text" id="addStudentName" placeholder="e.g. John Doe" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:14.5px;background:var(--surface-2);color:var(--text);margin-bottom:12px;" required />
+
+        <button type="submit" class="btn btn-primary" id="addStudentBtn">Add Student</button>
+        <div id="addStudentStatus" style="margin-top:10px;"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:12px;">Registered Students <span id="adminStudentsCount" class="muted" style="font-size:13px;font-weight:600;"></span></div>
+      <div id="adminStudentsList"></div>
+    </div>
   </section>
 
   <!-- ============ SCREEN: MIXED TEST BUILDER (admin only) ============ -->
@@ -1018,9 +1055,13 @@
         <div style="font-weight:600; color:var(--text);">📚 Test History</div>
         <div style="color:var(--text-muted);">→</div>
       </div>
-      <div style="display:flex; justify-content:space-between; align-items:center; cursor: pointer;" id="adminBtn">
+      <div style="display:flex; justify-content:space-between; align-items:center; cursor: pointer; margin-bottom: 12px;" id="adminBtn">
         <div style="font-weight:600; color:var(--text);" id="adminBtnText">⚙️ Admin Panel</div>
         <div style="color:var(--text-muted);">→</div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center;" id="studentLoginContainer">
+        <div style="font-weight:600; color:var(--text);" id="studentLoginText">Student Login</div>
+        <button id="studentLogoutBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); display:none;">Logout</button>
       </div>
     </div>
   </section>
@@ -2094,6 +2135,106 @@ function updateAdminUI(){
 }
 
 /* =========================================================
+   STUDENT MANAGER (admin only)
+========================================================= */
+$('studentManagerNavCard').addEventListener('click', ()=>{
+  showScreen('screen-admin-students');
+  loadAdminStudents();
+});
+$('backFromAdminStudentsBtn').addEventListener('click', ()=> showScreen('screen-admin'));
+
+async function loadAdminStudents(){
+  const listEl = $('adminStudentsList');
+  const countEl = $('adminStudentsCount');
+  listEl.innerHTML = `<div class="empty-state"><span class="emoji">⏳</span>Loading...</div>`;
+  countEl.textContent = '';
+
+  if(!firebaseReady){
+    listEl.innerHTML = `<div class="error-box">Firebase isn't configured yet.</div>`;
+    return;
+  }
+
+  try{
+    const snap = await db.collection('students').orderBy('name').get();
+    countEl.textContent = `(${snap.docs.length})`;
+
+    if(snap.empty){
+      listEl.innerHTML = `<div class="empty-state"><span class="emoji">👥</span>No students registered yet.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = '';
+    snap.docs.forEach(doc => {
+      const data = doc.data();
+      const row = document.createElement('div');
+      row.className = 'hist-row';
+      row.innerHTML = `
+        <div class="left">
+          <div class="date" style="font-weight:800;color:var(--text);">${escapeHTML(data.name)}</div>
+          <div class="meta">ID: ${escapeHTML(doc.id)}</div>
+        </div>
+        <button class="btn btn-sm btn-ghost" style="color:var(--danger);" onclick="deleteAdminStudent('${escapeHTML(doc.id)}')">Remove</button>
+      `;
+      listEl.appendChild(row);
+    });
+  }catch(err){
+    listEl.innerHTML = `<div class="error-box">Failed to load students: ${escapeHTML(err.message)}</div>`;
+  }
+}
+
+$('addStudentForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  if(!firebaseReady) return;
+
+  const idInput = $('addStudentId');
+  const nameInput = $('addStudentName');
+  const btn = $('addStudentBtn');
+  const statusEl = $('addStudentStatus');
+
+  const studentId = idInput.value.trim().toUpperCase();
+  const studentName = nameInput.value.trim();
+
+  if(!studentId || !studentName) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Adding...';
+  statusEl.innerHTML = '';
+
+  try {
+    const docRef = db.collection('students').doc(studentId);
+    const docSnap = await docRef.get();
+
+    if(docSnap.exists) {
+      statusEl.innerHTML = `<div class="error-box">Student ID already exists!</div>`;
+    } else {
+      await docRef.set({
+        name: studentName,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      statusEl.innerHTML = `<div class="success-box">Student added successfully!</div>`;
+      idInput.value = '';
+      nameInput.value = '';
+      loadAdminStudents();
+    }
+  } catch(err) {
+    statusEl.innerHTML = `<div class="error-box">Failed to add student: ${escapeHTML(err.message)}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Add Student';
+});
+
+window.deleteAdminStudent = async function(studentId) {
+  if(!confirm(`Are you sure you want to remove student ID ${studentId}?`)) return;
+  try {
+    await db.collection('students').doc(studentId).delete();
+    loadAdminStudents();
+  } catch(err) {
+    alert('Failed to delete student: ' + err.message);
+  }
+};
+
+/* =========================================================
    LEADERBOARD (admin only)
 ========================================================= */
 let lastLeaderboardDocs = [];
@@ -2701,14 +2842,22 @@ function buildQuestionBank(vocabList){
 /* =========================================================
    START TEST
 ========================================================= */
-$('startTestBtn').addEventListener('click', ()=>{
+$('startTestBtn').addEventListener('click', async ()=>{
+  if(currentTestDocId && firebaseReady) {
+    const studentName = await getStudentName();
+    if(!studentName) return; // User cancelled or failed login
+  }
   let vocabForTest = vocabulary;
   if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
     vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
   }
   startTest(vocabForTest);
 });
-$('retakeTestBtn').addEventListener('click', ()=>{
+$('retakeTestBtn').addEventListener('click', async ()=>{
+  if(currentTestDocId && firebaseReady) {
+    const studentName = await getStudentName();
+    if(!studentName) return; // User cancelled or failed login
+  }
   let vocabForTest = vocabulary;
   if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
     vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
@@ -3163,22 +3312,46 @@ function saveHistoryEntry(entry){
 }
 
 /* =========================================================
-   CLASS LEADERBOARD
+   CLASS LEADERBOARD & STUDENT IDENTITY
    -----------------------------------------------------------
    Only attempts on a real published Rebel Test Series test are
    saved here (currentTestDocId set) — personal uploads and
    "Practice Mistakes" re-tests are never sent to the leaderboard.
 ========================================================= */
 const STORAGE_STUDENT_NAME = 'vocabTestApp_studentName';
+const STORAGE_STUDENT_ID = 'vocabTestApp_studentId';
 
 async function getStudentName(){
   let name = localStorage.getItem(STORAGE_STUDENT_NAME);
   if(name) return name;
-  name = await appPrompt('What name should show on the class leaderboard?', '', 'Your name');
-  if(!name || !name.trim()) return null;
-  name = name.trim().slice(0, 40);
-  localStorage.setItem(STORAGE_STUDENT_NAME, name);
-  return name;
+
+  if(!firebaseReady) {
+    appAlert("Firebase isn't configured, unable to login.");
+    return null;
+  }
+
+  let studentId = await appPrompt('Enter your Student ID to continue:', '', 'e.g. S101');
+  if(!studentId || !studentId.trim()) return null;
+  studentId = studentId.trim().toUpperCase();
+
+  try {
+    const docRef = db.collection('students').doc(studentId);
+    const docSnap = await docRef.get();
+
+    if(docSnap.exists) {
+      name = docSnap.data().name;
+      localStorage.setItem(STORAGE_STUDENT_NAME, name);
+      localStorage.setItem(STORAGE_STUDENT_ID, studentId);
+      appAlert(`Welcome, ${name}!`);
+      return name;
+    } else {
+      appAlert(`Invalid Student ID: ${studentId}. Please contact your admin.`);
+      return null;
+    }
+  } catch(err) {
+    appAlert(`Failed to verify Student ID: ${err.message}`);
+    return null;
+  }
 }
 
 async function saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds }){
@@ -3314,7 +3487,28 @@ function updateSettingsUI() {
     hapticBtn.style.color = hapticEnabled ? 'var(--success)' : 'var(--danger)';
     hapticBtn.style.borderColor = hapticEnabled ? 'var(--success)' : 'var(--danger)';
   }
+
+  const studentName = localStorage.getItem(STORAGE_STUDENT_NAME);
+  const studentId = localStorage.getItem(STORAGE_STUDENT_ID);
+  const studentLoginText = $('studentLoginText');
+  const studentLogoutBtn = $('studentLogoutBtn');
+  if (studentLoginText && studentLogoutBtn) {
+    if (studentName && studentId) {
+      studentLoginText.textContent = `Logged in as: ${escapeHTML(studentName)} (${escapeHTML(studentId)})`;
+      studentLogoutBtn.style.display = 'block';
+    } else {
+      studentLoginText.textContent = 'Student Login';
+      studentLogoutBtn.style.display = 'none';
+    }
+  }
 }
+
+$('studentLogoutBtn')?.addEventListener('click', () => {
+  localStorage.removeItem(STORAGE_STUDENT_NAME);
+  localStorage.removeItem(STORAGE_STUDENT_ID);
+  updateSettingsUI();
+  appAlert('You have been logged out.');
+});
 
 function updateInTestMuteBtn() {
   const btn = $('inTestMuteBtn');
