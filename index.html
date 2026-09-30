@@ -1047,9 +1047,11 @@
 
       <div class="profile-info">
         <div id="studentProfileName" class="profile-name">Student Name</div>
+        <div id="studentProfileBio" style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px; display: none;"></div>
         <div id="studentLoginActionContainer">
           <!-- Dynamically populated based on login state -->
         </div>
+      </div>
       </div>
     </div>
 
@@ -2240,6 +2242,86 @@ function bestPerStudentPerTest(docs){
   return Array.from(best.values());
 }
 
+
+async function showPublicProfile(studentId, nameFallback) {
+    if (!studentId) {
+        appAlert("Public profile not available.");
+        return;
+    }
+
+    let profileData = { name: nameFallback, stats: { testsTaken: 0, avgScore: 0 } };
+    let photoUrl = null;
+    try {
+        const [docSnap, resultsSnap] = await Promise.all([
+            db.collection('studentProfiles').doc(studentId).get(),
+            db.collection('testResults').where('studentId', '==', studentId).get()
+        ]);
+
+        if (docSnap.exists) {
+            profileData = { ...profileData, ...docSnap.data() };
+        }
+
+        if (!resultsSnap.empty) {
+            let totalScore = 0;
+            resultsSnap.forEach(doc => {
+                totalScore += (doc.data().pct || 0);
+            });
+            profileData.stats = {
+                testsTaken: resultsSnap.size,
+                avgScore: Math.round(totalScore / resultsSnap.size)
+            };
+        }
+    } catch (e) {
+        console.error(e);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.padding = '20px';
+    overlay.style.zIndex = '9999';
+
+    overlay.innerHTML = `
+      <div class="modal-box" style="width: 100%; max-width: 400px; padding: 20px;">
+        <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
+          <div style="width:80px; height:80px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); margin-bottom:12px;">
+            ${profileData.photo ? `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="font-size:36px;">👤</div>`}
+          </div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--text);">${escapeHTML(profileData.name || 'Anonymous')}</div>
+          ${profileData.bio ? `<div style="font-size: 14px; color: var(--text-muted); margin-top: 4px; text-align: center;">${escapeHTML(profileData.bio)}</div>` : ''}
+          ${profileData.stats ? `
+            <div style="margin-top: 12px; display: flex; gap: 16px; align-items: center; justify-content: center;">
+              <div style="text-align: center;">
+                <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.testsTaken || 0}</div>
+                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Tests</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.avgScore || 0}%</div>
+                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Avg Score</div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        ${profileData.phone ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Phone:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.phone)}</span></div>` : ''}
+        ${profileData.email ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Email:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.email)}</span></div>` : ''}
+        ${profileData.address ? `<div style="margin-bottom: 16px; font-size: 14px;"><strong style="color:var(--text);">Address:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.address)}</span></div>` : ''}
+
+        <div class="modal-btns" style="justify-content: center; margin-top: 20px;">
+          <button class="btn btn-ghost modal-close">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+    });
+}
+
 function renderLeaderboardList(){
   const listEl = $('leaderboardList');
   listEl.innerHTML = '';
@@ -2268,6 +2350,7 @@ function renderLeaderboardList(){
     const medal = idx===0 ? '🥇' : idx===1 ? '🥈' : idx===2 ? '🥉' : `#${idx+1}`;
     const row = document.createElement('div');
     row.className = 'hist-row';
+    row.style.cursor = 'pointer';
     row.innerHTML = `
       <div class="left">
         <div class="date" style="font-weight:800;color:var(--text);">${medal} ${escapeHTML(d.studentName || 'Anonymous')}</div>
@@ -2275,12 +2358,14 @@ function renderLeaderboardList(){
       </div>
       <div class="pctbadge">${d.pct}%</div>
     `;
+    row.addEventListener('click', () => {
+        showPublicProfile(d.studentId, d.studentName);
+    });
     fragment.appendChild(row);
   });
 
   listEl.appendChild(fragment);
 }
-
 let leaderboardReturnScreen = 'screen-home';
 
 $('leaderboardNavCard').addEventListener('click', ()=>{
@@ -3116,6 +3201,14 @@ window.handleCloseReviewModal = () => {
 /* =========================================================
    RESULT
 ========================================================= */
+
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
 function formatDuration(totalSeconds){
   const m = Math.floor(totalSeconds/60);
   const s = totalSeconds%60;
@@ -3266,38 +3359,66 @@ async function getStudentName(forcePrompt = false) {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.padding = '20px';
+    overlay.style.zIndex = '9999';
 
-    // We create a temporary file input for the photo picker
     overlay.innerHTML = `
-      <div class="modal-box">
-        <div class="modal-msg" style="font-weight:800;font-size:18px;margin-bottom:6px;">Student Details</div>
-        <p class="muted" style="margin-top:0;margin-bottom:16px;font-size:13px;">Please enter your details before starting the test.</p>
+      <div class="modal-box" style="max-height: 90vh; overflow-y: auto; width: 100%; max-width: 400px; padding: 20px;">
+        <div class="modal-msg" style="font-weight:800;font-size:18px;margin-bottom:6px;">Student Profile</div>
+        <p class="muted" style="margin-top:0;margin-bottom:16px;font-size:13px;">Please enter your details to continue.</p>
 
         <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
           <div id="modalPhotoWrapper" style="width:70px; height:70px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); cursor:pointer; position:relative;">
             <img id="modalPhotoImg" style="width:100%; height:100%; object-fit:cover; display:none;">
             <div id="modalPhotoPlaceholder" style="font-size:32px;">👤</div>
-            <div style="position:absolute; bottom:0; background:rgba(0,0,0,0.5); width:100%; text-align:center; color:white; font-size:10px; padding:2px 0;">EDIT</div>
           </div>
           <input type="file" id="modalPhotoInput" accept="image/*" style="display:none;">
+          <button id="modalChangePhotoBtn" class="btn btn-sm btn-ghost" style="margin-top: 8px;">Choose Photo</button>
         </div>
 
         <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Full Name (Required)</label>
-        <input type="text" class="modal-input" id="modalNameInput" placeholder="Enter your full name" value="${name || ''}" style="margin-bottom:16px;" />
+        <input type="text" class="modal-input" id="modalNameInput" placeholder="Enter your full name" value="${escapeHTML(name || '')}" style="margin-bottom:12px;" />
+
+        <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Bio (Optional)</label>
+        <input type="text" class="modal-input" id="modalBioInput" placeholder="A short bio..." value="${escapeHTML(localStorage.getItem('vocabTestApp_studentBio') || '')}" style="margin-bottom:12px;" />
+
+        <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Phone Number (Optional)</label>
+        <input type="tel" class="modal-input" id="modalPhoneInput" placeholder="Phone Number" value="${escapeHTML(localStorage.getItem('vocabTestApp_studentPhone') || '')}" style="margin-bottom:12px;" />
+
+        <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Email (Optional)</label>
+        <input type="email" class="modal-input" id="modalEmailInput" placeholder="Email Address" value="${escapeHTML(localStorage.getItem('vocabTestApp_studentEmail') || '')}" style="margin-bottom:12px;" />
+
+        <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Address (Optional)</label>
+        <input type="text" class="modal-input" id="modalAddressInput" placeholder="Address" value="${escapeHTML(localStorage.getItem('vocabTestApp_studentAddress') || '')}" style="margin-bottom:16px;" />
+
+        <div style="display:flex; align-items:center; margin-bottom: 16px; font-size: 13px;">
+            <input type="checkbox" id="modalShowPublicCheckbox" style="margin-right: 8px;" ${localStorage.getItem('vocabTestApp_studentShowPublic') === 'true' ? 'checked' : ''}>
+            <label for="modalShowPublicCheckbox">Show on Public Profile</label>
+        </div>
 
         <div class="modal-btns">
-          ${forcePrompt ? '<button class="btn btn-ghost modal-cancel">Cancel</button>' : ''}
-          <button class="btn btn-primary modal-ok">Continue</button>
+          ${forcePrompt ? '<button class="btn btn-ghost modal-cancel">Cancel</button>' : '<button class="btn btn-ghost modal-cancel">Close</button>'}
+          <button class="btn btn-primary modal-ok">Save</button>
         </div>
       </div>
     `;
     document.body.appendChild(overlay);
 
     const nameInput = overlay.querySelector('#modalNameInput');
+    const bioInput = overlay.querySelector('#modalBioInput');
+    const phoneInput = overlay.querySelector('#modalPhoneInput');
+    const emailInput = overlay.querySelector('#modalEmailInput');
+    const addressInput = overlay.querySelector('#modalAddressInput');
+    const showPublicCheckbox = overlay.querySelector('#modalShowPublicCheckbox');
+
     const photoWrapper = overlay.querySelector('#modalPhotoWrapper');
     const photoInput = overlay.querySelector('#modalPhotoInput');
     const photoImg = overlay.querySelector('#modalPhotoImg');
     const photoPlaceholder = overlay.querySelector('#modalPhotoPlaceholder');
+    const changePhotoBtn = overlay.querySelector('#modalChangePhotoBtn');
     const okBtn = overlay.querySelector('.modal-ok');
     const cancelBtn = overlay.querySelector('.modal-cancel');
 
@@ -3308,9 +3429,8 @@ async function getStudentName(forcePrompt = false) {
       photoPlaceholder.style.display = 'none';
     }
 
-    photoWrapper.addEventListener('click', () => {
-      photoInput.click();
-    });
+    photoWrapper.addEventListener('click', () => photoInput.click());
+    changePhotoBtn.addEventListener('click', () => photoInput.click());
 
     photoInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -3331,20 +3451,55 @@ async function getStudentName(forcePrompt = false) {
       resolve(result);
     }
 
-    okBtn.addEventListener('click', () => {
+    okBtn.addEventListener('click', async () => {
       const enteredName = nameInput.value.trim();
       if (!enteredName) {
         appAlert("Full Name is required.");
         return;
       }
+
+      let studentId = localStorage.getItem('vocabTestApp_studentId');
+      if (!studentId) {
+          studentId = generateUUID();
+          localStorage.setItem('vocabTestApp_studentId', studentId);
+      }
+
       localStorage.setItem(STORAGE_STUDENT_NAME, enteredName);
+      localStorage.setItem('vocabTestApp_studentBio', bioInput.value.trim());
+      localStorage.setItem('vocabTestApp_studentPhone', phoneInput.value.trim());
+      localStorage.setItem('vocabTestApp_studentEmail', emailInput.value.trim());
+      localStorage.setItem('vocabTestApp_studentAddress', addressInput.value.trim());
+      localStorage.setItem('vocabTestApp_studentShowPublic', showPublicCheckbox.checked);
+
       if (currentPhoto) {
         localStorage.setItem(STORAGE_STUDENT_PHOTO, currentPhoto);
       }
 
-      // Update Settings UI if it exists in window scope
-      if (window.updateSettingsUI) {
-        window.updateSettingsUI();
+      if (firebaseReady) {
+          try {
+              const payload = {
+                  name: enteredName,
+                  bio: bioInput.value.trim(),
+                  photo: currentPhoto || null,
+                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              };
+              if (showPublicCheckbox.checked) {
+                  payload.phone = phoneInput.value.trim();
+                  payload.email = emailInput.value.trim();
+                  payload.address = addressInput.value.trim();
+              } else {
+                  payload.phone = firebase.firestore.FieldValue.delete();
+                  payload.email = firebase.firestore.FieldValue.delete();
+                  payload.address = firebase.firestore.FieldValue.delete();
+              }
+              await db.collection('studentProfiles').doc(studentId).set(payload, { merge: true });
+          } catch(err) {
+              console.error('Failed to sync profile', err);
+          }
+      }
+
+      if (typeof updateSettingsUI === 'function') {
+        updateSettingsUI();
       }
       finish(enteredName);
     });
@@ -3353,7 +3508,6 @@ async function getStudentName(forcePrompt = false) {
       cancelBtn.addEventListener('click', () => finish(null));
     }
 
-    // if not forced prompt, they can't dismiss without entering name
     if (forcePrompt) {
       overlay.addEventListener('click', (e) => {
         if (e.target === overlay) finish(null);
@@ -3369,6 +3523,7 @@ async function saveToLeaderboard({ total, correct, wrong, timeout, pct, duration
   try{
     await db.collection('testResults').add({
       studentName,
+      studentId: localStorage.getItem("vocabTestApp_studentId") || "",
       testDocId: currentTestDocId,
       testName: currentTestName || 'Untitled Test',
       total, correct, wrong, timeout, pct, durationSeconds,
@@ -3478,6 +3633,7 @@ let hapticEnabled = localStorage.getItem('hapticEnabled') !== 'false';
 window.handleEditProfileClick = async function(e) {
   if(e) e.stopPropagation();
   await getStudentName(true);
+  updateSettingsUI();
 };
 
 function updateSettingsUI() {
@@ -3502,8 +3658,10 @@ function updateSettingsUI() {
   }
 
   const studentName = localStorage.getItem(STORAGE_STUDENT_NAME);
+  const studentBio = localStorage.getItem('vocabTestApp_studentBio');
 
   const studentProfileName = $('studentProfileName');
+  const studentProfileBio = $('studentProfileBio');
   const actionContainer = $('studentLoginActionContainer');
   const profileEditBtn = $('profileEditBtn');
   const profilePicImg = $('profilePicImg');
@@ -3514,13 +3672,25 @@ function updateSettingsUI() {
   if (studentProfileName && actionContainer) {
     if (studentName) {
       studentProfileName.textContent = escapeHTML(studentName);
+      if (studentProfileBio) {
+          if (studentBio) {
+              studentProfileBio.textContent = escapeHTML(studentBio);
+              studentProfileBio.style.display = 'block';
+          } else {
+              studentProfileBio.style.display = 'none';
+          }
+      }
     } else {
-      studentProfileName.textContent = 'No Name Set';
+      studentProfileName.textContent = 'Not Logged In';
+      if (studentProfileBio) studentProfileBio.style.display = 'none';
     }
 
-    actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); margin-top: 8px;" onclick="handleEditProfileClick(event)">Edit Details</button>';
+    if (studentName) {
+      actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); margin-top: 8px;" onclick="handleEditProfileClick(event)">Edit Details</button>';
+    } else {
+      actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm btn-primary" style="margin-top: 8px;" onclick="handleEditProfileClick(event)">Student Login</button>';
+    }
 
-    // Unbind direct file input logic as it is now handled via getStudentName modal
     if (profileEditBtn) profileEditBtn.style.display = 'none';
     if (profilePicWrapper) {
       profilePicWrapper.onclick = (e) => window.handleEditProfileClick(e);
@@ -3538,9 +3708,6 @@ function updateSettingsUI() {
     }
   }
 }
-
-
-
 function updateInTestMuteBtn() {
   const btn = $('inTestMuteBtn');
   if (btn) {
@@ -3850,6 +4017,20 @@ listenToCloudTests();
       </div>
     </div>
   </div>
+
+<script>
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    cleanWord,
+    getScore,
+    parseLine,
+    parseVocabText,
+    resolveOrder,
+    shuffle,
+    formatDuration
+  };
+}
+</script>
 </body>
 
 </html>
