@@ -1059,9 +1059,9 @@
         <div style="font-weight:600; color:var(--text);" id="adminBtnText">⚙️ Admin Panel</div>
         <div style="color:var(--text-muted);">→</div>
       </div>
-      <div style="display:flex; justify-content:space-between; align-items:center;" id="studentLoginContainer">
+      <div style="display:flex; justify-content:space-between; align-items:center; cursor: pointer;" id="studentLoginContainer" onclick="handleStudentLoginClick(event)">
         <div style="font-weight:600; color:var(--text);" id="studentLoginText">Student Login</div>
-        <button id="studentLogoutBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); display:none;">Logout</button>
+        <button id="studentLogoutBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); display:none;" onclick="handleStudentLogoutClick(event)">Logout</button>
       </div>
     </div>
   </section>
@@ -3467,6 +3467,23 @@ let testSoundEnabled = localStorage.getItem('testSoundEnabled') !== 'false';
 let testVolume = localStorage.getItem('testVolume') ? parseInt(localStorage.getItem('testVolume'), 10) : 50;
 let hapticEnabled = localStorage.getItem('hapticEnabled') !== 'false';
 
+window.handleStudentLoginClick = async function(e) {
+  if (e && e.target && e.target.id === 'studentLogoutBtn') return; // Handled separately
+  const studentName = localStorage.getItem(STORAGE_STUDENT_NAME);
+  if (!studentName) {
+    await window.getStudentName();
+    window.updateSettingsUI();
+  }
+};
+
+window.handleStudentLogoutClick = function(e) {
+  if(e) e.stopPropagation();
+  localStorage.removeItem(STORAGE_STUDENT_NAME);
+  localStorage.removeItem(STORAGE_STUDENT_ID);
+  window.updateSettingsUI();
+  window.appAlert('You have been logged out.');
+};
+
 function updateSettingsUI() {
   const soundBtn = $('toggleTestSoundBtn');
   if (soundBtn) {
@@ -3503,12 +3520,7 @@ function updateSettingsUI() {
   }
 }
 
-$('studentLogoutBtn')?.addEventListener('click', () => {
-  localStorage.removeItem(STORAGE_STUDENT_NAME);
-  localStorage.removeItem(STORAGE_STUDENT_ID);
-  updateSettingsUI();
-  appAlert('You have been logged out.');
-});
+
 
 function updateInTestMuteBtn() {
   const btn = $('inTestMuteBtn');
