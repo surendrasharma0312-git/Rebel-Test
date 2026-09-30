@@ -540,6 +540,69 @@
       margin-bottom: 6px;
     }
   }
+
+  /* Profile Section Styles */
+  .profile-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  .profile-pic-wrapper {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: var(--surface-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .profile-pic-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: none;
+  }
+  .profile-pic-placeholder {
+    font-size: 36px;
+    color: var(--text-muted);
+  }
+  .profile-edit-btn {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #0088cc;
+    color: white;
+    border: 2px solid var(--bg);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 2;
+  }
+  .profile-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .profile-name {
+    font-family: 'Baloo 2', cursive;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
 </style>
 
 
@@ -1011,6 +1074,22 @@
     </div>
     <h2 class="section-title">Settings</h2>
 
+    <div class="profile-section">
+      <div class="profile-pic-wrapper" id="profilePicWrapper">
+        <img id="profilePicImg" class="profile-pic-img" src="" alt="Profile Picture">
+        <div id="profilePicPlaceholder" class="profile-pic-placeholder">👤</div>
+        <button class="profile-edit-btn" id="profileEditBtn">✎</button>
+      </div>
+      <input type="file" id="profilePhotoInput" accept="image/*" style="display:none">
+
+      <div class="profile-info">
+        <div id="studentProfileName" class="profile-name">Student Name</div>
+        <div id="studentLoginActionContainer">
+          <!-- Dynamically populated based on login state -->
+        </div>
+      </div>
+    </div>
+
     <div class="card" style="margin-bottom: 14px;">
       <h3 style="margin-top:0;margin-bottom:12px;font-size:16px;">Appearance</h3>
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1051,10 +1130,6 @@
 
     <div class="card" style="margin-bottom: 14px;">
       <h3 style="margin-top:0;margin-bottom:12px;font-size:16px;">Account / Tools</h3>
-      <div style="display:flex; justify-content:space-between; align-items:center; cursor: pointer; margin-bottom: 12px;" id="studentLoginContainer" onclick="handleStudentLoginClick(event)">
-        <div style="font-weight:600; color:var(--text);" id="studentLoginText">👤 Student Login</div>
-        <button id="studentLogoutBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); display:none;" onclick="handleStudentLogoutClick(event)">Logout</button>
-      </div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; cursor: pointer;" id="historyNavBtn">
         <div style="font-weight:600; color:var(--text);">📚 Test History</div>
         <div style="color:var(--text-muted);">→</div>
@@ -3507,15 +3582,40 @@ function updateSettingsUI() {
 
   const studentName = localStorage.getItem(STORAGE_STUDENT_NAME);
   const studentId = localStorage.getItem(STORAGE_STUDENT_ID);
-  const studentLoginText = $('studentLoginText');
-  const studentLogoutBtn = $('studentLogoutBtn');
-  if (studentLoginText && studentLogoutBtn) {
+
+  const studentProfileName = $('studentProfileName');
+  const actionContainer = $('studentLoginActionContainer');
+  const profileEditBtn = $('profileEditBtn');
+  const profilePicImg = $('profilePicImg');
+  const profilePicPlaceholder = $('profilePicPlaceholder');
+
+  const profilePicWrapper = $('profilePicWrapper');
+
+  if (studentProfileName && actionContainer) {
     if (studentName && studentId) {
-      studentLoginText.textContent = `Logged in as: ${escapeHTML(studentName)} (${escapeHTML(studentId)})`;
-      studentLogoutBtn.style.display = 'block';
+      studentProfileName.textContent = escapeHTML(studentName);
+      actionContainer.innerHTML = '<button id="studentLogoutBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); margin-top: 8px;" onclick="handleStudentLogoutClick(event)">Logout</button>';
+      profileEditBtn.style.display = 'flex';
+      profilePicWrapper.onclick = () => document.getElementById('profilePhotoInput').click();
+      profilePicWrapper.style.cursor = 'pointer';
+
+      const savedPhoto = localStorage.getItem('vocabTestApp_studentPhoto');
+      if (savedPhoto) {
+        profilePicImg.src = savedPhoto;
+        profilePicImg.style.display = 'block';
+        profilePicPlaceholder.style.display = 'none';
+      } else {
+        profilePicImg.style.display = 'none';
+        profilePicPlaceholder.style.display = 'block';
+      }
     } else {
-      studentLoginText.textContent = '👤 Student Login';
-      studentLogoutBtn.style.display = 'none';
+      studentProfileName.textContent = 'Not Logged In';
+      actionContainer.innerHTML = '<button id="studentLoginBtn" class="btn btn-sm" style="background:var(--primary); color:white; border:none; margin-top: 8px;" onclick="handleStudentLoginClick(event)">Student Login</button>';
+      profileEditBtn.style.display = 'none';
+      profilePicImg.style.display = 'none';
+      profilePicPlaceholder.style.display = 'block';
+      profilePicWrapper.onclick = null;
+      profilePicWrapper.style.cursor = 'default';
     }
   }
 }
@@ -3546,6 +3646,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 // Event Listeners for Settings Screen
+$('profilePhotoInput')?.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const dataUrl = event.target.result;
+      localStorage.setItem('vocabTestApp_studentPhoto', dataUrl);
+      updateSettingsUI();
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
 $('settingsBtn')?.addEventListener('click', () => {
   updateSettingsUI();
   showScreen('screen-settings');
