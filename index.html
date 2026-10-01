@@ -3037,6 +3037,11 @@ function selectAnswer(chosen, btnEl){
     triggerHaptic('wrong');
   }
 
+  if (q.markedLater) {
+    q.markedLater = false;
+    updateTopUI();
+  }
+
   lockOptions(q, btnEl);
   $('qCorrectCount').textContent = `✅ ${getScore()}`;
   $('liveScore').textContent = getScore();
@@ -3050,6 +3055,12 @@ function handleTimeout(){
   q.status = 'timeout';
   playTestSound('timeout');
   triggerHaptic('timeout');
+
+  if (q.markedLater) {
+    q.markedLater = false;
+    updateTopUI();
+  }
+
   lockOptions(q, null);
   updateNavButtons();
 }
