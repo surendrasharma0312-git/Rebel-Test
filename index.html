@@ -1762,7 +1762,7 @@ function renderNotifications(docs){
     const data = doc.data();
     const isUnread = !readIds.has(doc.id);
     const isSelected = selectedNotifIds.has(doc.id);
-   const row = createNotificationRow(doc, data, isUnread. isSelected);
+   const row = createNotificationRow(doc, data, isUnread, isSelected);
     listEl.appendChild(row);
   });
 }
