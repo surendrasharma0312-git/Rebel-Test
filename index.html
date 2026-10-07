@@ -2332,17 +2332,26 @@ function bestPerStudentPerTest(docs){
 }
 
 
+let globalProfileUnsub = null;
+let globalResultsUnsub = null;
+
 function showPublicProfile(studentId, nameFallback) {
     if (!studentId) {
         appAlert("Public profile not available.");
         return;
     }
 
+    if (document.getElementById('publicProfileModal')) {
+        return; // Prevent duplicate modals
+    }
+
+    if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+    if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
+
     let profileData = { name: nameFallback, stats: { testsTaken: 0, avgScore: 0 } };
-    let unsubProfile = null;
-    let unsubResults = null;
 
     const overlay = document.createElement('div');
+    overlay.id = 'publicProfileModal';
     overlay.className = 'modal-overlay';
     overlay.style.display = 'flex';
     overlay.style.alignItems = 'center';
@@ -2353,8 +2362,8 @@ function showPublicProfile(studentId, nameFallback) {
     document.body.appendChild(overlay);
 
     const closeHandler = () => {
-        if (unsubProfile) unsubProfile();
-        if (unsubResults) unsubResults();
+        if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+        if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
         overlay.remove();
     };
 
@@ -2362,46 +2371,100 @@ function showPublicProfile(studentId, nameFallback) {
         if (e.target === overlay) closeHandler();
     });
 
-    const updateUI = () => {
-        overlay.innerHTML = `
-          <div class="modal-box" style="width: 100%; max-width: 400px; padding: 20px;">
-            <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
-              <div style="width:80px; height:80px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); margin-bottom:12px;">
-                ${profileData.photo ? `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="font-size:36px;">👤</div>`}
-              </div>
-              <div style="font-size: 20px; font-weight: 800; color: var(--text);">${escapeHTML(profileData.name || 'Anonymous')}</div>
-              ${profileData.bio ? `<div style="font-size: 14px; color: var(--text-muted); margin-top: 4px; text-align: center;">${escapeHTML(profileData.bio)}</div>` : ''}
-              ${profileData.stats ? `
-                <div style="margin-top: 12px; display: flex; gap: 16px; align-items: center; justify-content: center;">
-                  <div style="text-align: center;">
-                    <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.testsTaken || 0}</div>
-                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Tests</div>
-                  </div>
-                  <div style="text-align: center;">
-                    <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.avgScore || 0}%</div>
-                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Avg Score</div>
-                  </div>
-                </div>
-              ` : ''}
+    overlay.innerHTML = `
+      <div class="modal-box" style="width: 100%; max-width: 400px; padding: 20px;">
+        <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
+          <div class="pp-photo-container" style="width:80px; height:80px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); margin-bottom:12px;">
+            <div style="font-size:36px;">👤</div>
+          </div>
+          <div class="pp-name" style="font-size: 20px; font-weight: 800; color: var(--text);"></div>
+          <div class="pp-bio" style="font-size: 14px; color: var(--text-muted); margin-top: 4px; text-align: center; display: none;"></div>
+
+          <div class="pp-stats" style="margin-top: 12px; display: flex; gap: 16px; align-items: center; justify-content: center; display: none;">
+            <div style="text-align: center;">
+              <div class="pp-tests" style="font-size: 16px; font-weight: bold; color: var(--text);">0</div>
+              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Tests</div>
             </div>
-
-            ${profileData.phone ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Phone:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.phone)}</span></div>` : ''}
-            ${profileData.email ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Email:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.email)}</span></div>` : ''}
-            ${profileData.address ? `<div style="margin-bottom: 16px; font-size: 14px;"><strong style="color:var(--text);">Address:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.address)}</span></div>` : ''}
-
-            <div class="modal-btns" style="justify-content: center; margin-top: 20px;">
-              <button class="btn btn-ghost modal-close">Close</button>
+            <div style="text-align: center;">
+              <div class="pp-score" style="font-size: 16px; font-weight: bold; color: var(--text);">0%</div>
+              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Avg Score</div>
             </div>
           </div>
-        `;
+        </div>
 
-        overlay.querySelector('.modal-close').addEventListener('click', closeHandler);
+        <div class="pp-phone-container" style="margin-bottom: 8px; font-size: 14px; display: none;"><strong style="color:var(--text);">Phone:</strong> <span class="pp-phone" style="color:var(--text-muted);"></span></div>
+        <div class="pp-email-container" style="margin-bottom: 8px; font-size: 14px; display: none;"><strong style="color:var(--text);">Email:</strong> <span class="pp-email" style="color:var(--text-muted);"></span></div>
+        <div class="pp-address-container" style="margin-bottom: 16px; font-size: 14px; display: none;"><strong style="color:var(--text);">Address:</strong> <span class="pp-address" style="color:var(--text-muted);"></span></div>
+
+        <div class="modal-btns" style="justify-content: center; margin-top: 20px;">
+          <button class="btn btn-ghost modal-close">Close</button>
+        </div>
+      </div>
+    `;
+
+    overlay.querySelector('.modal-close').addEventListener('click', closeHandler);
+
+    const updateUI = () => {
+        const photoContainer = overlay.querySelector('.pp-photo-container');
+        if (profileData.photo) {
+            let img = photoContainer.querySelector('img');
+            if (!img) {
+                photoContainer.innerHTML = `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">`;
+            } else if (img.src !== profileData.photo) {
+                img.src = escapeHTML(profileData.photo);
+            }
+        } else {
+            photoContainer.innerHTML = `<div style="font-size:36px;">👤</div>`;
+        }
+
+        overlay.querySelector('.pp-name').textContent = profileData.name || 'Anonymous';
+
+        const bioEl = overlay.querySelector('.pp-bio');
+        if (profileData.bio) {
+            bioEl.textContent = profileData.bio;
+            bioEl.style.display = 'block';
+        } else {
+            bioEl.style.display = 'none';
+        }
+
+        const statsEl = overlay.querySelector('.pp-stats');
+        if (profileData.stats) {
+            overlay.querySelector('.pp-tests').textContent = profileData.stats.testsTaken || 0;
+            overlay.querySelector('.pp-score').textContent = (profileData.stats.avgScore || 0) + '%';
+            statsEl.style.display = 'flex';
+        } else {
+            statsEl.style.display = 'none';
+        }
+
+        const phoneContainer = overlay.querySelector('.pp-phone-container');
+        if (profileData.phone) {
+            overlay.querySelector('.pp-phone').textContent = profileData.phone;
+            phoneContainer.style.display = 'block';
+        } else {
+            phoneContainer.style.display = 'none';
+        }
+
+        const emailContainer = overlay.querySelector('.pp-email-container');
+        if (profileData.email) {
+            overlay.querySelector('.pp-email').textContent = profileData.email;
+            emailContainer.style.display = 'block';
+        } else {
+            emailContainer.style.display = 'none';
+        }
+
+        const addressContainer = overlay.querySelector('.pp-address-container');
+        if (profileData.address) {
+            overlay.querySelector('.pp-address').textContent = profileData.address;
+            addressContainer.style.display = 'block';
+        } else {
+            addressContainer.style.display = 'none';
+        }
     };
 
     updateUI();
 
     try {
-        unsubProfile = db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
+        globalProfileUnsub = db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
             if (docSnap && docSnap.exists) {
                 // Ensure we do not overwrite the calculated stats if docSnap.data() contains a stale stats object
                 const data = docSnap.data();
@@ -2415,7 +2478,7 @@ function showPublicProfile(studentId, nameFallback) {
     }
 
     try {
-        unsubResults = db.collection('testResults').where('studentId', '==', studentId).onSnapshot(resultsSnap => {
+        globalResultsUnsub = db.collection('testResults').where('studentId', '==', studentId).onSnapshot(resultsSnap => {
             if (resultsSnap && !resultsSnap.empty) {
                 let validDocs = bestPerStudentPerTest(resultsSnap.docs);
                 let totalScore = 0;
