@@ -2242,37 +2242,15 @@ function bestPerStudentPerTest(docs){
 }
 
 
-async function showPublicProfile(studentId, nameFallback) {
+function showPublicProfile(studentId, nameFallback) {
     if (!studentId) {
         appAlert("Public profile not available.");
         return;
     }
 
     let profileData = { name: nameFallback, stats: { testsTaken: 0, avgScore: 0 } };
-    let photoUrl = null;
-    try {
-        const [docSnap, resultsSnap] = await Promise.all([
-            db.collection('studentProfiles').doc(studentId).get(),
-            db.collection('testResults').where('studentId', '==', studentId).get()
-        ]);
-
-        if (docSnap.exists) {
-            profileData = { ...profileData, ...docSnap.data() };
-        }
-
-        if (!resultsSnap.empty) {
-            let totalScore = 0;
-            resultsSnap.forEach(doc => {
-                totalScore += (doc.data().pct || 0);
-            });
-            profileData.stats = {
-                testsTaken: resultsSnap.size,
-                avgScore: Math.round(totalScore / resultsSnap.size)
-            };
-        }
-    } catch (e) {
-        console.error(e);
-    }
+    let unsubProfile = null;
+    let unsubResults = null;
 
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -2282,43 +2260,90 @@ async function showPublicProfile(studentId, nameFallback) {
     overlay.style.padding = '20px';
     overlay.style.zIndex = '9999';
 
-    overlay.innerHTML = `
-      <div class="modal-box" style="width: 100%; max-width: 400px; padding: 20px;">
-        <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
-          <div style="width:80px; height:80px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); margin-bottom:12px;">
-            ${profileData.photo ? `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="font-size:36px;">👤</div>`}
-          </div>
-          <div style="font-size: 20px; font-weight: 800; color: var(--text);">${escapeHTML(profileData.name || 'Anonymous')}</div>
-          ${profileData.bio ? `<div style="font-size: 14px; color: var(--text-muted); margin-top: 4px; text-align: center;">${escapeHTML(profileData.bio)}</div>` : ''}
-          ${profileData.stats ? `
-            <div style="margin-top: 12px; display: flex; gap: 16px; align-items: center; justify-content: center;">
-              <div style="text-align: center;">
-                <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.testsTaken || 0}</div>
-                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Tests</div>
-              </div>
-              <div style="text-align: center;">
-                <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.avgScore || 0}%</div>
-                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Avg Score</div>
-              </div>
-            </div>
-          ` : ''}
-        </div>
-
-        ${profileData.phone ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Phone:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.phone)}</span></div>` : ''}
-        ${profileData.email ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Email:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.email)}</span></div>` : ''}
-        ${profileData.address ? `<div style="margin-bottom: 16px; font-size: 14px;"><strong style="color:var(--text);">Address:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.address)}</span></div>` : ''}
-
-        <div class="modal-btns" style="justify-content: center; margin-top: 20px;">
-          <button class="btn btn-ghost modal-close">Close</button>
-        </div>
-      </div>
-    `;
     document.body.appendChild(overlay);
 
-    overlay.querySelector('.modal-close').addEventListener('click', () => overlay.remove());
+    const closeHandler = () => {
+        if (unsubProfile) unsubProfile();
+        if (unsubResults) unsubResults();
+        overlay.remove();
+    };
+
     overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.remove();
+        if (e.target === overlay) closeHandler();
     });
+
+    const updateUI = () => {
+        overlay.innerHTML = `
+          <div class="modal-box" style="width: 100%; max-width: 400px; padding: 20px;">
+            <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
+              <div style="width:80px; height:80px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); margin-bottom:12px;">
+                ${profileData.photo ? `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="font-size:36px;">👤</div>`}
+              </div>
+              <div style="font-size: 20px; font-weight: 800; color: var(--text);">${escapeHTML(profileData.name || 'Anonymous')}</div>
+              ${profileData.bio ? `<div style="font-size: 14px; color: var(--text-muted); margin-top: 4px; text-align: center;">${escapeHTML(profileData.bio)}</div>` : ''}
+              ${profileData.stats ? `
+                <div style="margin-top: 12px; display: flex; gap: 16px; align-items: center; justify-content: center;">
+                  <div style="text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.testsTaken || 0}</div>
+                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Tests</div>
+                  </div>
+                  <div style="text-align: center;">
+                    <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.avgScore || 0}%</div>
+                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Avg Score</div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+
+            ${profileData.phone ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Phone:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.phone)}</span></div>` : ''}
+            ${profileData.email ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Email:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.email)}</span></div>` : ''}
+            ${profileData.address ? `<div style="margin-bottom: 16px; font-size: 14px;"><strong style="color:var(--text);">Address:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.address)}</span></div>` : ''}
+
+            <div class="modal-btns" style="justify-content: center; margin-top: 20px;">
+              <button class="btn btn-ghost modal-close">Close</button>
+            </div>
+          </div>
+        `;
+
+        overlay.querySelector('.modal-close').addEventListener('click', closeHandler);
+    };
+
+    updateUI();
+
+    try {
+        unsubProfile = db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
+            if (docSnap && docSnap.exists) {
+                // Ensure we do not overwrite the calculated stats if docSnap.data() contains a stale stats object
+                const data = docSnap.data();
+                delete data.stats;
+                profileData = { ...profileData, ...data };
+                updateUI();
+            }
+        }, err => console.error(err));
+    } catch (e) {
+        console.error(e);
+    }
+
+    try {
+        unsubResults = db.collection('testResults').where('studentId', '==', studentId).onSnapshot(resultsSnap => {
+            if (resultsSnap && !resultsSnap.empty) {
+                let validDocs = bestPerStudentPerTest(resultsSnap.docs);
+                let totalScore = 0;
+                validDocs.forEach(doc => {
+                    totalScore += (doc.data().pct || 0);
+                });
+                profileData.stats = {
+                    testsTaken: validDocs.length,
+                    avgScore: validDocs.length > 0 ? Math.round(totalScore / validDocs.length) : 0
+                };
+            } else {
+                profileData.stats = { testsTaken: 0, avgScore: 0 };
+            }
+            updateUI();
+        }, err => console.error(err));
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 function renderLeaderboardList(){
