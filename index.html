@@ -2333,6 +2333,8 @@ function bestPerStudentPerTest(docs){
 
 
 function showPublicProfile(studentId, nameFallback) {
+    if (document.getElementById('public-profile-modal')) return;
+
     if (!studentId) {
         appAlert("Public profile not available.");
         return;
@@ -2343,6 +2345,7 @@ function showPublicProfile(studentId, nameFallback) {
     let unsubResults = null;
 
     const overlay = document.createElement('div');
+    overlay.id = 'public-profile-modal';
     overlay.className = 'modal-overlay';
     overlay.style.display = 'flex';
     overlay.style.alignItems = 'center';
@@ -2362,40 +2365,102 @@ function showPublicProfile(studentId, nameFallback) {
         if (e.target === overlay) closeHandler();
     });
 
-    const updateUI = () => {
-        overlay.innerHTML = `
-          <div class="modal-box" style="width: 100%; max-width: 400px; padding: 20px;">
-            <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
-              <div style="width:80px; height:80px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); margin-bottom:12px;">
-                ${profileData.photo ? `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="font-size:36px;">👤</div>`}
-              </div>
-              <div style="font-size: 20px; font-weight: 800; color: var(--text);">${escapeHTML(profileData.name || 'Anonymous')}</div>
-              ${profileData.bio ? `<div style="font-size: 14px; color: var(--text-muted); margin-top: 4px; text-align: center;">${escapeHTML(profileData.bio)}</div>` : ''}
-              ${profileData.stats ? `
-                <div style="margin-top: 12px; display: flex; gap: 16px; align-items: center; justify-content: center;">
-                  <div style="text-align: center;">
-                    <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.testsTaken || 0}</div>
-                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Tests</div>
-                  </div>
-                  <div style="text-align: center;">
-                    <div style="font-size: 16px; font-weight: bold; color: var(--text);">${profileData.stats.avgScore || 0}%</div>
-                    <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Avg Score</div>
-                  </div>
-                </div>
-              ` : ''}
+    overlay.innerHTML = `
+      <div class="modal-box" style="width: 100%; max-width: 400px; padding: 20px;">
+        <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
+          <div style="width:80px; height:80px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); margin-bottom:12px;" id="publicProfilePhotoContainer">
+          </div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--text);" id="publicProfileName"></div>
+          <div style="font-size: 14px; color: var(--text-muted); margin-top: 4px; text-align: center; display:none;" id="publicProfileBio"></div>
+
+          <div style="margin-top: 12px; display: flex; gap: 16px; align-items: center; justify-content: center; display:none;" id="publicProfileStatsContainer">
+            <div style="text-align: center;">
+              <div style="font-size: 16px; font-weight: bold; color: var(--text);" id="publicProfileTestsTaken">0</div>
+              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Tests</div>
             </div>
-
-            ${profileData.phone ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Phone:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.phone)}</span></div>` : ''}
-            ${profileData.email ? `<div style="margin-bottom: 8px; font-size: 14px;"><strong style="color:var(--text);">Email:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.email)}</span></div>` : ''}
-            ${profileData.address ? `<div style="margin-bottom: 16px; font-size: 14px;"><strong style="color:var(--text);">Address:</strong> <span style="color:var(--text-muted);">${escapeHTML(profileData.address)}</span></div>` : ''}
-
-            <div class="modal-btns" style="justify-content: center; margin-top: 20px;">
-              <button class="btn btn-ghost modal-close">Close</button>
+            <div style="text-align: center;">
+              <div style="font-size: 16px; font-weight: bold; color: var(--text);" id="publicProfileAvgScore">0%</div>
+              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Avg Score</div>
             </div>
           </div>
-        `;
+        </div>
 
-        overlay.querySelector('.modal-close').addEventListener('click', closeHandler);
+        <div style="margin-bottom: 8px; font-size: 14px; display:none;" id="publicProfilePhoneContainer"><strong style="color:var(--text);">Phone:</strong> <span style="color:var(--text-muted);" id="publicProfilePhone"></span></div>
+        <div style="margin-bottom: 8px; font-size: 14px; display:none;" id="publicProfileEmailContainer"><strong style="color:var(--text);">Email:</strong> <span style="color:var(--text-muted);" id="publicProfileEmail"></span></div>
+        <div style="margin-bottom: 16px; font-size: 14px; display:none;" id="publicProfileAddressContainer"><strong style="color:var(--text);">Address:</strong> <span style="color:var(--text-muted);" id="publicProfileAddress"></span></div>
+
+        <div class="modal-btns" style="justify-content: center; margin-top: 20px;">
+          <button class="btn btn-ghost modal-close" id="publicProfileCloseBtn">Close</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById('publicProfileCloseBtn').addEventListener('click', closeHandler);
+
+    const updateUI = () => {
+        const photoContainer = document.getElementById('publicProfilePhotoContainer');
+        if (photoContainer) {
+            photoContainer.innerHTML = profileData.photo ? `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="font-size:36px;">👤</div>`;
+        }
+
+        const nameEl = document.getElementById('publicProfileName');
+        if (nameEl) nameEl.textContent = profileData.name || 'Anonymous';
+
+        const bioEl = document.getElementById('publicProfileBio');
+        if (bioEl) {
+            if (profileData.bio) {
+                bioEl.textContent = profileData.bio;
+                bioEl.style.display = 'block';
+            } else {
+                bioEl.style.display = 'none';
+            }
+        }
+
+        const statsContainer = document.getElementById('publicProfileStatsContainer');
+        if (statsContainer) {
+            if (profileData.stats) {
+                statsContainer.style.display = 'flex';
+                const testsEl = document.getElementById('publicProfileTestsTaken');
+                if (testsEl) testsEl.textContent = profileData.stats.testsTaken || 0;
+                const scoreEl = document.getElementById('publicProfileAvgScore');
+                if (scoreEl) scoreEl.textContent = (profileData.stats.avgScore || 0) + '%';
+            } else {
+                statsContainer.style.display = 'none';
+            }
+        }
+
+        const phoneContainer = document.getElementById('publicProfilePhoneContainer');
+        const phoneEl = document.getElementById('publicProfilePhone');
+        if (phoneContainer && phoneEl) {
+            if (profileData.phone) {
+                phoneEl.textContent = profileData.phone;
+                phoneContainer.style.display = 'block';
+            } else {
+                phoneContainer.style.display = 'none';
+            }
+        }
+
+        const emailContainer = document.getElementById('publicProfileEmailContainer');
+        const emailEl = document.getElementById('publicProfileEmail');
+        if (emailContainer && emailEl) {
+            if (profileData.email) {
+                emailEl.textContent = profileData.email;
+                emailContainer.style.display = 'block';
+            } else {
+                emailContainer.style.display = 'none';
+            }
+        }
+
+        const addressContainer = document.getElementById('publicProfileAddressContainer');
+        const addressEl = document.getElementById('publicProfileAddress');
+        if (addressContainer && addressEl) {
+            if (profileData.address) {
+                addressEl.textContent = profileData.address;
+                addressContainer.style.display = 'block';
+            } else {
+                addressContainer.style.display = 'none';
+            }
+        }
     };
 
     updateUI();
