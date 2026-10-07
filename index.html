@@ -883,6 +883,11 @@
       <button class="icon-btn" id="refreshLeaderboardBtn" title="Refresh">🔄</button>
     </div>
     <h2 class="section-title">🏆 Class Leaderboard</h2>
+    <div class="filter-row" id="leaderboardPeriodFilterRow" style="margin-bottom:10px;">
+      <button class="filter-btn active" data-period="weekly">Weekly</button>
+      <button class="filter-btn" data-period="all-time">All-Time</button>
+    </div>
+    <div id="leaderboardWeekLabel" style="text-align: center; font-size: 14px; margin-bottom: 10px; color: var(--text-light); font-weight: bold;"></div>
     <div class="filter-row" id="leaderboardTestFilterRow" style="margin-bottom:14px;">
       <button class="filter-btn active" data-test="all">All Tests</button>
     </div>
@@ -2173,28 +2178,103 @@ function updateAdminUI(){
   renderCloudUI(lastCloudDocs);
 }
 
+
 /* =========================================================
    LEADERBOARD (admin only)
 ========================================================= */
 let lastLeaderboardDocs = [];
 let leaderboardFilter = 'all';
+let leaderboardPeriod = 'weekly';
+let leaderboardUnsubscribe = null;
+let leaderboardWeekTimeout = null;
 
-async function loadLeaderboard(){
+function getWeeklyBoundaries(now = new Date()) {
+  const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+  const nowIST = new Date(now.getTime() + IST_OFFSET);
+
+  const day = nowIST.getUTCDay();
+  const diffToMonday = day === 0 ? 6 : day - 1;
+
+  const startIST = new Date(nowIST);
+  startIST.setUTCDate(nowIST.getUTCDate() - diffToMonday);
+  startIST.setUTCHours(0, 0, 0, 0);
+
+  const endIST = new Date(startIST);
+  endIST.setUTCDate(startIST.getUTCDate() + 6);
+  endIST.setUTCHours(23, 59, 59, 999);
+
+  const startUTC = new Date(startIST.getTime() - IST_OFFSET);
+  const endUTC = new Date(endIST.getTime() - IST_OFFSET);
+
+  const formatOptions = { day: 'numeric', month: 'short', timeZone: 'UTC' };
+  const startStr = startIST.toLocaleDateString('en-GB', formatOptions);
+  let endStr = endIST.toLocaleDateString('en-GB', formatOptions);
+
+  if (startIST.getUTCFullYear() !== endIST.getUTCFullYear()) {
+    endStr += ` ${endIST.getUTCFullYear()}`;
+  } else {
+    endStr += ` ${endIST.getUTCFullYear()}`;
+  }
+
+  return {
+    startUTC,
+    endUTC,
+    label: `Week: ${startStr} – ${endStr}`
+  };
+}
+
+
+function loadLeaderboard(){
   const listEl = $('leaderboardList');
   listEl.innerHTML = `<div class="empty-state"><span class="emoji">⏳</span>Loading...</div>`;
   if(!firebaseReady){
     listEl.innerHTML = `<div class="error-box">Firebase isn't configured yet — see comments near the top of the code.</div>`;
     return;
   }
-  try{
-    const snap = await db.collection('testResults').orderBy('createdAt','desc').limit(300).get();
+
+  if (leaderboardUnsubscribe) {
+    leaderboardUnsubscribe();
+    leaderboardUnsubscribe = null;
+  }
+  if (leaderboardWeekTimeout) {
+    clearTimeout(leaderboardWeekTimeout);
+    leaderboardWeekTimeout = null;
+  }
+
+  const weekLabelEl = $('leaderboardWeekLabel');
+  let query = db.collection('testResults');
+
+  if (leaderboardPeriod === 'weekly') {
+    const { startUTC, endUTC, label } = getWeeklyBoundaries();
+    weekLabelEl.textContent = label;
+    weekLabelEl.style.display = 'block';
+
+    query = query.where('createdAt', '>=', startUTC)
+                 .where('createdAt', '<=', endUTC)
+                 .orderBy('createdAt', 'desc')
+                 .limit(300);
+
+    const msUntilEnd = endUTC.getTime() - Date.now() + 1000;
+    if (msUntilEnd > 0) {
+      leaderboardWeekTimeout = setTimeout(() => {
+        if (document.querySelector('.app').querySelector('.screen.active') === $('screen-leaderboard') || $('screen-leaderboard').classList.contains('active')) {
+          loadLeaderboard();
+        }
+      }, msUntilEnd);
+    }
+  } else {
+    weekLabelEl.style.display = 'none';
+    query = query.orderBy('createdAt', 'desc').limit(300);
+  }
+
+  leaderboardUnsubscribe = query.onSnapshot((snap) => {
     lastLeaderboardDocs = snap.docs;
     renderLeaderboardFilters();
     renderLeaderboardList();
-  }catch(err){
+  }, (err) => {
     console.error(err);
     listEl.innerHTML = `<div class="error-box">Couldn't load the leaderboard: ${escapeHTML(err.message)}</div>`;
-  }
+  });
 }
 
 function renderLeaderboardFilters(){
@@ -2220,6 +2300,16 @@ function renderLeaderboardFilters(){
     });
   });
 }
+
+document.querySelectorAll('#leaderboardPeriodFilterRow .filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#leaderboardPeriodFilterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    leaderboardPeriod = btn.getAttribute('data-period');
+    loadLeaderboard();
+  });
+});
+
 
 function bestPerStudentPerTest(docs){
   // Keeps only each student's best attempt on each test: highest score
@@ -2379,7 +2469,11 @@ $('leaderboardNavCardHome').addEventListener('click', ()=>{
   leaderboardFilter = 'all';
   loadLeaderboard();
 });
-$('backFromLeaderboardBtn').addEventListener('click', ()=> showScreen(leaderboardReturnScreen));
+$('backFromLeaderboardBtn').addEventListener('click', ()=> {
+  if (leaderboardUnsubscribe) { leaderboardUnsubscribe(); leaderboardUnsubscribe = null; }
+  if (leaderboardWeekTimeout) { clearTimeout(leaderboardWeekTimeout); leaderboardWeekTimeout = null; }
+  showScreen(leaderboardReturnScreen);
+});
 $('refreshLeaderboardBtn').addEventListener('click', loadLeaderboard);
 
 /* =========================================================
