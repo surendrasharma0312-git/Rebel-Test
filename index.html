@@ -2332,6 +2332,9 @@ function bestPerStudentPerTest(docs){
 }
 
 
+let globalProfileUnsub = null;
+let globalResultsUnsub = null;
+
 function showPublicProfile(studentId, nameFallback) {
     if (document.getElementById('public-profile-modal')) return;
 
@@ -2340,9 +2343,10 @@ function showPublicProfile(studentId, nameFallback) {
         return;
     }
 
+    if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+    if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
+
     let profileData = { name: nameFallback, stats: { testsTaken: 0, avgScore: 0 } };
-    let unsubProfile = null;
-    let unsubResults = null;
 
     const overlay = document.createElement('div');
     overlay.id = 'public-profile-modal';
@@ -2356,8 +2360,8 @@ function showPublicProfile(studentId, nameFallback) {
     document.body.appendChild(overlay);
 
     const closeHandler = () => {
-        if (unsubProfile) unsubProfile();
-        if (unsubResults) unsubResults();
+        if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+        if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
         overlay.remove();
     };
 
@@ -2400,7 +2404,16 @@ function showPublicProfile(studentId, nameFallback) {
     const updateUI = () => {
         const photoContainer = document.getElementById('publicProfilePhotoContainer');
         if (photoContainer) {
-            photoContainer.innerHTML = profileData.photo ? `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="font-size:36px;">👤</div>`;
+            let img = photoContainer.querySelector('img');
+            if (profileData.photo) {
+                if (!img) {
+                    photoContainer.innerHTML = `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">`;
+                } else if (img.src !== profileData.photo) {
+                    img.src = escapeHTML(profileData.photo);
+                }
+            } else {
+                photoContainer.innerHTML = `<div style="font-size:36px;">👤</div>`;
+            }
         }
 
         const nameEl = document.getElementById('publicProfileName');
@@ -2466,7 +2479,7 @@ function showPublicProfile(studentId, nameFallback) {
     updateUI();
 
     try {
-        unsubProfile = db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
+        globalProfileUnsub = db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
             if (docSnap && docSnap.exists) {
                 // Ensure we do not overwrite the calculated stats if docSnap.data() contains a stale stats object
                 const data = docSnap.data();
@@ -2480,7 +2493,7 @@ function showPublicProfile(studentId, nameFallback) {
     }
 
     try {
-        unsubResults = db.collection('testResults').where('studentId', '==', studentId).onSnapshot(resultsSnap => {
+        globalResultsUnsub = db.collection('testResults').where('studentId', '==', studentId).onSnapshot(resultsSnap => {
             if (resultsSnap && !resultsSnap.empty) {
                 let validDocs = bestPerStudentPerTest(resultsSnap.docs);
                 let totalScore = 0;
@@ -2500,7 +2513,6 @@ function showPublicProfile(studentId, nameFallback) {
         console.error(e);
     }
 }
-
 function renderLeaderboardList(){
   const listEl = $('leaderboardList');
   listEl.innerHTML = '';
