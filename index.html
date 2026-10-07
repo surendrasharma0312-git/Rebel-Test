@@ -2478,9 +2478,22 @@ function showPublicProfile(studentId, nameFallback) {
     }
 
     try {
-        globalResultsUnsub = db.collection('testResults').where('studentId', '==', studentId).onSnapshot(resultsSnap => {
+        let query = db.collection('testResults').where('studentId', '==', studentId);
+
+        if (leaderboardPeriod === 'weekly') {
+            const { startUTC, endUTC } = getWeeklyBoundaries();
+            query = query.where('createdAt', '>=', startUTC)
+                         .where('createdAt', '<=', endUTC);
+        }
+
+        globalResultsUnsub = query.onSnapshot(resultsSnap => {
             if (resultsSnap && !resultsSnap.empty) {
-                let validDocs = bestPerStudentPerTest(resultsSnap.docs);
+                let docs = resultsSnap.docs;
+                if (leaderboardFilter !== 'all') {
+                    docs = docs.filter(doc => doc.data().testDocId === leaderboardFilter);
+                }
+
+                let validDocs = bestPerStudentPerTest(docs);
                 let totalScore = 0;
                 validDocs.forEach(doc => {
                     totalScore += (doc.data().pct || 0);
