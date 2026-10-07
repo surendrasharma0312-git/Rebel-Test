@@ -3398,7 +3398,8 @@ const STORAGE_STUDENT_ID = 'vocabTestApp_studentId';
 
 async function getStudentName(){
   let name = localStorage.getItem(STORAGE_STUDENT_NAME);
-  if(name) return name;
+  let existingId = localStorage.getItem(STORAGE_STUDENT_ID);
+  if(name && existingId) return name;
 
   if(!firebaseReady) {
     appAlert("Firebase isn't configured, unable to login.");
@@ -3545,7 +3546,8 @@ let hapticEnabled = localStorage.getItem('hapticEnabled') !== 'false';
 window.handleStudentLoginClick = async function(e) {
   if (e && e.target && e.target.id === 'studentLogoutBtn') return; // Handled separately
   const studentName = localStorage.getItem(STORAGE_STUDENT_NAME);
-  if (!studentName) {
+  const studentId = localStorage.getItem(STORAGE_STUDENT_ID);
+  if (!studentName || !studentId) {
     await getStudentName();
     window.updateSettingsUI();
   }
@@ -3651,9 +3653,40 @@ $('profilePhotoInput')?.addEventListener('change', (e) => {
   if (file) {
     const reader = new FileReader();
     reader.onload = function(event) {
-      const dataUrl = event.target.result;
-      localStorage.setItem('vocabTestApp_studentPhoto', dataUrl);
-      updateSettingsUI();
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 250;
+        const MAX_HEIGHT = 250;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        try {
+          localStorage.setItem('vocabTestApp_studentPhoto', dataUrl);
+          updateSettingsUI();
+        } catch(err) {
+          appAlert('Could not save photo. File might still be too large.');
+        }
+      };
+      img.src = event.target.result;
     };
     reader.readAsDataURL(file);
   }
