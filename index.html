@@ -2350,13 +2350,6 @@ function showPublicProfile(studentId, nameFallback) {
 
     let profileData = { name: nameFallback, stats: { testsTaken: 0, avgScore: 0 } };
 
-    if (studentId && studentId === localStorage.getItem('vocabTestApp_studentId')) {
-        profileData.photo = localStorage.getItem('vocabTestApp_studentPhoto') || null;
-        profileData.bio = localStorage.getItem('vocabTestApp_studentBio') || null;
-        profileData.phone = localStorage.getItem('vocabTestApp_studentPhone') || null;
-        profileData.email = localStorage.getItem('vocabTestApp_studentEmail') || null;
-        profileData.address = localStorage.getItem('vocabTestApp_studentAddress') || null;
-    }
 
     const overlay = document.createElement('div');
     overlay.id = 'publicProfileModal';
@@ -2484,8 +2477,7 @@ function showPublicProfile(studentId, nameFallback) {
                 if (data.photo !== undefined) profileData.photo = data.photo;
                 if (data.bio !== undefined) profileData.bio = data.bio;
 
-                const isCurrentUser = studentId === localStorage.getItem('vocabTestApp_studentId');
-                const canViewContact = isAdmin || data.showPublic === true || String(data.showPublic) === 'true' || isCurrentUser;
+                const canViewContact = isAdmin || data.showPublic === true || String(data.showPublic) === 'true';
 
                 profileData.phone = canViewContact && data.phone !== undefined ? data.phone : null;
                 profileData.email = canViewContact && data.email !== undefined ? data.email : null;
