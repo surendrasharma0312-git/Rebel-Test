@@ -2485,7 +2485,7 @@ function showPublicProfile(studentId, nameFallback) {
                 if (data.bio !== undefined) profileData.bio = data.bio;
 
                 const isCurrentUser = studentId === localStorage.getItem('vocabTestApp_studentId');
-                const canViewContact = isAdmin || data.showPublic === true || isCurrentUser;
+                const canViewContact = isAdmin || data.showPublic === true || String(data.showPublic) === 'true' || isCurrentUser;
 
                 profileData.phone = canViewContact && data.phone !== undefined ? data.phone : null;
                 profileData.email = canViewContact && data.email !== undefined ? data.email : null;
