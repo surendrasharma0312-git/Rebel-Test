@@ -3044,14 +3044,18 @@ $('backFromManageBtn').addEventListener('click', ()=> showScreen('screen-admin')
 ========================================================= */
 function buildQuestionBank(vocabList){
   const allMeanings = vocabList.map(v=>v.hi);
+  const uniqueMeanings = [...new Set(allMeanings)];
+  const uniqueMeaningsLower = uniqueMeanings.map(m => m.toLowerCase());
   const bank = [];
 
   vocabList.forEach(v=>{
     // gather distractor pool: other meanings that are not equal to this word's meaning
-    const pool = shuffle(allMeanings.filter(m => m.toLowerCase() !== v.hi.toLowerCase() ));
-    // dedupe pool
-    const uniquePool = [...new Set(pool)];
-    const distractors = uniquePool.slice(0,3);
+    const vHiLower = v.hi.toLowerCase();
+    const filteredMeanings = uniqueMeanings.filter((_, i) => uniqueMeaningsLower[i] !== vHiLower);
+
+    // distractors are already unique
+    const pool = shuffle(filteredMeanings);
+    const distractors = pool.slice(0,3);
 
     if(distractors.length < 3){
       // not enough unique distractors for this word; skip generating an unreliable question
