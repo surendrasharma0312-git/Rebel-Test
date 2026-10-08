@@ -2350,6 +2350,14 @@ function showPublicProfile(studentId, nameFallback) {
 
     let profileData = { name: nameFallback, stats: { testsTaken: 0, avgScore: 0 } };
 
+    if (studentId && studentId === localStorage.getItem('vocabTestApp_studentId')) {
+        profileData.photo = localStorage.getItem('vocabTestApp_studentPhoto') || null;
+        profileData.bio = localStorage.getItem('vocabTestApp_studentBio') || null;
+        profileData.phone = localStorage.getItem('vocabTestApp_studentPhone') || null;
+        profileData.email = localStorage.getItem('vocabTestApp_studentEmail') || null;
+        profileData.address = localStorage.getItem('vocabTestApp_studentAddress') || null;
+    }
+
     const overlay = document.createElement('div');
     overlay.id = 'publicProfileModal';
     overlay.className = 'modal-overlay';
@@ -2472,8 +2480,12 @@ function showPublicProfile(studentId, nameFallback) {
             if (docSnap && docSnap.exists) {
                 // Ensure we do not overwrite the calculated stats if docSnap.data() contains a stale stats object
                 const data = docSnap.data();
-                delete data.stats;
-                profileData = { ...profileData, ...data };
+                if (data.name) profileData.name = data.name;
+                if (data.photo !== undefined) profileData.photo = data.photo;
+                if (data.bio !== undefined) profileData.bio = data.bio;
+                if (data.phone !== undefined) profileData.phone = data.phone;
+                if (data.email !== undefined) profileData.email = data.email;
+                if (data.address !== undefined) profileData.address = data.address;
                 updateUI();
             }
         }, err => console.error(err));
