@@ -2483,9 +2483,14 @@ function showPublicProfile(studentId, nameFallback) {
                 if (data.name) profileData.name = data.name;
                 if (data.photo !== undefined) profileData.photo = data.photo;
                 if (data.bio !== undefined) profileData.bio = data.bio;
-                if (data.phone !== undefined) profileData.phone = data.phone;
-                if (data.email !== undefined) profileData.email = data.email;
-                if (data.address !== undefined) profileData.address = data.address;
+
+                const isCurrentUser = studentId === localStorage.getItem('vocabTestApp_studentId');
+                const canViewContact = isAdmin || data.showPublic === true || isCurrentUser;
+
+                profileData.phone = canViewContact && data.phone !== undefined ? data.phone : null;
+                profileData.email = canViewContact && data.email !== undefined ? data.email : null;
+                profileData.address = canViewContact && data.address !== undefined ? data.address : null;
+
                 updateUI();
             }
         }, err => console.error(err));
@@ -3702,17 +3707,12 @@ async function getStudentName(forcePrompt = false) {
                   name: enteredName,
                   bio: bioInput.value.trim(),
                   photo: currentPhoto || null,
+                  phone: phoneInput.value.trim(),
+                  email: emailInput.value.trim(),
+                  address: addressInput.value.trim(),
+                  showPublic: showPublicCheckbox.checked,
                   updatedAt: firebase.firestore.FieldValue.serverTimestamp()
               };
-              if (showPublicCheckbox.checked) {
-                  payload.phone = phoneInput.value.trim();
-                  payload.email = emailInput.value.trim();
-                  payload.address = addressInput.value.trim();
-              } else {
-                  payload.phone = firebase.firestore.FieldValue.delete();
-                  payload.email = firebase.firestore.FieldValue.delete();
-                  payload.address = firebase.firestore.FieldValue.delete();
-              }
               await db.collection('studentProfiles').doc(studentId).set(payload, { merge: true });
           } catch(err) {
               console.error('Failed to sync profile', err);
