@@ -2348,7 +2348,7 @@ function showPublicProfile(studentId, nameFallback) {
     if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
     if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
 
-    let profileData = { name: nameFallback, stats: { testsTaken: 0, avgScore: 0 } };
+    let profileData = { name: nameFallback, phone: null, email: null, address: null, stats: { testsTaken: 0, avgScore: 0 } };
 
 
     const overlay = document.createElement('div');
@@ -2446,6 +2446,7 @@ function showPublicProfile(studentId, nameFallback) {
             overlay.querySelector('.pp-phone').textContent = profileData.phone;
             phoneContainer.style.display = 'block';
         } else {
+            overlay.querySelector('.pp-phone').textContent = '';
             phoneContainer.style.display = 'none';
         }
 
@@ -2454,6 +2455,7 @@ function showPublicProfile(studentId, nameFallback) {
             overlay.querySelector('.pp-email').textContent = profileData.email;
             emailContainer.style.display = 'block';
         } else {
+            overlay.querySelector('.pp-email').textContent = '';
             emailContainer.style.display = 'none';
         }
 
@@ -2462,6 +2464,7 @@ function showPublicProfile(studentId, nameFallback) {
             overlay.querySelector('.pp-address').textContent = profileData.address;
             addressContainer.style.display = 'block';
         } else {
+            overlay.querySelector('.pp-address').textContent = '';
             addressContainer.style.display = 'none';
         }
     };
@@ -2479,9 +2482,15 @@ function showPublicProfile(studentId, nameFallback) {
 
                 const canViewContact = isAdmin || data.showPublic === true || String(data.showPublic) === 'true';
 
-                profileData.phone = canViewContact && data.phone !== undefined ? data.phone : null;
-                profileData.email = canViewContact && data.email !== undefined ? data.email : null;
-                profileData.address = canViewContact && data.address !== undefined ? data.address : null;
+                if (canViewContact) {
+                    profileData.phone = data.phone !== undefined ? data.phone : null;
+                    profileData.email = data.email !== undefined ? data.email : null;
+                    profileData.address = data.address !== undefined ? data.address : null;
+                } else {
+                    profileData.phone = null;
+                    profileData.email = null;
+                    profileData.address = null;
+                }
 
                 updateUI();
             }
