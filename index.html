@@ -2374,8 +2374,9 @@ function showPublicProfile(studentId, nameFallback) {
     overlay.innerHTML = `
       <div class="modal-box" style="width: 100%; max-width: 400px; padding: 20px;">
         <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:16px;">
-          <div class="pp-photo-container" style="width:80px; height:80px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); margin-bottom:12px;">
-            <div style="font-size:36px;">👤</div>
+          <div class="pp-photo-container" style="width:80px; height:80px; border-radius:50%; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border:2px solid var(--border); margin-bottom:12px; position:relative;">
+            <div class="pp-placeholder" style="font-size:36px;">👤</div>
+            <img class="pp-img" style="width:100%; height:100%; object-fit:cover; display:none; position:absolute; top:0; left:0;">
           </div>
           <div class="pp-name" style="font-size: 20px; font-weight: 800; color: var(--text);"></div>
           <div class="pp-bio" style="font-size: 14px; color: var(--text-muted); margin-top: 4px; text-align: center; display: none;"></div>
@@ -2406,15 +2407,18 @@ function showPublicProfile(studentId, nameFallback) {
 
     const updateUI = () => {
         const photoContainer = overlay.querySelector('.pp-photo-container');
+        const img = photoContainer.querySelector('.pp-img');
+        const placeholder = photoContainer.querySelector('.pp-placeholder');
+
         if (profileData.photo) {
-            let img = photoContainer.querySelector('img');
-            if (!img) {
-                photoContainer.innerHTML = `<img src="${escapeHTML(profileData.photo)}" style="width:100%; height:100%; object-fit:cover;">`;
-            } else if (img.src !== profileData.photo) {
-                img.src = escapeHTML(profileData.photo);
+            if (img.src !== profileData.photo) {
+                img.src = profileData.photo;
             }
+            img.style.display = 'block';
+            if (placeholder) placeholder.style.display = 'none';
         } else {
-            photoContainer.innerHTML = `<div style="font-size:36px;">👤</div>`;
+            if (img) img.style.display = 'none';
+            if (placeholder) placeholder.style.display = 'block';
         }
 
         overlay.querySelector('.pp-name').textContent = profileData.name || 'Anonymous';
