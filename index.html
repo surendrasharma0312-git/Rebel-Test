@@ -3574,6 +3574,19 @@ async function getStudentName(forcePrompt = false) {
   let name = localStorage.getItem(STORAGE_STUDENT_NAME);
   if (name && !forcePrompt) return name;
 
+  let studentId = localStorage.getItem('vocabTestApp_studentId');
+  let fbData = {};
+  if (forcePrompt && studentId && typeof db !== 'undefined') {
+    try {
+      const docSnap = await db.collection('studentProfiles').doc(studentId).get();
+      if (docSnap.exists) {
+        fbData = docSnap.data();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -3604,16 +3617,16 @@ async function getStudentName(forcePrompt = false) {
         <input type="text" class="modal-input" id="modalBioInput" placeholder="A short bio..." value="${escapeHTML(localStorage.getItem('vocabTestApp_studentBio') || '')}" style="margin-bottom:12px;" />
 
         <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Phone Number (Optional)</label>
-        <input type="tel" class="modal-input" id="modalPhoneInput" placeholder="Phone Number" value="${escapeHTML(localStorage.getItem('vocabTestApp_studentPhone') || '')}" style="margin-bottom:12px;" />
+        <input type="tel" class="modal-input" id="modalPhoneInput" placeholder="Phone Number" value="${escapeHTML(fbData.phone || '')}" style="margin-bottom:12px;" />
 
         <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Email (Optional)</label>
-        <input type="email" class="modal-input" id="modalEmailInput" placeholder="Email Address" value="${escapeHTML(localStorage.getItem('vocabTestApp_studentEmail') || '')}" style="margin-bottom:12px;" />
+        <input type="email" class="modal-input" id="modalEmailInput" placeholder="Email Address" value="${escapeHTML(fbData.email || '')}" style="margin-bottom:12px;" />
 
         <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Address (Optional)</label>
-        <input type="text" class="modal-input" id="modalAddressInput" placeholder="Address" value="${escapeHTML(localStorage.getItem('vocabTestApp_studentAddress') || '')}" style="margin-bottom:16px;" />
+        <input type="text" class="modal-input" id="modalAddressInput" placeholder="Address" value="${escapeHTML(fbData.address || '')}" style="margin-bottom:16px;" />
 
         <div style="display:flex; align-items:center; margin-bottom: 16px; font-size: 13px;">
-            <input type="checkbox" id="modalShowPublicCheckbox" style="margin-right: 8px;" ${localStorage.getItem('vocabTestApp_studentShowPublic') === 'true' ? 'checked' : ''}>
+            <input type="checkbox" id="modalShowPublicCheckbox" style="margin-right: 8px;" ${(fbData.showPublic === true || String(fbData.showPublic) === 'true') ? 'checked' : ''}>
             <label for="modalShowPublicCheckbox">Show on Public Profile</label>
         </div>
 
@@ -3676,7 +3689,6 @@ async function getStudentName(forcePrompt = false) {
         return;
       }
 
-      let studentId = localStorage.getItem('vocabTestApp_studentId');
       if (!studentId) {
           studentId = generateUUID();
           localStorage.setItem('vocabTestApp_studentId', studentId);
@@ -3684,10 +3696,12 @@ async function getStudentName(forcePrompt = false) {
 
       localStorage.setItem(STORAGE_STUDENT_NAME, enteredName);
       localStorage.setItem('vocabTestApp_studentBio', bioInput.value.trim());
-      localStorage.setItem('vocabTestApp_studentPhone', phoneInput.value.trim());
-      localStorage.setItem('vocabTestApp_studentEmail', emailInput.value.trim());
-      localStorage.setItem('vocabTestApp_studentAddress', addressInput.value.trim());
-      localStorage.setItem('vocabTestApp_studentShowPublic', showPublicCheckbox.checked);
+
+      // Clean up legacy local storage keys
+      localStorage.removeItem('vocabTestApp_studentPhone');
+      localStorage.removeItem('vocabTestApp_studentEmail');
+      localStorage.removeItem('vocabTestApp_studentAddress');
+      localStorage.removeItem('vocabTestApp_studentShowPublic');
 
       if (currentPhoto) {
         localStorage.setItem(STORAGE_STUDENT_PHOTO, currentPhoto);
