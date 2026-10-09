@@ -2480,7 +2480,7 @@ function showPublicProfile(studentId, nameFallback) {
                 if (data.photo !== undefined) profileData.photo = data.photo;
                 if (data.bio !== undefined) profileData.bio = data.bio;
 
-                const canViewContact = isAdmin || data.showPublic === true || String(data.showPublic) === 'true';
+                const canViewContact = true;
 
                 if (canViewContact) {
                     profileData.phone = data.phone !== undefined ? data.phone : null;
