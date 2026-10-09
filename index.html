@@ -2477,16 +2477,18 @@ function showPublicProfile(studentId, nameFallback) {
                 // Ensure we do not overwrite the calculated stats if docSnap.data() contains a stale stats object
                 const data = docSnap.data();
                 if (data.name) profileData.name = data.name;
-                if (data.photo !== undefined) profileData.photo = data.photo;
-                if (data.bio !== undefined) profileData.bio = data.bio;
 
-                const canViewContact = true;
+                const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true');
 
                 if (canViewContact) {
+                    if (data.photo !== undefined) profileData.photo = data.photo;
+                    if (data.bio !== undefined) profileData.bio = data.bio;
                     profileData.phone = data.phone !== undefined ? data.phone : null;
                     profileData.email = data.email !== undefined ? data.email : null;
                     profileData.address = data.address !== undefined ? data.address : null;
                 } else {
+                    profileData.photo = null;
+                    profileData.bio = null;
                     profileData.phone = null;
                     profileData.email = null;
                     profileData.address = null;
@@ -3440,6 +3442,15 @@ function generateUUID() {
     });
 }
 
+function ensureStudentId() {
+    let studentId = localStorage.getItem('vocabTestApp_studentId');
+    if (!studentId) {
+        studentId = generateUUID();
+        localStorage.setItem('vocabTestApp_studentId', studentId);
+    }
+    return studentId;
+}
+
 function formatDuration(totalSeconds){
   const m = Math.floor(totalSeconds/60);
   const s = totalSeconds%60;
@@ -3584,10 +3595,11 @@ const STORAGE_STUDENT_NAME = 'vocabTestApp_studentName';
 const STORAGE_STUDENT_PHOTO = 'vocabTestApp_studentPhoto';
 
 async function getStudentName(forcePrompt = false) {
+  let studentId = ensureStudentId();
+
   let name = localStorage.getItem(STORAGE_STUDENT_NAME);
   if (name && !forcePrompt) return name;
 
-  let studentId = localStorage.getItem('vocabTestApp_studentId');
   let fbData = {};
   if (forcePrompt && studentId && typeof db !== 'undefined') {
     try {
@@ -3702,10 +3714,7 @@ async function getStudentName(forcePrompt = false) {
         return;
       }
 
-      if (!studentId) {
-          studentId = generateUUID();
-          localStorage.setItem('vocabTestApp_studentId', studentId);
-      }
+      studentId = ensureStudentId();
 
       localStorage.setItem(STORAGE_STUDENT_NAME, enteredName);
       localStorage.setItem('vocabTestApp_studentBio', bioInput.value.trim());
@@ -3763,7 +3772,7 @@ async function saveToLeaderboard({ total, correct, wrong, timeout, pct, duration
   try{
     await db.collection('testResults').add({
       studentName,
-      studentId: localStorage.getItem("vocabTestApp_studentId") || "",
+      studentId: ensureStudentId(),
       testDocId: currentTestDocId,
       testName: currentTestName || 'Untitled Test',
       total, correct, wrong, timeout, pct, durationSeconds,
