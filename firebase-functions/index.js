@@ -2,6 +2,37 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
+/**
+ * Utility to batch delete Firestore references, chunked into groups of 500
+ * to avoid exceeding Firestore limits.
+ * @param {Array<admin.firestore.DocumentReference>} refsToDelete
+ */
+async function deleteInBatches(refsToDelete) {
+  if (refsToDelete.length === 0) return null;
+
+  const db = admin.firestore();
+  const batches = [];
+  let currentBatch = db.batch();
+  let deleteCount = 0;
+
+  for (const ref of refsToDelete) {
+    currentBatch.delete(ref);
+    deleteCount++;
+
+    if (deleteCount === 500) {
+      batches.push(currentBatch.commit());
+      currentBatch = db.batch();
+      deleteCount = 0;
+    }
+  }
+
+  if (deleteCount > 0) {
+    batches.push(currentBatch.commit());
+  }
+
+  return Promise.all(batches);
+}
+
 exports.sendTestNotification = functions.firestore
   .document('vocabTests/{testId}')
   .onCreate(async (snap, context) => {
@@ -48,23 +79,20 @@ exports.sendTestNotification = functions.firestore
 
 
       // Cleanup invalid tokens
-      const batch = admin.firestore().batch();
-      let hasDeletes = false;
-
+      const invalidTokenRefs = [];
       response.results.forEach((result, index) => {
         const error = result.error;
         if (error) {
           console.error('Failure sending notification to', tokens[index], error);
           if (error.code === 'messaging/invalid-registration-token' ||
               error.code === 'messaging/registration-token-not-registered') {
-            batch.delete(tokensSnapshot.docs[index].ref);
-            hasDeletes = true;
+            invalidTokenRefs.push(tokensSnapshot.docs[index].ref);
           }
         }
       });
 
-      if (hasDeletes) {
-        return batch.commit();
+      if (invalidTokenRefs.length > 0) {
+        return deleteInBatches(invalidTokenRefs);
       }
       return null;
     } catch (error) {
@@ -121,22 +149,19 @@ exports.sendUpdateNotification = functions.firestore
       const response = await admin.messaging().sendEachForMulticast(message);
 
 
-      const batch = admin.firestore().batch();
-      let hasDeletes = false;
-
+      const invalidTokenRefs = [];
       response.results.forEach((result, index) => {
         const error = result.error;
         if (error) {
           if (error.code === 'messaging/invalid-registration-token' ||
               error.code === 'messaging/registration-token-not-registered') {
-            batch.delete(tokensSnapshot.docs[index].ref);
-            hasDeletes = true;
+            invalidTokenRefs.push(tokensSnapshot.docs[index].ref);
           }
         }
       });
 
-      if (hasDeletes) {
-        return batch.commit();
+      if (invalidTokenRefs.length > 0) {
+        return deleteInBatches(invalidTokenRefs);
       }
       return null;
     } catch (error) {
