@@ -1289,9 +1289,6 @@ function appAlert(message){
 function appConfirm(message, opts={}){
   return showModal({ message, type:'confirm', confirmText: opts.confirmText||'OK', cancelText: opts.cancelText||'Cancel', danger: !!opts.danger });
 }
-function appPrompt(message, defaultValue='', placeholder=''){
-  return showModal({ message, type:'prompt', defaultValue, placeholder, confirmText:'OK', cancelText:'Cancel' });
-}
 function showEditWordModal(currentEn, currentHi){
   return new Promise((resolve)=>{
     const overlay = document.createElement('div');
