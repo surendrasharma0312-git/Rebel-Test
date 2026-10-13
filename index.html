@@ -1476,13 +1476,14 @@ async function extractTextFromPdf(file){
       items.sort((a,b) => b.y - a.y || a.x - b.x);
 
       const rows = [];
-      items.forEach(item=>{
-        let row = rows.find(r => Math.abs(r.y - item.y) <= Y_TOLERANCE);
-        if(!row){
-          row = { y: item.y, items: [] };
-          rows.push(row);
+      let lastRow = null;
+      items.forEach(item => {
+        if (lastRow && (lastRow.y - item.y) <= Y_TOLERANCE) {
+          lastRow.items.push(item);
+        } else {
+          lastRow = { y: item.y, items: [item] };
+          rows.push(lastRow);
         }
-        row.items.push(item);
       });
 
       let pageText = '';
