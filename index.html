@@ -1709,7 +1709,7 @@ function createNotificationRow(doc, data, isUnread, isSelected) {
   row.innerHTML = `
     ${leadingIcon}
     <div class="left">
-      <div class="title">${data.name || 'Untitled Test'}</div>
+      <div class="title">${escapeHTML(data.name || 'Untitled Test')}</div>
       <div class="meta">🎯 New in Rebel Test Series · ${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
     </div>
     ${notifSelectMode ? '' : '<div class="arrow">→</div>'}
