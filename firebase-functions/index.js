@@ -48,8 +48,9 @@ exports.sendTestNotification = functions.firestore
 
 
       // Cleanup invalid tokens
-      const batch = admin.firestore().batch();
-      let hasDeletes = false;
+      let batch = admin.firestore().batch();
+      let deleteCount = 0;
+      const commitPromises = [];
 
       response.results.forEach((result, index) => {
         const error = result.error;
@@ -58,13 +59,23 @@ exports.sendTestNotification = functions.firestore
           if (error.code === 'messaging/invalid-registration-token' ||
               error.code === 'messaging/registration-token-not-registered') {
             batch.delete(tokensSnapshot.docs[index].ref);
-            hasDeletes = true;
+            deleteCount++;
+
+            if (deleteCount === 500) {
+              commitPromises.push(batch.commit());
+              batch = admin.firestore().batch();
+              deleteCount = 0;
+            }
           }
         }
       });
 
-      if (hasDeletes) {
-        return batch.commit();
+      if (deleteCount > 0) {
+        commitPromises.push(batch.commit());
+      }
+
+      if (commitPromises.length > 0) {
+        return Promise.all(commitPromises);
       }
       return null;
     } catch (error) {
@@ -121,8 +132,9 @@ exports.sendUpdateNotification = functions.firestore
       const response = await admin.messaging().sendEachForMulticast(message);
 
 
-      const batch = admin.firestore().batch();
-      let hasDeletes = false;
+      let batch = admin.firestore().batch();
+      let deleteCount = 0;
+      const commitPromises = [];
 
       response.results.forEach((result, index) => {
         const error = result.error;
@@ -130,13 +142,23 @@ exports.sendUpdateNotification = functions.firestore
           if (error.code === 'messaging/invalid-registration-token' ||
               error.code === 'messaging/registration-token-not-registered') {
             batch.delete(tokensSnapshot.docs[index].ref);
-            hasDeletes = true;
+            deleteCount++;
+
+            if (deleteCount === 500) {
+              commitPromises.push(batch.commit());
+              batch = admin.firestore().batch();
+              deleteCount = 0;
+            }
           }
         }
       });
 
-      if (hasDeletes) {
-        return batch.commit();
+      if (deleteCount > 0) {
+        commitPromises.push(batch.commit());
+      }
+
+      if (commitPromises.length > 0) {
+        return Promise.all(commitPromises);
       }
       return null;
     } catch (error) {
