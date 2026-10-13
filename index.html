@@ -3457,9 +3457,21 @@ function formatDuration(totalSeconds){
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-function finishTest(){
+function playResultAudio(){
   playTestSound('finish');
   triggerHaptic('finish');
+}
+
+function submitScoreToFirebase(stats){
+  saveHistoryEntry({
+    date: new Date().toISOString(),
+    ...stats
+  });
+  saveToLeaderboard(stats);
+}
+
+function finishTest(){
+  playResultAudio();
   clearInterval(timerInterval);
   // Any question the user navigated away from without ever answering or
   // timing out counts as "Not Answered" (same scoring bucket as Time Out).
@@ -3484,12 +3496,7 @@ function finishTest(){
   $('resWrong').textContent = wrong;
   $('resTimeout').textContent = timeout;
 
-  saveHistoryEntry({
-    date: new Date().toISOString(),
-    total, correct, wrong, timeout, pct,
-    durationSeconds
-  });
-  saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds });
+  submitScoreToFirebase({ total, correct, wrong, timeout, pct, durationSeconds });
 
   showScreen('screen-result');
 }
@@ -3530,6 +3537,11 @@ function renderReport(){
     return;
   }
 
+  const fragment = buildReportHTML(filtered);
+  listEl.appendChild(fragment);
+}
+
+function buildReportHTML(filtered) {
   const fragment = document.createDocumentFragment();
   filtered.forEach((q)=>{
     const originalIndex = currentTest.indexOf(q) + 1;
@@ -3552,7 +3564,7 @@ function renderReport(){
     `;
     fragment.appendChild(div);
   });
-  listEl.appendChild(fragment);
+  return fragment;
 }
 
 /* =========================================================
