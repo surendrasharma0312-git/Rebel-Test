@@ -36,10 +36,18 @@ const dom = new JSDOM(htmlContent, {
         // Mock history.replaceState to avoid JSDOM errors with the targetURL thing
         const originalReplaceState = window.history.replaceState;
         window.history.replaceState = function(...args) {
+            if (typeof args[2] === 'string' && args[2].startsWith('#')) {
+                // If it's just a hash change, we can skip the full JSDOM URL resolution that causes errors
+                return;
+            }
             try {
                return originalReplaceState.apply(this, args);
             } catch (e) {
-               // ignore JSDOM bug with url resolution
+               if (e.name === 'SecurityError' && e.message.includes('update history to the URL')) {
+                   // ignore JSDOM bug with url resolution
+               } else {
+                   throw e;
+               }
             }
         };
     }
