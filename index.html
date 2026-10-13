@@ -2044,7 +2044,7 @@ function renderMixedListPublic(docs){
 let adminSortable = null;
 
 function renderAdminList(docs){
-  if(!isAdmin) return;
+  if(!AdminAuth.isAdmin) return;
   const listEl = $('adminTestsList');
   const countEl = $('adminTestCount');
   listEl.innerHTML = '';
@@ -2153,7 +2153,46 @@ $('backFromMixedListBtn').addEventListener('click', ()=> showScreen('screen-home
    We only ever compare a SHA-256 HASH of what's typed, never the
    plain text, so even Firestore never stores the real password.
 ========================================================= */
-let isAdmin = false;
+const AdminAuth = (function() {
+  let _isAdmin = false;
+  return Object.freeze({
+    get isAdmin() { return _isAdmin; },
+    async login(hash) {
+      if (typeof db !== 'undefined' && db) {
+        try {
+          const configDoc = await db.collection('config').doc('admin').get();
+          if (configDoc.exists && configDoc.data().passwordHash === hash) {
+            _isAdmin = true;
+            sessionStorage.setItem('adminToken_rebeltest', hash);
+            return true;
+          }
+        } catch (e) {
+          console.error('Admin session verify failed', e);
+        }
+      }
+      return false;
+    },
+    logout() {
+      _isAdmin = false;
+      sessionStorage.removeItem('adminToken_rebeltest');
+    },
+    async restore(db) {
+      const token = sessionStorage.getItem('adminToken_rebeltest');
+      if (token && db) {
+        try {
+          const configDoc = await db.collection('config').doc('admin').get();
+          if (configDoc.exists && configDoc.data().passwordHash === token) {
+            _isAdmin = true;
+          } else {
+            this.logout();
+          }
+        } catch (e) {
+          console.error('Admin session restore failed', e);
+        }
+      }
+    }
+  });
+})();
 
 async function sha256Hex(str){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -2163,9 +2202,9 @@ async function sha256Hex(str){
 function updateAdminUI(){
   const adminTextDiv = document.getElementById('adminBtnText');
   if (adminTextDiv) {
-    adminTextDiv.textContent = isAdmin ? '🔓 Admin Panel' : '⚙️ Admin Panel';
+    adminTextDiv.textContent = AdminAuth.isAdmin ? '🔓 Admin Panel' : '⚙️ Admin Panel';
   }
-  $('adminBtn').title = isAdmin ? 'Admin dashboard' : 'Admin login';
+  $('adminBtn').title = AdminAuth.isAdmin ? 'Admin dashboard' : 'Admin login';
   renderCloudUI(lastCloudDocs);
 }
 
@@ -2726,7 +2765,7 @@ $('createMixedTestBtn').addEventListener('click', async ()=>{
 });
 
 $('adminBtn').addEventListener('click', ()=>{
-  if(isAdmin){
+  if(AdminAuth.isAdmin){
     showScreen('screen-admin');
     return;
   }
@@ -2754,10 +2793,8 @@ $('adminLoginForm').addEventListener('submit', async (e)=>{
       return;
     }
     const enteredHash = await sha256Hex(entered);
-    if(enteredHash === configDoc.data().passwordHash){
-      isAdmin = true;
-      sessionStorage.setItem('isAdmin_rebeltest', 'true');
-
+    const success = await AdminAuth.login(enteredHash);
+    if(success){
       // Explicitly offer to save this password (Chrome/Edge support this API;
       // other browsers may still offer their own save-password prompt on submit).
       if(window.PasswordCredential){
@@ -2784,16 +2821,12 @@ $('adminLoginForm').addEventListener('submit', async (e)=>{
 });
 
 $('logoutAdminBtn').addEventListener('click', ()=>{
-  isAdmin = false;
-  sessionStorage.removeItem('isAdmin_rebeltest');
+  AdminAuth.logout();
   updateAdminUI();
   showScreen('screen-home');
 });
 $('backFromAdminBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
-if(sessionStorage.getItem('isAdmin_rebeltest') === 'true'){
-  isAdmin = true;
-}
 updateAdminUI();
 
 /* =========================================================
@@ -4210,6 +4243,10 @@ if (themeToggleBtn) {
 ========================================================= */
 checkSavedVocabOnLoad();
 listenToCloudTests();
+
+if (firebaseReady) {
+  AdminAuth.restore(db).then(() => updateAdminUI());
+}
 </script>
 
   <!-- Review Later Modal -->
