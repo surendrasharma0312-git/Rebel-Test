@@ -68,4 +68,15 @@ async function runBenchmarks() {
   console.log(`Improvement: ${improvement.toFixed(2)}x faster`);
 }
 
-runBenchmarks();
+if (require.main === module) {
+  runBenchmarks();
+}
+
+module.exports = {
+  benchmarkNPlus1,
+  benchmarkBatched,
+  runBenchmarks,
+  results,
+  docs,
+  batchMock
+};
