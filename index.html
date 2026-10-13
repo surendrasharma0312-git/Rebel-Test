@@ -1485,12 +1485,12 @@ async function extractTextFromPdf(file){
         row.items.push(item);
       });
 
-      let pageText = '';
+      const pageTextParts = [];
       rows.forEach(row=>{
         row.items.sort((a,b)=> a.x - b.x);
-        pageText += row.items.map(it=>it.str).join('  ') + '\n';
+        pageTextParts.push(row.items.map(it=>it.str).join('  ') + '\n');
       });
-      return pageText + '\n';
+      return pageTextParts.join('') + '\n';
     })());
   }
 
