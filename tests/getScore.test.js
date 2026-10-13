@@ -33,15 +33,6 @@ const dom = new JSDOM(htmlContent, {
             addListener: () => {},
             removeListener: () => {}
         });
-        // Mock history.replaceState to avoid JSDOM errors with the targetURL thing
-        const originalReplaceState = window.history.replaceState;
-        window.history.replaceState = function(...args) {
-            try {
-               return originalReplaceState.apply(this, args);
-            } catch (e) {
-               // ignore JSDOM bug with url resolution
-            }
-        };
     }
 });
 
