@@ -36,11 +36,12 @@ const dom = new JSDOM(htmlContent, {
         // Mock history.replaceState to avoid JSDOM errors with the targetURL thing
         const originalReplaceState = window.history.replaceState;
         window.history.replaceState = function(...args) {
-            try {
-               return originalReplaceState.apply(this, args);
-            } catch (e) {
-               // ignore JSDOM bug with url resolution
+            if (args[2] && typeof args[2] === 'string' && args[2].startsWith('#')) {
+                // JSDOM has a bug with URL resolution when using hash fragments
+                // We mock it by not calling the original function for hash fragments
+                return;
             }
+            return originalReplaceState.apply(this, args);
         };
     }
 });
