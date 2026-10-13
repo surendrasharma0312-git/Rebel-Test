@@ -48,8 +48,9 @@ exports.sendTestNotification = functions.firestore
 
 
       // Cleanup invalid tokens
-      const batch = admin.firestore().batch();
-      let hasDeletes = false;
+      const batches = [];
+      let currentBatch = admin.firestore().batch();
+      let currentBatchSize = 0;
 
       response.results.forEach((result, index) => {
         const error = result.error;
@@ -57,14 +58,24 @@ exports.sendTestNotification = functions.firestore
           console.error('Failure sending notification to', tokens[index], error);
           if (error.code === 'messaging/invalid-registration-token' ||
               error.code === 'messaging/registration-token-not-registered') {
-            batch.delete(tokensSnapshot.docs[index].ref);
-            hasDeletes = true;
+            currentBatch.delete(tokensSnapshot.docs[index].ref);
+            currentBatchSize++;
+
+            if (currentBatchSize === 500) {
+              batches.push(currentBatch.commit());
+              currentBatch = admin.firestore().batch();
+              currentBatchSize = 0;
+            }
           }
         }
       });
 
-      if (hasDeletes) {
-        return batch.commit();
+      if (currentBatchSize > 0) {
+        batches.push(currentBatch.commit());
+      }
+
+      if (batches.length > 0) {
+        await Promise.all(batches);
       }
       return null;
     } catch (error) {
@@ -121,22 +132,33 @@ exports.sendUpdateNotification = functions.firestore
       const response = await admin.messaging().sendEachForMulticast(message);
 
 
-      const batch = admin.firestore().batch();
-      let hasDeletes = false;
+      const batches = [];
+      let currentBatch = admin.firestore().batch();
+      let currentBatchSize = 0;
 
       response.results.forEach((result, index) => {
         const error = result.error;
         if (error) {
           if (error.code === 'messaging/invalid-registration-token' ||
               error.code === 'messaging/registration-token-not-registered') {
-            batch.delete(tokensSnapshot.docs[index].ref);
-            hasDeletes = true;
+            currentBatch.delete(tokensSnapshot.docs[index].ref);
+            currentBatchSize++;
+
+            if (currentBatchSize === 500) {
+              batches.push(currentBatch.commit());
+              currentBatch = admin.firestore().batch();
+              currentBatchSize = 0;
+            }
           }
         }
       });
 
-      if (hasDeletes) {
-        return batch.commit();
+      if (currentBatchSize > 0) {
+        batches.push(currentBatch.commit());
+      }
+
+      if (batches.length > 0) {
+        await Promise.all(batches);
       }
       return null;
     } catch (error) {
