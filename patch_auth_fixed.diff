@@ -1,0 +1,42 @@
+<<<<<<< SEARCH
+    async login(hash, db) {
+      if (db) {
+        try {
+          const configDoc = await db.collection('config').doc('admin').get();
+          if (configDoc.exists && configDoc.data().passwordHash === hash) {
+            _isAdmin = true;
+            sessionStorage.setItem('adminToken_rebeltest', hash);
+            return true;
+          }
+        } catch (e) {
+          console.error('Admin session verify failed', e);
+        }
+      }
+      return false;
+    },
+=======
+    async login(hash) {
+      if (typeof db !== 'undefined' && db) {
+        try {
+          const configDoc = await db.collection('config').doc('admin').get();
+          if (configDoc.exists && configDoc.data().passwordHash === hash) {
+            _isAdmin = true;
+            sessionStorage.setItem('adminToken_rebeltest', hash);
+            return true;
+          }
+        } catch (e) {
+          console.error('Admin session verify failed', e);
+        }
+      }
+      return false;
+    },
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    const enteredHash = await sha256Hex(entered);
+    const success = await AdminAuth.login(enteredHash, db);
+    if(success){
+=======
+    const enteredHash = await sha256Hex(entered);
+    const success = await AdminAuth.login(enteredHash);
+    if(success){
+>>>>>>> REPLACE
