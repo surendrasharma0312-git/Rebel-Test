@@ -1477,8 +1477,8 @@ async function extractTextFromPdf(file){
 
       const rows = [];
       items.forEach(item=>{
-        let row = rows.find(r => Math.abs(r.y - item.y) <= Y_TOLERANCE);
-        if(!row){
+        let row = rows.length > 0 ? rows[rows.length - 1] : null;
+        if(!row || Math.abs(row.y - item.y) > Y_TOLERANCE){
           row = { y: item.y, items: [] };
           rows.push(row);
         }
