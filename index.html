@@ -1802,10 +1802,6 @@ $('deleteSelectedBtn').addEventListener('click', async ()=>{
 ========================================================= */
 const VAPID_KEY = "BDr1kP7J0uL1c8F6iGj9z2Rk5tM4Nn7O-pQv3Xy8A9sCw6Dq0_E4uF1gH5jK7mL2xP5rS4vW9nB2kM1qZ8xR3yA"; // Replace with actual VAPID key if needed, or leave it to Firebase
 
-async function checkNotificationPermission() {
-  if (!('Notification' in window) || !messaging) return 'unsupported';
-  return Notification.permission;
-}
 
 async function subscribeToPush() {
   if (!messaging) return false;
