@@ -39,6 +39,9 @@ const dom = new JSDOM(htmlContent, {
                return originalReplaceState.apply(this, args);
             } catch (e) {
                // ignore JSDOM bug with url resolution
+               if (e.name !== "SecurityError" && !e.message.includes("Could not parse url")) {
+                   throw e;
+               }
             }
         };
     }
