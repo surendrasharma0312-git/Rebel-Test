@@ -3211,9 +3211,10 @@ function renderQuestion(){
   const answered = !!q.status; // already answered or timed out earlier
   updateTopUI();
 
+  const currentScore = getScore();
   $('qCounter').textContent = `Question ${currentIndex+1} of ${total}`;
-  $('qCorrectCount').textContent = `✅ ${getScore()}`;
-  $('liveScore').textContent = getScore();
+  $('qCorrectCount').textContent = `✅ ${currentScore}`;
+  $('liveScore').textContent = currentScore;
   $('progressFill').style.width = `${(currentIndex/total)*100}%`;
 
   $('qWord').textContent = q.en.toUpperCase();
