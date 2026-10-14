@@ -3142,8 +3142,9 @@ function startTest(vocabList){
     showScreen('screen-preview');
     return;
   }
-  currentTest = shuffle(bank).map(q=>({
+  currentTest = shuffle(bank).map((q, i) => ({
     ...q,
+    originalIndex: i,
     options: shuffle(q.options),
     userAnswer: null,
     status: null // 'correct' | 'wrong' | 'timeout'
@@ -3372,7 +3373,7 @@ window.handleAttemptUnanswered = () => {
   unanswered.forEach(q => {
     const item = document.createElement('div');
     item.className = 'review-list-item';
-    const index = currentTest.indexOf(q);
+    const index = q.originalIndex;
     item.innerHTML = `<span>Q${index + 1}</span>`;
     item.addEventListener('click', () => {
       $('unansweredListModal').style.display = 'none';
@@ -3439,7 +3440,7 @@ $('reviewTopBtn')?.addEventListener('click', () => {
   marked.forEach(q => {
     const item = document.createElement('div');
     item.className = 'review-list-item';
-    const index = currentTest.indexOf(q);
+    const index = q.originalIndex;
     item.innerHTML = `<span>Q${index + 1} — ${escapeHTML(q.en)}</span>`;
     item.addEventListener('click', () => {
       $('reviewModal').style.display = 'none';
@@ -3569,7 +3570,7 @@ function renderReport(){
 function buildReportHTML(filtered) {
   const fragment = document.createDocumentFragment();
   filtered.forEach((q)=>{
-    const originalIndex = currentTest.indexOf(q) + 1;
+    const originalIndex = q.originalIndex + 1;
     const statusMap = {
       correct: {label:'✅ Correct', cls:'st-correct'},
       wrong: {label:'❌ Wrong', cls:'st-wrong'},
