@@ -3172,6 +3172,7 @@ function startTest(vocabList){
   }
   currentTest = shuffle(bank).map((q, idx)=>({
     ...q,
+    originalIndex: idx,
     options: shuffle(q.options),
     userAnswer: null,
     status: null, // 'correct' | 'wrong' | 'timeout'
@@ -3401,7 +3402,7 @@ window.handleAttemptUnanswered = () => {
   unanswered.forEach(q => {
     const item = document.createElement('div');
     item.className = 'review-list-item';
-    const index = currentTest.indexOf(q);
+    const index = q.originalIndex;
     item.innerHTML = `<span>Q${index + 1}</span>`;
     item.addEventListener('click', () => {
       $('unansweredListModal').style.display = 'none';
@@ -3468,7 +3469,7 @@ $('reviewTopBtn')?.addEventListener('click', () => {
   marked.forEach(q => {
     const item = document.createElement('div');
     item.className = 'review-list-item';
-    const index = currentTest.indexOf(q);
+    const index = q.originalIndex;
     item.innerHTML = `<span>Q${index + 1} — ${escapeHTML(q.en)}</span>`;
     item.addEventListener('click', () => {
       $('reviewModal').style.display = 'none';
