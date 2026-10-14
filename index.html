@@ -3170,11 +3170,12 @@ function startTest(vocabList){
     showScreen('screen-preview');
     return;
   }
-  currentTest = shuffle(bank).map(q=>({
+  currentTest = shuffle(bank).map((q, idx)=>({
     ...q,
     options: shuffle(q.options),
     userAnswer: null,
-    status: null // 'correct' | 'wrong' | 'timeout'
+    status: null, // 'correct' | 'wrong' | 'timeout'
+    originalIndex: idx
   }));
   currentIndex = 0;
   testStartTime = Date.now();
@@ -3597,7 +3598,7 @@ function renderReport(){
 function buildReportHTML(filtered) {
   const fragment = document.createDocumentFragment();
   filtered.forEach((q)=>{
-    const originalIndex = currentTest.indexOf(q) + 1;
+    const originalIndex = q.originalIndex + 1;
     const statusMap = {
       correct: {label:'✅ Correct', cls:'st-correct'},
       wrong: {label:'❌ Wrong', cls:'st-wrong'},
