@@ -3093,17 +3093,33 @@ $('backFromManageBtn').addEventListener('click', ()=> showScreen('screen-admin')
 function buildQuestionBank(vocabList){
   const allMeanings = vocabList.map(v=>v.hi);
   const uniqueMeanings = [...new Set(allMeanings)];
-  const uniqueMeaningsLower = uniqueMeanings.map(m => m.toLowerCase());
   const bank = [];
+
+  if (uniqueMeanings.length < 4) {
+    return bank;
+  }
+
+  let pool = shuffle([...uniqueMeanings]);
+  let poolIdx = 0;
 
   vocabList.forEach(v=>{
     // gather distractor pool: other meanings that are not equal to this word's meaning
     const vHiLower = v.hi.toLowerCase();
-    const filteredMeanings = uniqueMeanings.filter((_, i) => uniqueMeaningsLower[i] !== vHiLower);
+    const distractors = [];
 
-    // distractors are already unique
-    const pool = shuffle(filteredMeanings);
-    const distractors = pool.slice(0,3);
+    let attempts = 0;
+    while(distractors.length < 3 && attempts < uniqueMeanings.length) {
+      if(poolIdx >= pool.length){
+        pool = shuffle(pool);
+        poolIdx = 0;
+      }
+      const candidate = pool[poolIdx++];
+      attempts++;
+
+      if (candidate.toLowerCase() !== vHiLower && !distractors.includes(candidate)) {
+        distractors.push(candidate);
+      }
+    }
 
     if(distractors.length < 3){
       // not enough unique distractors for this word; skip generating an unreliable question
