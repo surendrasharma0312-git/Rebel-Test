@@ -2366,22 +2366,7 @@ function bestPerStudentPerTest(docs){
 let globalProfileUnsub = null;
 let globalResultsUnsub = null;
 
-function showPublicProfile(studentId, nameFallback) {
-    if (!studentId) {
-        appAlert("Public profile not available.");
-        return;
-    }
-
-    if (document.getElementById('publicProfileModal')) {
-        return; // Prevent duplicate modals
-    }
-
-    if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
-    if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
-
-    let profileData = { name: nameFallback, phone: null, email: null, address: null, stats: { testsTaken: 0, avgScore: 0 } };
-
-
+function createPublicProfileModalUI(closeHandler) {
     const overlay = document.createElement('div');
     overlay.id = 'publicProfileModal';
     overlay.className = 'modal-overlay';
@@ -2390,14 +2375,6 @@ function showPublicProfile(studentId, nameFallback) {
     overlay.style.justifyContent = 'center';
     overlay.style.padding = '20px';
     overlay.style.zIndex = '9999';
-
-    document.body.appendChild(overlay);
-
-    const closeHandler = () => {
-        if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
-        if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
-        overlay.remove();
-    };
 
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) closeHandler();
@@ -2437,73 +2414,75 @@ function showPublicProfile(studentId, nameFallback) {
 
     overlay.querySelector('.modal-close').addEventListener('click', closeHandler);
 
-    const updateUI = () => {
-        const photoContainer = overlay.querySelector('.pp-photo-container');
-        const img = photoContainer.querySelector('.pp-img');
-        const placeholder = photoContainer.querySelector('.pp-placeholder');
+    return overlay;
+}
 
-        if (profileData.photo) {
-            if (img.src !== profileData.photo) {
-                img.src = profileData.photo;
-            }
-            img.style.display = 'block';
-            if (placeholder) placeholder.style.display = 'none';
-        } else {
-            if (img) img.style.display = 'none';
-            if (placeholder) placeholder.style.display = 'block';
+function updatePublicProfileUI(overlay, profileData) {
+    const photoContainer = overlay.querySelector('.pp-photo-container');
+    const img = photoContainer.querySelector('.pp-img');
+    const placeholder = photoContainer.querySelector('.pp-placeholder');
+
+    if (profileData.photo) {
+        if (img.src !== profileData.photo) {
+            img.src = profileData.photo;
         }
+        img.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+    } else {
+        if (img) img.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'block';
+    }
 
-        overlay.querySelector('.pp-name').textContent = profileData.name || 'Anonymous';
+    overlay.querySelector('.pp-name').textContent = profileData.name || 'Anonymous';
 
-        const bioEl = overlay.querySelector('.pp-bio');
-        if (profileData.bio) {
-            bioEl.textContent = profileData.bio;
-            bioEl.style.display = 'block';
-        } else {
-            bioEl.style.display = 'none';
-        }
+    const bioEl = overlay.querySelector('.pp-bio');
+    if (profileData.bio) {
+        bioEl.textContent = profileData.bio;
+        bioEl.style.display = 'block';
+    } else {
+        bioEl.style.display = 'none';
+    }
 
-        const statsEl = overlay.querySelector('.pp-stats');
-        if (profileData.stats) {
-            overlay.querySelector('.pp-tests').textContent = profileData.stats.testsTaken || 0;
-            overlay.querySelector('.pp-score').textContent = (profileData.stats.avgScore || 0) + '%';
-            statsEl.style.display = 'flex';
-        } else {
-            statsEl.style.display = 'none';
-        }
+    const statsEl = overlay.querySelector('.pp-stats');
+    if (profileData.stats) {
+        overlay.querySelector('.pp-tests').textContent = profileData.stats.testsTaken || 0;
+        overlay.querySelector('.pp-score').textContent = (profileData.stats.avgScore || 0) + '%';
+        statsEl.style.display = 'flex';
+    } else {
+        statsEl.style.display = 'none';
+    }
 
-        const phoneContainer = overlay.querySelector('.pp-phone-container');
-        if (profileData.phone) {
-            overlay.querySelector('.pp-phone').textContent = profileData.phone;
-            phoneContainer.style.display = 'block';
-        } else {
-            overlay.querySelector('.pp-phone').textContent = '';
-            phoneContainer.style.display = 'none';
-        }
+    const phoneContainer = overlay.querySelector('.pp-phone-container');
+    if (profileData.phone) {
+        overlay.querySelector('.pp-phone').textContent = profileData.phone;
+        phoneContainer.style.display = 'block';
+    } else {
+        overlay.querySelector('.pp-phone').textContent = '';
+        phoneContainer.style.display = 'none';
+    }
 
-        const emailContainer = overlay.querySelector('.pp-email-container');
-        if (profileData.email) {
-            overlay.querySelector('.pp-email').textContent = profileData.email;
-            emailContainer.style.display = 'block';
-        } else {
-            overlay.querySelector('.pp-email').textContent = '';
-            emailContainer.style.display = 'none';
-        }
+    const emailContainer = overlay.querySelector('.pp-email-container');
+    if (profileData.email) {
+        overlay.querySelector('.pp-email').textContent = profileData.email;
+        emailContainer.style.display = 'block';
+    } else {
+        overlay.querySelector('.pp-email').textContent = '';
+        emailContainer.style.display = 'none';
+    }
 
-        const addressContainer = overlay.querySelector('.pp-address-container');
-        if (profileData.address) {
-            overlay.querySelector('.pp-address').textContent = profileData.address;
-            addressContainer.style.display = 'block';
-        } else {
-            overlay.querySelector('.pp-address').textContent = '';
-            addressContainer.style.display = 'none';
-        }
-    };
+    const addressContainer = overlay.querySelector('.pp-address-container');
+    if (profileData.address) {
+        overlay.querySelector('.pp-address').textContent = profileData.address;
+        addressContainer.style.display = 'block';
+    } else {
+        overlay.querySelector('.pp-address').textContent = '';
+        addressContainer.style.display = 'none';
+    }
+}
 
-    updateUI();
-
+function subscribeToPublicProfile(studentId, profileData, updateCallback) {
     try {
-        globalProfileUnsub = db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
+        return db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
             if (docSnap && docSnap.exists) {
                 // Ensure we do not overwrite the calculated stats if docSnap.data() contains a stale stats object
                 const data = docSnap.data();
@@ -2525,13 +2504,16 @@ function showPublicProfile(studentId, nameFallback) {
                     profileData.address = null;
                 }
 
-                updateUI();
+                updateCallback();
             }
         }, err => console.error(err));
     } catch (e) {
         console.error(e);
+        return null;
     }
+}
 
+function subscribeToPublicStats(studentId, profileData, updateCallback) {
     try {
         let query = db.collection('testResults').where('studentId', '==', studentId);
 
@@ -2541,7 +2523,7 @@ function showPublicProfile(studentId, nameFallback) {
                          .where('createdAt', '<=', endUTC);
         }
 
-        globalResultsUnsub = query.onSnapshot(resultsSnap => {
+        return query.onSnapshot(resultsSnap => {
             if (resultsSnap && !resultsSnap.empty) {
                 let docs = resultsSnap.docs;
                 if (leaderboardFilter !== 'all') {
@@ -2560,11 +2542,45 @@ function showPublicProfile(studentId, nameFallback) {
             } else {
                 profileData.stats = { testsTaken: 0, avgScore: 0 };
             }
-            updateUI();
+            updateCallback();
         }, err => console.error(err));
     } catch (e) {
         console.error(e);
+        return null;
     }
+}
+
+function showPublicProfile(studentId, nameFallback) {
+    if (!studentId) {
+        appAlert("Public profile not available.");
+        return;
+    }
+
+    if (document.getElementById('publicProfileModal')) {
+        return; // Prevent duplicate modals
+    }
+
+    if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+    if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
+
+    let profileData = { name: nameFallback, phone: null, email: null, address: null, stats: { testsTaken: 0, avgScore: 0 } };
+
+    const closeHandler = () => {
+        if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+        if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
+        const modal = document.getElementById('publicProfileModal');
+        if (modal) modal.remove();
+    };
+
+    const overlay = createPublicProfileModalUI(closeHandler);
+    document.body.appendChild(overlay);
+
+    const updateUI = () => updatePublicProfileUI(overlay, profileData);
+
+    updateUI();
+
+    globalProfileUnsub = subscribeToPublicProfile(studentId, profileData, updateUI);
+    globalResultsUnsub = subscribeToPublicStats(studentId, profileData, updateUI);
 }
 
 function renderLeaderboardList(){
