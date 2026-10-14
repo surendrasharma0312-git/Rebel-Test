@@ -2599,7 +2599,7 @@ function renderLeaderboardList(){
     row.innerHTML = `
       <div class="left">
         <div class="date" style="font-weight:800;color:var(--text);">${medal} ${escapeHTML(d.studentName || 'Anonymous')}</div>
-        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+timeStr : ''} · ${dateStr}</div>
+        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+escapeHTML(timeStr) : ''} · ${dateStr}</div>
       </div>
       <div class="pctbadge">${d.pct}%</div>
     `;
