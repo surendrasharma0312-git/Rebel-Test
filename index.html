@@ -639,7 +639,6 @@
     </div>
   </div>
 
-  <!-- ============ SCREEN 1: HOME / UPLOAD ============ -->
   <section class="screen active" id="screen-home">
     <div class="hero">
       <div class="bubble b1"></div><div class="bubble b2"></div><div class="bubble b3"></div>
@@ -729,7 +728,6 @@
     </div>
   </section>
 
-  <!-- ============ SCREEN 1B: REBEL TEST SERIES (public list) ============ -->
   <section class="screen" id="screen-rebel-list">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromRebelListBtn">← Back</button>
@@ -740,7 +738,6 @@
     <div id="cloudTestsList"></div>
   </section>
 
-  <!-- ============ SCREEN 1B-3: MIXED TESTS (public list) ============ -->
   <section class="screen" id="screen-mixed-list">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromMixedListBtn">← Back</button>
@@ -751,7 +748,6 @@
     <div id="mixedTestsListPublic"></div>
   </section>
 
-  <!-- ============ SCREEN: NOTIFICATIONS ============ -->
   <section class="screen" id="screen-notifications">
     <div class="top-actions" id="notifNormalToolbar">
       <button class="btn btn-ghost" id="backFromNotifBtn">← Back</button>
@@ -767,7 +763,6 @@
     <div id="notifList"></div>
   </section>
 
-  <!-- ============ SCREEN 1B-2: ADMIN LOGIN (real form so password managers can save/autofill it) ============ -->
   <section class="screen" id="screen-admin-login">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromAdminLoginBtn">← Back</button>
@@ -784,7 +779,6 @@
     </div>
   </section>
 
-  <!-- ============ SCREEN 1C: ADMIN DASHBOARD ============ -->
   <section class="screen" id="screen-admin">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromAdminBtn">← Back</button>
@@ -845,7 +839,6 @@
     <div id="adminTestsList"></div>
   </section>
 
-  <!-- ============ SCREEN: MIXED TEST BUILDER (admin only) ============ -->
   <section class="screen" id="screen-mixed-builder">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromMixedBuilderBtn">← Back</button>
@@ -876,7 +869,6 @@
     </div>
   </section>
 
-  <!-- ============ SCREEN: LEADERBOARD ============ -->
   <section class="screen" id="screen-leaderboard">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromLeaderboardBtn">← Back</button>
@@ -895,7 +887,6 @@
   </section>
 
 
-  <!-- ============ SCREEN 2: VOCAB PREVIEW ============ -->
   <section class="screen" id="screen-preview">
     <h2 class="section-title">Vocabulary Preview</h2>
     <div class="stat-strip">
@@ -920,7 +911,6 @@
     </div>
   </section>
 
-  <!-- ============ SCREEN 3: TEST ============ -->
   <section class="screen" id="screen-test">
     <div class="score-chip">Score: <span id="liveScore">0</span></div>
     <div class="test-topline" style="display:flex; justify-content:space-between; align-items:center;">
@@ -953,7 +943,6 @@
     </div>
   </section>
 
-  <!-- ============ SCREEN 4: RESULT ============ -->
   <section class="screen" id="screen-result">
     <div class="result-hero">
       <div class="muted" style="color:rgba(255,255,255,.85);font-weight:700;">Your Score</div>
@@ -978,7 +967,6 @@
     <button class="btn btn-ghost" id="backHomeFromResultBtn" style="margin-top:10px;">Back to Home</button>
   </section>
 
-  <!-- ============ SCREEN 5: DETAILED REPORT ============ -->
   <section class="screen" id="screen-report">
     <h2 class="section-title">Detailed Report</h2>
     <div class="filter-row">
@@ -991,7 +979,6 @@
     <button class="btn btn-ghost" id="backToResultBtn" style="margin-top:6px;">Back to Result</button>
   </section>
 
-  <!-- ============ SCREEN 6: HISTORY ============ -->
   <section class="screen" id="screen-history">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromHistoryBtn">← Back</button>
@@ -1000,7 +987,6 @@
     <div id="historyList"></div>
   </section>
 
-  <!-- ============ SCREEN 7: MANAGE TEST (admin) ============ -->
   <section class="screen" id="screen-manage">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromManageBtn">← Back</button>
@@ -1035,7 +1021,6 @@
       <button class="btn btn-coral" id="manageDeleteBtn">Delete This Test</button>
     </div>
   </section>
-  <!-- ============ SCREEN: SETTINGS ============ -->
   <section class="screen" id="screen-settings">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromSettingsBtn">← Back</button>
@@ -1118,7 +1103,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script>
-/* =========================================================
    FIREBASE SETUP (REQUIRED FOR SHARED TESTS)
    -----------------------------------------------------------
    1. Go to https://console.firebase.google.com -> Create a free project
@@ -1127,7 +1111,6 @@
    3. Click the gear icon > Project settings > scroll to "Your apps" >
       click the </> (web) icon -> register app -> copy the firebaseConfig
       object it gives you and paste it below, replacing the placeholder.
-========================================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyDqH_MHlDoOutizI4-Htcc18UIXouA2xDo",
   authDomain: "rebel-test-9a453.firebaseapp.com",
@@ -1153,9 +1136,7 @@ try{
   firebaseReady = false;
 }
 
-/* =========================================================
    STATE
-========================================================= */
 const STORAGE_VOCAB = 'vocabTestApp_vocab';
 const STORAGE_HISTORY = 'vocabTestApp_history';
 
@@ -1171,9 +1152,7 @@ let currentTestDocId = null;   // set when the active test came from Rebel Test 
 let currentTestName = null;
 let currentTestQuestionCount = null; // set for "mixed tests" — how many random questions to sample from the word pool
 
-/* =========================================================
    UTILITIES
-========================================================= */
 function escapeHTML(str) {
   if (typeof str !== 'string') str = String(str);
   return str.replace(/[&<>"']/g, function(match) {
@@ -1250,10 +1229,8 @@ function speakWord(word){
   }catch(e){ console.error('Speech synthesis failed', e); }
 }
 
-/* =========================================================
    CUSTOM MODAL (replaces native prompt()/confirm()/alert() with
    a styled, on-brand dialog)
-========================================================= */
 function showModal({message, type='alert', defaultValue='', placeholder='', confirmText='OK', cancelText='Cancel', danger=false}){
   return new Promise((resolve)=>{
     const overlay = document.createElement('div');
@@ -1336,9 +1313,7 @@ function cleanWord(w){
   return w.replace(/^[•\-\*\d\.\)\s]+/,'').trim();
 }
 
-/* =========================================================
    VOCABULARY PARSING
-========================================================= */
 function resolveOrder(a, b){
   // Auto-detect and correct reversed layout: some lists give the Hindi
   // meaning first and the English word second (e.g. "आक्रमण करना Attack").
@@ -1444,9 +1419,7 @@ function parseVocabText(text){
   return pairs;
 }
 
-/* =========================================================
    PDF EXTRACTION (PDF.js)
-========================================================= */
 if(window['pdfjsLib']){
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
@@ -1495,9 +1468,7 @@ async function extractTextFromPdf(file){
   return pagesText.join('');
 }
 
-/* =========================================================
    UPLOAD HANDLERS (personal = local-only test, admin = publish to Rebel Test Series)
-========================================================= */
 function wireUploadZone(zoneId, inputId, mode){
   const zone = $(zoneId);
   const input = $(inputId);
@@ -1707,7 +1678,7 @@ function createNotificationRow(doc, data, isUnread, isSelected) {
     ${leadingIcon}
     <div class="left">
       <div class="title">${escapeHTML(data.name || 'Untitled Test')}</div>
-      <div class="meta">🎯 New in Rebel Test Series · ${data.wordCount || (data.words? data.words.length : 0)} words · ${dateStr}</div>
+      <div class="meta">🎯 New in Rebel Test Series · ${escapeHTML(data.wordCount || (data.words? data.words.length : 0))} words · ${escapeHTML(dateStr)}</div>
     </div>
     ${notifSelectMode ? '' : '<div class="arrow">→</div>'}
   `;
@@ -1794,9 +1765,7 @@ $('deleteSelectedBtn').addEventListener('click', async ()=>{
 });
 
 
-/* =========================================================
    PUSH NOTIFICATIONS
-========================================================= */
 const VAPID_KEY = "BDr1kP7J0uL1c8F6iGj9z2Rk5tM4Nn7O-pQv3Xy8A9sCw6Dq0_E4uF1gH5jK7mL2xP5rS4vW9nB2kM1qZ8xR3yA"; // Replace with actual VAPID key if needed, or leave it to Firebase
 
 async function subscribeToPush() {
@@ -1935,9 +1904,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updatePushUI().catch(err => console.error('UI update failed:', err));
 });
 
-/* =========================================================
    CLOUD (SHARED) TESTS
-========================================================= */
 function renderCloudUI(docs){
   renderHomeSummary(docs);
   renderRebelList(docs);
@@ -2144,7 +2111,6 @@ $('refreshMixedBtn').addEventListener('click', listenToCloudTests);
 $('mixedTestsCard').addEventListener('click', ()=> showScreen('screen-mixed-list'));
 $('backFromMixedListBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
-/* =========================================================
    ADMIN MODE (only the admin can upload/add tests)
    -----------------------------------------------------------
    The password itself now lives in Firestore (config/admin →
@@ -2153,7 +2119,6 @@ $('backFromMixedListBtn').addEventListener('click', ()=> showScreen('screen-home
    this file for how to create that document.
    We only ever compare a SHA-256 HASH of what's typed, never the
    plain text, so even Firestore never stores the real password.
-========================================================= */
 const AdminAuth = (function() {
   let _isAdmin = false;
   return Object.freeze({
@@ -2210,9 +2175,7 @@ function updateAdminUI(){
 }
 
 
-/* =========================================================
    LEADERBOARD (admin only)
-========================================================= */
 let lastLeaderboardDocs = [];
 let leaderboardFilter = 'all';
 let leaderboardPeriod = 'weekly';
@@ -2366,22 +2329,7 @@ function bestPerStudentPerTest(docs){
 let globalProfileUnsub = null;
 let globalResultsUnsub = null;
 
-function showPublicProfile(studentId, nameFallback) {
-    if (!studentId) {
-        appAlert("Public profile not available.");
-        return;
-    }
-
-    if (document.getElementById('publicProfileModal')) {
-        return; // Prevent duplicate modals
-    }
-
-    if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
-    if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
-
-    let profileData = { name: nameFallback, phone: null, email: null, address: null, stats: { testsTaken: 0, avgScore: 0 } };
-
-
+function createPublicProfileModal(closeHandler) {
     const overlay = document.createElement('div');
     overlay.id = 'publicProfileModal';
     overlay.className = 'modal-overlay';
@@ -2390,14 +2338,6 @@ function showPublicProfile(studentId, nameFallback) {
     overlay.style.justifyContent = 'center';
     overlay.style.padding = '20px';
     overlay.style.zIndex = '9999';
-
-    document.body.appendChild(overlay);
-
-    const closeHandler = () => {
-        if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
-        if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
-        overlay.remove();
-    };
 
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) closeHandler();
@@ -2436,132 +2376,167 @@ function showPublicProfile(studentId, nameFallback) {
     `;
 
     overlay.querySelector('.modal-close').addEventListener('click', closeHandler);
+    return overlay;
+}
 
-    const updateUI = () => {
-        const photoContainer = overlay.querySelector('.pp-photo-container');
-        const img = photoContainer.querySelector('.pp-img');
-        const placeholder = photoContainer.querySelector('.pp-placeholder');
+function updatePublicProfileUI(overlay, profileData) {
+    const photoContainer = overlay.querySelector('.pp-photo-container');
+    const img = photoContainer.querySelector('.pp-img');
+    const placeholder = photoContainer.querySelector('.pp-placeholder');
 
-        if (profileData.photo) {
-            if (img.src !== profileData.photo) {
-                img.src = profileData.photo;
+    if (profileData.photo) {
+        if (img.src !== profileData.photo) {
+            img.src = profileData.photo;
+        }
+        img.style.display = 'block';
+        if (placeholder) placeholder.style.display = 'none';
+    } else {
+        if (img) img.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'block';
+    }
+
+    overlay.querySelector('.pp-name').textContent = profileData.name || 'Anonymous';
+
+    const bioEl = overlay.querySelector('.pp-bio');
+    if (profileData.bio) {
+        bioEl.textContent = profileData.bio;
+        bioEl.style.display = 'block';
+    } else {
+        bioEl.style.display = 'none';
+    }
+
+    const statsEl = overlay.querySelector('.pp-stats');
+    if (profileData.stats) {
+        overlay.querySelector('.pp-tests').textContent = profileData.stats.testsTaken || 0;
+        overlay.querySelector('.pp-score').textContent = (profileData.stats.avgScore || 0) + '%';
+        statsEl.style.display = 'flex';
+    } else {
+        statsEl.style.display = 'none';
+    }
+
+    const phoneContainer = overlay.querySelector('.pp-phone-container');
+    if (profileData.phone) {
+        overlay.querySelector('.pp-phone').textContent = profileData.phone;
+        phoneContainer.style.display = 'block';
+    } else {
+        overlay.querySelector('.pp-phone').textContent = '';
+        phoneContainer.style.display = 'none';
+    }
+
+    const emailContainer = overlay.querySelector('.pp-email-container');
+    if (profileData.email) {
+        overlay.querySelector('.pp-email').textContent = profileData.email;
+        emailContainer.style.display = 'block';
+    } else {
+        overlay.querySelector('.pp-email').textContent = '';
+        emailContainer.style.display = 'none';
+    }
+
+    const addressContainer = overlay.querySelector('.pp-address-container');
+    if (profileData.address) {
+        overlay.querySelector('.pp-address').textContent = profileData.address;
+        addressContainer.style.display = 'block';
+    } else {
+        overlay.querySelector('.pp-address').textContent = '';
+        addressContainer.style.display = 'none';
+    }
+}
+
+function listenToStudentProfile(studentId, profileData, onChange) {
+    return db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
+        if (docSnap && docSnap.exists) {
+            const data = docSnap.data();
+            if (data.name) profileData.name = data.name;
+
+            const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true' || AdminAuth.isAdmin);
+
+            if (canViewContact) {
+                if (data.photo !== undefined) profileData.photo = data.photo;
+                if (data.bio !== undefined) profileData.bio = data.bio;
+                profileData.phone = data.phone !== undefined ? data.phone : null;
+                profileData.email = data.email !== undefined ? data.email : null;
+                profileData.address = data.address !== undefined ? data.address : null;
+            } else {
+                profileData.photo = null;
+                profileData.bio = null;
+                profileData.phone = null;
+                profileData.email = null;
+                profileData.address = null;
             }
-            img.style.display = 'block';
-            if (placeholder) placeholder.style.display = 'none';
-        } else {
-            if (img) img.style.display = 'none';
-            if (placeholder) placeholder.style.display = 'block';
-        }
 
-        overlay.querySelector('.pp-name').textContent = profileData.name || 'Anonymous';
-
-        const bioEl = overlay.querySelector('.pp-bio');
-        if (profileData.bio) {
-            bioEl.textContent = profileData.bio;
-            bioEl.style.display = 'block';
-        } else {
-            bioEl.style.display = 'none';
+            onChange();
         }
+    }, err => console.error(err));
+}
 
-        const statsEl = overlay.querySelector('.pp-stats');
-        if (profileData.stats) {
-            overlay.querySelector('.pp-tests').textContent = profileData.stats.testsTaken || 0;
-            overlay.querySelector('.pp-score').textContent = (profileData.stats.avgScore || 0) + '%';
-            statsEl.style.display = 'flex';
-        } else {
-            statsEl.style.display = 'none';
-        }
+function listenToStudentStats(studentId, profileData, onChange) {
+    let query = db.collection('testResults').where('studentId', '==', studentId);
 
-        const phoneContainer = overlay.querySelector('.pp-phone-container');
-        if (profileData.phone) {
-            overlay.querySelector('.pp-phone').textContent = profileData.phone;
-            phoneContainer.style.display = 'block';
-        } else {
-            overlay.querySelector('.pp-phone').textContent = '';
-            phoneContainer.style.display = 'none';
-        }
+    if (leaderboardPeriod === 'weekly') {
+        const { startUTC, endUTC } = getWeeklyBoundaries();
+        query = query.where('createdAt', '>=', startUTC)
+                     .where('createdAt', '<=', endUTC);
+    }
 
-        const emailContainer = overlay.querySelector('.pp-email-container');
-        if (profileData.email) {
-            overlay.querySelector('.pp-email').textContent = profileData.email;
-            emailContainer.style.display = 'block';
-        } else {
-            overlay.querySelector('.pp-email').textContent = '';
-            emailContainer.style.display = 'none';
-        }
+    return query.onSnapshot(resultsSnap => {
+        if (resultsSnap && !resultsSnap.empty) {
+            let docs = resultsSnap.docs;
+            if (leaderboardFilter !== 'all') {
+                docs = docs.filter(doc => doc.data().testDocId === leaderboardFilter);
+            }
 
-        const addressContainer = overlay.querySelector('.pp-address-container');
-        if (profileData.address) {
-            overlay.querySelector('.pp-address').textContent = profileData.address;
-            addressContainer.style.display = 'block';
+            let validDocs = bestPerStudentPerTest(docs);
+            let totalScore = 0;
+            validDocs.forEach(doc => {
+                totalScore += (doc.data().pct || 0);
+            });
+            profileData.stats = {
+                testsTaken: validDocs.length,
+                avgScore: validDocs.length > 0 ? Math.round(totalScore / validDocs.length) : 0
+            };
         } else {
-            overlay.querySelector('.pp-address').textContent = '';
-            addressContainer.style.display = 'none';
+            profileData.stats = { testsTaken: 0, avgScore: 0 };
         }
+        onChange();
+    }, err => console.error(err));
+}
+
+function showPublicProfile(studentId, nameFallback) {
+    if (!studentId) {
+        appAlert("Public profile not available.");
+        return;
+    }
+
+    if (document.getElementById('publicProfileModal')) {
+        return; // Prevent duplicate modals
+    }
+
+    if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+    if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
+
+    let profileData = { name: nameFallback, phone: null, email: null, address: null, stats: { testsTaken: 0, avgScore: 0 } };
+
+    const closeHandler = () => {
+        if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+        if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
+        const modal = document.getElementById('publicProfileModal');
+        if (modal) modal.remove();
     };
 
-    updateUI();
+    const overlay = createPublicProfileModal(closeHandler);
+    document.body.appendChild(overlay);
+
+    const onChange = () => updatePublicProfileUI(overlay, profileData);
+    updatePublicProfileUI(overlay, profileData);
 
     try {
-        globalProfileUnsub = db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
-            if (docSnap && docSnap.exists) {
-                // Ensure we do not overwrite the calculated stats if docSnap.data() contains a stale stats object
-                const data = docSnap.data();
-                if (data.name) profileData.name = data.name;
-
-                const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true');
-
-                if (canViewContact) {
-                    if (data.photo !== undefined) profileData.photo = data.photo;
-                    if (data.bio !== undefined) profileData.bio = data.bio;
-                    profileData.phone = data.phone !== undefined ? data.phone : null;
-                    profileData.email = data.email !== undefined ? data.email : null;
-                    profileData.address = data.address !== undefined ? data.address : null;
-                } else {
-                    profileData.photo = null;
-                    profileData.bio = null;
-                    profileData.phone = null;
-                    profileData.email = null;
-                    profileData.address = null;
-                }
-
-                updateUI();
-            }
-        }, err => console.error(err));
+        globalProfileUnsub = listenToStudentProfile(studentId, profileData, onChange);
     } catch (e) {
         console.error(e);
     }
 
     try {
-        let query = db.collection('testResults').where('studentId', '==', studentId);
-
-        if (leaderboardPeriod === 'weekly') {
-            const { startUTC, endUTC } = getWeeklyBoundaries();
-            query = query.where('createdAt', '>=', startUTC)
-                         .where('createdAt', '<=', endUTC);
-        }
-
-        globalResultsUnsub = query.onSnapshot(resultsSnap => {
-            if (resultsSnap && !resultsSnap.empty) {
-                let docs = resultsSnap.docs;
-                if (leaderboardFilter !== 'all') {
-                    docs = docs.filter(doc => doc.data().testDocId === leaderboardFilter);
-                }
-
-                let validDocs = bestPerStudentPerTest(docs);
-                let totalScore = 0;
-                validDocs.forEach(doc => {
-                    totalScore += (doc.data().pct || 0);
-                });
-                profileData.stats = {
-                    testsTaken: validDocs.length,
-                    avgScore: validDocs.length > 0 ? Math.round(totalScore / validDocs.length) : 0
-                };
-            } else {
-                profileData.stats = { testsTaken: 0, avgScore: 0 };
-            }
-            updateUI();
-        }, err => console.error(err));
+        globalResultsUnsub = listenToStudentStats(studentId, profileData, onChange);
     } catch (e) {
         console.error(e);
     }
@@ -2599,7 +2574,7 @@ function renderLeaderboardList(){
     row.innerHTML = `
       <div class="left">
         <div class="date" style="font-weight:800;color:var(--text);">${medal} ${escapeHTML(d.studentName || 'Anonymous')}</div>
-        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+timeStr : ''} · ${dateStr}</div>
+        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+escapeHTML(timeStr) : ''} · ${dateStr}</div>
       </div>
       <div class="pctbadge">${d.pct}%</div>
     `;
@@ -2632,11 +2607,9 @@ $('backFromLeaderboardBtn').addEventListener('click', ()=> {
 });
 $('refreshLeaderboardBtn').addEventListener('click', loadLeaderboard);
 
-/* =========================================================
    MIXED TEST BUILDER (admin only) — combine multiple published
    tests into one; each attempt randomly samples N questions from
    the combined word pool.
-========================================================= */
 let selectedMixedTestIds = new Set();
 
 function renderMixedTestSourceList(){
@@ -2830,9 +2803,7 @@ $('backFromAdminBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
 updateAdminUI();
 
-/* =========================================================
    SAVED VOCAB (localStorage)
-========================================================= */
 function saveVocabToStorage(){
   try{ localStorage.setItem(STORAGE_VOCAB, JSON.stringify(vocabulary)); }catch(e){}
 }
@@ -2865,9 +2836,7 @@ $('continueSavedBtn').addEventListener('click', ()=>{
   }
 });
 
-/* =========================================================
    PREVIEW SCREEN
-========================================================= */
 let pendingAdminPublish = null; // {name} set only when previewing a newly-uploaded admin test that hasn't been published yet
 
 function openPreview(){
@@ -2967,9 +2936,7 @@ function renderVocabList(){
 }
 $('backToUploadBtn').addEventListener('click', ()=> showScreen(pendingAdminPublish ? 'screen-admin' : 'screen-home'));
 
-/* =========================================================
    MANAGE TEST (admin: rename / add words / remove words / delete)
-========================================================= */
 let managingId = null;
 let managingWords = [];
 
@@ -3075,23 +3042,37 @@ $('manageDeleteBtn').addEventListener('click', async ()=>{
 
 $('backFromManageBtn').addEventListener('click', ()=> showScreen('screen-admin'));
 
-/* =========================================================
    QUESTION GENERATION
-========================================================= */
 function buildQuestionBank(vocabList){
   const allMeanings = vocabList.map(v=>v.hi);
   const uniqueMeanings = [...new Set(allMeanings)];
-  const uniqueMeaningsLower = uniqueMeanings.map(m => m.toLowerCase());
   const bank = [];
+
+  if (uniqueMeanings.length < 4) {
+    return bank;
+  }
+
+  let pool = shuffle([...uniqueMeanings]);
+  let poolIdx = 0;
 
   vocabList.forEach(v=>{
     // gather distractor pool: other meanings that are not equal to this word's meaning
     const vHiLower = v.hi.toLowerCase();
-    const filteredMeanings = uniqueMeanings.filter((_, i) => uniqueMeaningsLower[i] !== vHiLower);
+    const distractors = [];
 
-    // distractors are already unique
-    const pool = shuffle(filteredMeanings);
-    const distractors = pool.slice(0,3);
+    let attempts = 0;
+    while(distractors.length < 3 && attempts < uniqueMeanings.length) {
+      if(poolIdx >= pool.length){
+        pool = shuffle(pool);
+        poolIdx = 0;
+      }
+      const candidate = pool[poolIdx++];
+      attempts++;
+
+      if (candidate.toLowerCase() !== vHiLower && !distractors.includes(candidate)) {
+        distractors.push(candidate);
+      }
+    }
 
     if(distractors.length < 3){
       // not enough unique distractors for this word; skip generating an unreliable question
@@ -3109,9 +3090,7 @@ function buildQuestionBank(vocabList){
   return bank;
 }
 
-/* =========================================================
    START TEST
-========================================================= */
 $('startTestBtn').addEventListener('click', async ()=>{
   if(currentTestDocId && firebaseReady) {
     const studentName = await getStudentName();
@@ -3142,8 +3121,9 @@ function startTest(vocabList){
     showScreen('screen-preview');
     return;
   }
-  currentTest = shuffle(bank).map(q=>({
+  currentTest = shuffle(bank).map((q, idx)=>({
     ...q,
+    originalIndex: idx,
     options: shuffle(q.options),
     userAnswer: null,
     status: null // 'correct' | 'wrong' | 'timeout'
@@ -3154,9 +3134,7 @@ function startTest(vocabList){
   renderQuestion();
 }
 
-/* =========================================================
    TEST RUNTIME
-========================================================= */
 function getScore(){
   return currentTest.filter(q=>q.status==='correct').length;
 }
@@ -3181,9 +3159,10 @@ function renderQuestion(){
   const answered = !!q.status; // already answered or timed out earlier
   updateTopUI();
 
+  const currentScore = getScore();
   $('qCounter').textContent = `Question ${currentIndex+1} of ${total}`;
-  $('qCorrectCount').textContent = `✅ ${getScore()}`;
-  $('liveScore').textContent = getScore();
+  $('qCorrectCount').textContent = `✅ ${currentScore}`;
+  $('liveScore').textContent = currentScore;
   $('progressFill').style.width = `${(currentIndex/total)*100}%`;
 
   $('qWord').textContent = q.en.toUpperCase();
@@ -3372,7 +3351,7 @@ window.handleAttemptUnanswered = () => {
   unanswered.forEach(q => {
     const item = document.createElement('div');
     item.className = 'review-list-item';
-    const index = currentTest.indexOf(q);
+    const index = q.originalIndex;
     item.innerHTML = `<span>Q${index + 1}</span>`;
     item.addEventListener('click', () => {
       $('unansweredListModal').style.display = 'none';
@@ -3439,7 +3418,7 @@ $('reviewTopBtn')?.addEventListener('click', () => {
   marked.forEach(q => {
     const item = document.createElement('div');
     item.className = 'review-list-item';
-    const index = currentTest.indexOf(q);
+    const index = q.originalIndex;
     item.innerHTML = `<span>Q${index + 1} — ${escapeHTML(q.en)}</span>`;
     item.addEventListener('click', () => {
       $('reviewModal').style.display = 'none';
@@ -3456,9 +3435,7 @@ window.handleCloseReviewModal = () => {
 };
 
 
-/* =========================================================
    RESULT
-========================================================= */
 
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -3528,9 +3505,7 @@ function finishTest(){
 
 $('backHomeFromResultBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
-/* =========================================================
    DETAILED REPORT
-========================================================= */
 $('viewReportBtn').addEventListener('click', ()=>{
   lastReportFilter = 'all';
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
@@ -3569,7 +3544,7 @@ function renderReport(){
 function buildReportHTML(filtered) {
   const fragment = document.createDocumentFragment();
   filtered.forEach((q)=>{
-    const originalIndex = currentTest.indexOf(q) + 1;
+    const originalIndex = q.originalIndex + 1;
     const statusMap = {
       correct: {label:'✅ Correct', cls:'st-correct'},
       wrong: {label:'❌ Wrong', cls:'st-wrong'},
@@ -3592,9 +3567,7 @@ function buildReportHTML(filtered) {
   return fragment;
 }
 
-/* =========================================================
    PRACTICE MISTAKES
-========================================================= */
 $('practiceMistakesBtn').addEventListener('click', ()=>{
   const mistakes = currentTest.filter(q=> q.status === 'wrong' || q.status === 'timeout');
   if(mistakes.length === 0){
@@ -3608,9 +3581,7 @@ $('practiceMistakesBtn').addEventListener('click', ()=>{
   startTest(mistakeVocab);
 });
 
-/* =========================================================
    HISTORY
-========================================================= */
 function saveHistoryEntry(entry){
   let history = [];
   try{
@@ -3621,13 +3592,11 @@ function saveHistoryEntry(entry){
   try{ localStorage.setItem(STORAGE_HISTORY, JSON.stringify(history)); }catch(e){}
 }
 
-/* =========================================================
    CLASS LEADERBOARD & STUDENT IDENTITY
    -----------------------------------------------------------
    Only attempts on a real published Rebel Test Series test are
    saved here (currentTestDocId set) — personal uploads and
    "Practice Mistakes" re-tests are never sent to the leaderboard.
-========================================================= */
 const STORAGE_STUDENT_NAME = 'vocabTestApp_studentName';
 const STORAGE_STUDENT_PHOTO = 'vocabTestApp_studentPhoto';
 
@@ -3855,9 +3824,7 @@ function renderHistory(){
 $('historyNavBtn').addEventListener('click', ()=>{ renderHistory(); showScreen('screen-history'); });
 $('backFromHistoryBtn').addEventListener('click', ()=> showScreen('screen-home'));
 
-/* =========================================================
    INSTALL / ADD TO HOME SCREEN
-========================================================= */
 let deferredInstallPrompt = null;
 
 function isStandaloneApp(){
@@ -3909,9 +3876,7 @@ updateInstallBanner();
 
 
 
-/* =========================================================
    SETTINGS SYSTEM
-========================================================= */
 let testSoundEnabled = localStorage.getItem('testSoundEnabled') !== 'false';
 let testVolume = localStorage.getItem('testVolume') ? parseInt(localStorage.getItem('testVolume'), 10) : 50;
 let hapticEnabled = localStorage.getItem('hapticEnabled') !== 'false';
@@ -4069,9 +4034,7 @@ $('inTestMuteBtn')?.addEventListener('click', () => {
   updateInTestMuteBtn();
 });
 
-/* =========================================================
    AUDIO FEEDBACK SYSTEM (WEB AUDIO API)
-========================================================= */
 let audioCtx = null;
 
 function initAudio() {
@@ -4107,6 +4070,111 @@ function triggerHaptic(type) {
   }
 }
 
+function playTapSound(audioCtx, volumeNode, volRatio, t) {
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(600, t);
+  osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
+
+  volumeNode.gain.setValueAtTime(volRatio * 0.2, t);
+  volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+
+  osc.connect(volumeNode);
+  osc.start(t);
+  osc.stop(t + 0.05);
+}
+
+function playCorrectSound(audioCtx, volumeNode, volRatio, t) {
+  const osc1 = audioCtx.createOscillator();
+  const osc2 = audioCtx.createOscillator();
+  osc1.type = 'sine';
+  osc2.type = 'sine';
+
+  osc1.frequency.setValueAtTime(523.25, t); // C5
+  osc2.frequency.setValueAtTime(659.25, t + 0.1); // E5
+
+  volumeNode.gain.setValueAtTime(0, t);
+  volumeNode.gain.linearRampToValueAtTime(volRatio * 0.3, t + 0.02);
+  volumeNode.gain.setValueAtTime(volRatio * 0.3, t + 0.1);
+  volumeNode.gain.linearRampToValueAtTime(0, t + 0.3);
+
+  osc1.connect(volumeNode);
+  osc2.connect(volumeNode);
+
+  osc1.start(t);
+  osc1.stop(t + 0.1);
+  osc2.start(t + 0.1);
+  osc2.stop(t + 0.3);
+}
+
+function playWrongSound(audioCtx, volumeNode, volRatio, t) {
+  const osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(200, t);
+  osc.frequency.exponentialRampToValueAtTime(100, t + 0.2);
+
+  volumeNode.gain.setValueAtTime(volRatio * 0.3, t);
+  volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+  osc.connect(volumeNode);
+  osc.start(t);
+  osc.stop(t + 0.2);
+}
+
+function playTimeoutSound(audioCtx, volumeNode, volRatio, t) {
+  const osc = audioCtx.createOscillator();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(150, t);
+  osc.frequency.linearRampToValueAtTime(100, t + 0.4);
+
+  // low-pass filter to make the square wave less harsh
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 500;
+
+  volumeNode.gain.setValueAtTime(volRatio * 0.2, t);
+  volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+
+  osc.connect(filter);
+  filter.connect(volumeNode);
+  osc.start(t);
+  osc.stop(t + 0.4);
+}
+
+function playWarningSound(audioCtx, volumeNode, volRatio, t) {
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(800, t);
+
+  volumeNode.gain.setValueAtTime(volRatio * 0.1, t);
+  volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+  osc.connect(volumeNode);
+  osc.start(t);
+  osc.stop(t + 0.1);
+}
+
+function playFinishSound(audioCtx, volumeNode, volRatio, t) {
+  // A simple C major arpeggio
+  const freqs = [523.25, 659.25, 783.99, 1046.50];
+  freqs.forEach((freq, i) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+
+    const oscVol = audioCtx.createGain();
+    oscVol.gain.setValueAtTime(0, t + i * 0.1);
+    oscVol.gain.linearRampToValueAtTime(volRatio * 0.2, t + i * 0.1 + 0.05);
+    oscVol.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.4);
+
+    osc.connect(oscVol);
+    oscVol.connect(audioCtx.destination);
+
+    osc.start(t + i * 0.1);
+    osc.stop(t + i * 0.1 + 0.4);
+  });
+}
+
 function playTestSound(type) {
   if (!testSoundEnabled || !audioCtx) return;
   initAudio();
@@ -4120,103 +4188,17 @@ function playTestSound(type) {
   const t = audioCtx.currentTime;
 
   if (type === 'tap') {
-    const osc = audioCtx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, t);
-    osc.frequency.exponentialRampToValueAtTime(300, t + 0.05);
-
-    volumeNode.gain.setValueAtTime(volRatio * 0.2, t);
-    volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-
-    osc.connect(volumeNode);
-    osc.start(t);
-    osc.stop(t + 0.05);
-  }
-  else if (type === 'correct') {
-    const osc1 = audioCtx.createOscillator();
-    const osc2 = audioCtx.createOscillator();
-    osc1.type = 'sine';
-    osc2.type = 'sine';
-
-    osc1.frequency.setValueAtTime(523.25, t); // C5
-    osc2.frequency.setValueAtTime(659.25, t + 0.1); // E5
-
-    volumeNode.gain.setValueAtTime(0, t);
-    volumeNode.gain.linearRampToValueAtTime(volRatio * 0.3, t + 0.02);
-    volumeNode.gain.setValueAtTime(volRatio * 0.3, t + 0.1);
-    volumeNode.gain.linearRampToValueAtTime(0, t + 0.3);
-
-    osc1.connect(volumeNode);
-    osc2.connect(volumeNode);
-
-    osc1.start(t);
-    osc1.stop(t + 0.1);
-    osc2.start(t + 0.1);
-    osc2.stop(t + 0.3);
-  }
-  else if (type === 'wrong') {
-    const osc = audioCtx.createOscillator();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(200, t);
-    osc.frequency.exponentialRampToValueAtTime(100, t + 0.2);
-
-    volumeNode.gain.setValueAtTime(volRatio * 0.3, t);
-    volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-
-    osc.connect(volumeNode);
-    osc.start(t);
-    osc.stop(t + 0.2);
-  }
-  else if (type === 'timeout') {
-    const osc = audioCtx.createOscillator();
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(150, t);
-    osc.frequency.linearRampToValueAtTime(100, t + 0.4);
-
-    // low-pass filter to make the square wave less harsh
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 500;
-
-    volumeNode.gain.setValueAtTime(volRatio * 0.2, t);
-    volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-
-    osc.connect(filter);
-    filter.connect(volumeNode);
-    osc.start(t);
-    osc.stop(t + 0.4);
-  }
-  else if (type === 'warning') {
-    const osc = audioCtx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(800, t);
-
-    volumeNode.gain.setValueAtTime(volRatio * 0.1, t);
-    volumeNode.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-
-    osc.connect(volumeNode);
-    osc.start(t);
-    osc.stop(t + 0.1);
-  }
-  else if (type === 'finish') {
-    // A simple C major arpeggio
-    const freqs = [523.25, 659.25, 783.99, 1046.50];
-    freqs.forEach((freq, i) => {
-      const osc = audioCtx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-
-      const oscVol = audioCtx.createGain();
-      oscVol.gain.setValueAtTime(0, t + i * 0.1);
-      oscVol.gain.linearRampToValueAtTime(volRatio * 0.2, t + i * 0.1 + 0.05);
-      oscVol.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.4);
-
-      osc.connect(oscVol);
-      oscVol.connect(audioCtx.destination);
-
-      osc.start(t + i * 0.1);
-      osc.stop(t + i * 0.1 + 0.4);
-    });
+    playTapSound(audioCtx, volumeNode, volRatio, t);
+  } else if (type === 'correct') {
+    playCorrectSound(audioCtx, volumeNode, volRatio, t);
+  } else if (type === 'wrong') {
+    playWrongSound(audioCtx, volumeNode, volRatio, t);
+  } else if (type === 'timeout') {
+    playTimeoutSound(audioCtx, volumeNode, volRatio, t);
+  } else if (type === 'warning') {
+    playWarningSound(audioCtx, volumeNode, volRatio, t);
+  } else if (type === 'finish') {
+    playFinishSound(audioCtx, volumeNode, volRatio, t);
   }
 }
 
@@ -4239,9 +4221,7 @@ if (themeToggleBtn) {
   });
 }
 
-/* =========================================================
    INIT
-========================================================= */
 checkSavedVocabOnLoad();
 listenToCloudTests();
 
@@ -4307,6 +4287,7 @@ if (typeof module !== 'undefined' && module.exports) {
     shuffle,
     formatDuration,
     isStandaloneApp,
+    getUnansweredQuestions,
     escapeHTML
   };
 }

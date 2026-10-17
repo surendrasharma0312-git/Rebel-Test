@@ -1,0 +1,316 @@
+diff --git a/index.html b/index.html
+index bc0fbc0..2165351 100644
+--- a/index.html
++++ b/index.html
+@@ -2366,22 +2366,7 @@ function bestPerStudentPerTest(docs){
+ let globalProfileUnsub = null;
+ let globalResultsUnsub = null;
+
+-function showPublicProfile(studentId, nameFallback) {
+-    if (!studentId) {
+-        appAlert("Public profile not available.");
+-        return;
+-    }
+-
+-    if (document.getElementById('publicProfileModal')) {
+-        return; // Prevent duplicate modals
+-    }
+-
+-    if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+-    if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
+-
+-    let profileData = { name: nameFallback, phone: null, email: null, address: null, stats: { testsTaken: 0, avgScore: 0 } };
+-
+-
++function createPublicProfileModal(closeHandler) {
+     const overlay = document.createElement('div');
+     overlay.id = 'publicProfileModal';
+     overlay.className = 'modal-overlay';
+@@ -2391,14 +2376,6 @@ function showPublicProfile(studentId, nameFallback) {
+     overlay.style.padding = '20px';
+     overlay.style.zIndex = '9999';
+
+-    document.body.appendChild(overlay);
+-
+-    const closeHandler = () => {
+-        if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
+-        if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
+-        overlay.remove();
+-    };
+-
+     overlay.addEventListener('click', (e) => {
+         if (e.target === overlay) closeHandler();
+     });
+@@ -2436,132 +2413,167 @@ function showPublicProfile(studentId, nameFallback) {
+     `;
+
+     overlay.querySelector('.modal-close').addEventListener('click', closeHandler);
++    return overlay;
++}
+
+-    const updateUI = () => {
+-        const photoContainer = overlay.querySelector('.pp-photo-container');
+-        const img = photoContainer.querySelector('.pp-img');
+-        const placeholder = photoContainer.querySelector('.pp-placeholder');
++function updatePublicProfileUI(overlay, profileData) {
++    const photoContainer = overlay.querySelector('.pp-photo-container');
++    const img = photoContainer.querySelector('.pp-img');
++    const placeholder = photoContainer.querySelector('.pp-placeholder');
+
+-        if (profileData.photo) {
+-            if (img.src !== profileData.photo) {
+-                img.src = profileData.photo;
+-            }
+-            img.style.display = 'block';
+-            if (placeholder) placeholder.style.display = 'none';
+-        } else {
+-            if (img) img.style.display = 'none';
+-            if (placeholder) placeholder.style.display = 'block';
++    if (profileData.photo) {
++        if (img.src !== profileData.photo) {
++            img.src = profileData.photo;
+         }
++        img.style.display = 'block';
++        if (placeholder) placeholder.style.display = 'none';
++    } else {
++        if (img) img.style.display = 'none';
++        if (placeholder) placeholder.style.display = 'block';
++    }
+
+-        overlay.querySelector('.pp-name').textContent = profileData.name || 'Anonymous';
++    overlay.querySelector('.pp-name').textContent = profileData.name || 'Anonymous';
+
+-        const bioEl = overlay.querySelector('.pp-bio');
+-        if (profileData.bio) {
+-            bioEl.textContent = profileData.bio;
+-            bioEl.style.display = 'block';
+-        } else {
+-            bioEl.style.display = 'none';
+-        }
++    const bioEl = overlay.querySelector('.pp-bio');
++    if (profileData.bio) {
++        bioEl.textContent = profileData.bio;
++        bioEl.style.display = 'block';
++    } else {
++        bioEl.style.display = 'none';
++    }
+
+-        const statsEl = overlay.querySelector('.pp-stats');
+-        if (profileData.stats) {
+-            overlay.querySelector('.pp-tests').textContent = profileData.stats.testsTaken || 0;
+-            overlay.querySelector('.pp-score').textContent = (profileData.stats.avgScore || 0) + '%';
+-            statsEl.style.display = 'flex';
+-        } else {
+-            statsEl.style.display = 'none';
+-        }
++    const statsEl = overlay.querySelector('.pp-stats');
++    if (profileData.stats) {
++        overlay.querySelector('.pp-tests').textContent = profileData.stats.testsTaken || 0;
++        overlay.querySelector('.pp-score').textContent = (profileData.stats.avgScore || 0) + '%';
++        statsEl.style.display = 'flex';
++    } else {
++        statsEl.style.display = 'none';
++    }
+
+-        const phoneContainer = overlay.querySelector('.pp-phone-container');
+-        if (profileData.phone) {
+-            overlay.querySelector('.pp-phone').textContent = profileData.phone;
+-            phoneContainer.style.display = 'block';
+-        } else {
+-            overlay.querySelector('.pp-phone').textContent = '';
+-            phoneContainer.style.display = 'none';
+-        }
++    const phoneContainer = overlay.querySelector('.pp-phone-container');
++    if (profileData.phone) {
++        overlay.querySelector('.pp-phone').textContent = profileData.phone;
++        phoneContainer.style.display = 'block';
++    } else {
++        overlay.querySelector('.pp-phone').textContent = '';
++        phoneContainer.style.display = 'none';
++    }
+
+-        const emailContainer = overlay.querySelector('.pp-email-container');
+-        if (profileData.email) {
+-            overlay.querySelector('.pp-email').textContent = profileData.email;
+-            emailContainer.style.display = 'block';
+-        } else {
+-            overlay.querySelector('.pp-email').textContent = '';
+-            emailContainer.style.display = 'none';
++    const emailContainer = overlay.querySelector('.pp-email-container');
++    if (profileData.email) {
++        overlay.querySelector('.pp-email').textContent = profileData.email;
++        emailContainer.style.display = 'block';
++    } else {
++        overlay.querySelector('.pp-email').textContent = '';
++        emailContainer.style.display = 'none';
++    }
++
++    const addressContainer = overlay.querySelector('.pp-address-container');
++    if (profileData.address) {
++        overlay.querySelector('.pp-address').textContent = profileData.address;
++        addressContainer.style.display = 'block';
++    } else {
++        overlay.querySelector('.pp-address').textContent = '';
++        addressContainer.style.display = 'none';
++    }
++}
++
++function listenToStudentProfile(studentId, profileData, onChange) {
++    return db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
++        if (docSnap && docSnap.exists) {
++            const data = docSnap.data();
++            if (data.name) profileData.name = data.name;
++
++            const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true');
++
++            if (canViewContact) {
++                if (data.photo !== undefined) profileData.photo = data.photo;
++                if (data.bio !== undefined) profileData.bio = data.bio;
++                profileData.phone = data.phone !== undefined ? data.phone : null;
++                profileData.email = data.email !== undefined ? data.email : null;
++                profileData.address = data.address !== undefined ? data.address : null;
++            } else {
++                profileData.photo = null;
++                profileData.bio = null;
++                profileData.phone = null;
++                profileData.email = null;
++                profileData.address = null;
++            }
++
++            onChange();
+         }
++    }, err => console.error(err));
++}
++
++function listenToStudentStats(studentId, profileData, onChange) {
++    let query = db.collection('testResults').where('studentId', '==', studentId);
+
+-        const addressContainer = overlay.querySelector('.pp-address-container');
+-        if (profileData.address) {
+-            overlay.querySelector('.pp-address').textContent = profileData.address;
+-            addressContainer.style.display = 'block';
++    if (leaderboardPeriod === 'weekly') {
++        const { startUTC, endUTC } = getWeeklyBoundaries();
++        query = query.where('createdAt', '>=', startUTC)
++                     .where('createdAt', '<=', endUTC);
++    }
++
++    return query.onSnapshot(resultsSnap => {
++        if (resultsSnap && !resultsSnap.empty) {
++            let docs = resultsSnap.docs;
++            if (leaderboardFilter !== 'all') {
++                docs = docs.filter(doc => doc.data().testDocId === leaderboardFilter);
++            }
++
++            let validDocs = bestPerStudentPerTest(docs);
++            let totalScore = 0;
++            validDocs.forEach(doc => {
++                totalScore += (doc.data().pct || 0);
++            });
++            profileData.stats = {
++                testsTaken: validDocs.length,
++                avgScore: validDocs.length > 0 ? Math.round(totalScore / validDocs.length) : 0
++            };
+         } else {
+-            overlay.querySelector('.pp-address').textContent = '';
+-            addressContainer.style.display = 'none';
++            profileData.stats = { testsTaken: 0, avgScore: 0 };
+         }
++        onChange();
++    }, err => console.error(err));
++}
++
++function showPublicProfile(studentId, nameFallback) {
++    if (!studentId) {
++        appAlert("Public profile not available.");
++        return;
++    }
++
++    if (document.getElementById('publicProfileModal')) {
++        return; // Prevent duplicate modals
++    }
++
++    if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
++    if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
++
++    let profileData = { name: nameFallback, phone: null, email: null, address: null, stats: { testsTaken: 0, avgScore: 0 } };
++
++    const closeHandler = () => {
++        if (globalProfileUnsub) { globalProfileUnsub(); globalProfileUnsub = null; }
++        if (globalResultsUnsub) { globalResultsUnsub(); globalResultsUnsub = null; }
++        const modal = document.getElementById('publicProfileModal');
++        if (modal) modal.remove();
+     };
+
+-    updateUI();
++    const overlay = createPublicProfileModal(closeHandler);
++    document.body.appendChild(overlay);
++
++    const onChange = () => updatePublicProfileUI(overlay, profileData);
++    updatePublicProfileUI(overlay, profileData);
+
+     try {
+-        globalProfileUnsub = db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
+-            if (docSnap && docSnap.exists) {
+-                // Ensure we do not overwrite the calculated stats if docSnap.data() contains a stale stats object
+-                const data = docSnap.data();
+-                if (data.name) profileData.name = data.name;
+-
+-                const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true');
+-
+-                if (canViewContact) {
+-                    if (data.photo !== undefined) profileData.photo = data.photo;
+-                    if (data.bio !== undefined) profileData.bio = data.bio;
+-                    profileData.phone = data.phone !== undefined ? data.phone : null;
+-                    profileData.email = data.email !== undefined ? data.email : null;
+-                    profileData.address = data.address !== undefined ? data.address : null;
+-                } else {
+-                    profileData.photo = null;
+-                    profileData.bio = null;
+-                    profileData.phone = null;
+-                    profileData.email = null;
+-                    profileData.address = null;
+-                }
+-
+-                updateUI();
+-            }
+-        }, err => console.error(err));
++        globalProfileUnsub = listenToStudentProfile(studentId, profileData, onChange);
+     } catch (e) {
+         console.error(e);
+     }
+
+     try {
+-        let query = db.collection('testResults').where('studentId', '==', studentId);
+-
+-        if (leaderboardPeriod === 'weekly') {
+-            const { startUTC, endUTC } = getWeeklyBoundaries();
+-            query = query.where('createdAt', '>=', startUTC)
+-                         .where('createdAt', '<=', endUTC);
+-        }
+-
+-        globalResultsUnsub = query.onSnapshot(resultsSnap => {
+-            if (resultsSnap && !resultsSnap.empty) {
+-                let docs = resultsSnap.docs;
+-                if (leaderboardFilter !== 'all') {
+-                    docs = docs.filter(doc => doc.data().testDocId === leaderboardFilter);
+-                }
+-
+-                let validDocs = bestPerStudentPerTest(docs);
+-                let totalScore = 0;
+-                validDocs.forEach(doc => {
+-                    totalScore += (doc.data().pct || 0);
+-                });
+-                profileData.stats = {
+-                    testsTaken: validDocs.length,
+-                    avgScore: validDocs.length > 0 ? Math.round(totalScore / validDocs.length) : 0
+-                };
+-            } else {
+-                profileData.stats = { testsTaken: 0, avgScore: 0 };
+-            }
+-            updateUI();
+-        }, err => console.error(err));
++        globalResultsUnsub = listenToStudentStats(studentId, profileData, onChange);
+     } catch (e) {
+         console.error(e);
+     }
