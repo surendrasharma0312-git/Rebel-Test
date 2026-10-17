@@ -2485,7 +2485,7 @@ function listenToStudentProfile(studentId, profileData, onChange) {
             const data = docSnap.data();
             if (data.name) profileData.name = data.name;
 
-            const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true');
+            const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true' || AdminAuth.isAdmin);
 
             if (canViewContact) {
                 if (data.photo !== undefined) profileData.photo = data.photo;
