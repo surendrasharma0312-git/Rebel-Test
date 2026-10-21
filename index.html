@@ -2485,17 +2485,16 @@ function listenToStudentProfile(studentId, profileData, onChange) {
             const data = docSnap.data();
             if (data.name) profileData.name = data.name;
 
+            if (data.photo !== undefined) profileData.photo = data.photo;
+            if (data.bio !== undefined) profileData.bio = data.bio;
+
             const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true' || AdminAuth.isAdmin);
 
             if (canViewContact) {
-                if (data.photo !== undefined) profileData.photo = data.photo;
-                if (data.bio !== undefined) profileData.bio = data.bio;
                 profileData.phone = data.phone !== undefined ? data.phone : null;
                 profileData.email = data.email !== undefined ? data.email : null;
                 profileData.address = data.address !== undefined ? data.address : null;
             } else {
-                profileData.photo = null;
-                profileData.bio = null;
                 profileData.phone = null;
                 profileData.email = null;
                 profileData.address = null;
