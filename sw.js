@@ -2,7 +2,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDqH_MHlDoOutizI4-Htcc18UIXouA2xDo",
+  apiKey: "PASTE_YOUR_API_KEY",
   authDomain: "rebel-test-9a453.firebaseapp.com",
   projectId: "rebel-test-9a453",
   storageBucket: "rebel-test-9a453.firebasestorage.app",
