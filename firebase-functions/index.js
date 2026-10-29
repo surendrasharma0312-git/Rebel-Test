@@ -8,8 +8,6 @@ exports.sendTestNotification = functions.firestore
     const testData = snap.data();
     const testName = testData.name || 'A new test';
 
-    console.log('New test created:', testName);
-
     const payload = {
       notification: {
         title: 'New Test Available 📚',
