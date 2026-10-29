@@ -2,6 +2,68 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
+async function sendMulticastInBatches(payload) {
+  let lastDoc = null;
+  let hasMore = true;
+  let totalTokens = 0;
+
+  while (hasMore) {
+    let query = admin.firestore().collection('fcmTokens').orderBy(admin.firestore.FieldPath.documentId()).limit(500);
+    if (lastDoc) {
+      query = query.startAfter(lastDoc);
+    }
+
+    const tokensSnapshot = await query.get();
+    if (tokensSnapshot.empty) {
+      hasMore = false;
+      break;
+    }
+
+    const tokens = [];
+    const docs = [];
+    tokensSnapshot.forEach(doc => {
+      tokens.push(doc.data().token);
+      docs.push(doc);
+    });
+
+    totalTokens += tokens.length;
+
+    const message = {
+      notification: payload.notification,
+      data: payload.data,
+      tokens: tokens
+    };
+    const response = await admin.messaging().sendEachForMulticast(message);
+
+    // Cleanup invalid tokens
+    const batch = admin.firestore().batch();
+    let hasDeletes = false;
+
+    response.results.forEach((result, index) => {
+      const error = result.error;
+      if (error) {
+        console.error('Failure sending notification to', tokens[index], error);
+        if (error.code === 'messaging/invalid-registration-token' ||
+            error.code === 'messaging/registration-token-not-registered') {
+          batch.delete(docs[index].ref);
+          hasDeletes = true;
+        }
+      }
+    });
+
+    if (hasDeletes) {
+      await batch.commit();
+    }
+
+    if (tokensSnapshot.size < 500) {
+      hasMore = false;
+    } else {
+      lastDoc = tokensSnapshot.docs[tokensSnapshot.size - 1];
+    }
+  }
+  return totalTokens;
+}
+
 exports.sendTestNotification = functions.firestore
   .document('vocabTests/{testId}')
   .onCreate(async (snap, context) => {
@@ -23,64 +85,7 @@ exports.sendTestNotification = functions.firestore
     };
 
     try {
-      let lastDoc = null;
-      let hasMore = true;
-      let totalTokens = 0;
-
-      while (hasMore) {
-        let query = admin.firestore().collection('fcmTokens').orderBy(admin.firestore.FieldPath.documentId()).limit(500);
-        if (lastDoc) {
-          query = query.startAfter(lastDoc);
-        }
-
-        const tokensSnapshot = await query.get();
-        if (tokensSnapshot.empty) {
-          hasMore = false;
-          break;
-        }
-
-        const tokens = [];
-        const docs = [];
-        tokensSnapshot.forEach(doc => {
-          tokens.push(doc.data().token);
-          docs.push(doc);
-        });
-
-        totalTokens += tokens.length;
-
-        const message = {
-          notification: payload.notification,
-          data: payload.data,
-          tokens: tokens
-        };
-        const response = await admin.messaging().sendEachForMulticast(message);
-
-        // Cleanup invalid tokens
-        const batch = admin.firestore().batch();
-        let hasDeletes = false;
-
-        response.results.forEach((result, index) => {
-          const error = result.error;
-          if (error) {
-            console.error('Failure sending notification to', tokens[index], error);
-            if (error.code === 'messaging/invalid-registration-token' ||
-                error.code === 'messaging/registration-token-not-registered') {
-              batch.delete(docs[index].ref);
-              hasDeletes = true;
-            }
-          }
-        });
-
-        if (hasDeletes) {
-          await batch.commit();
-        }
-
-        if (tokensSnapshot.size < 500) {
-          hasMore = false;
-        } else {
-          lastDoc = tokensSnapshot.docs[tokensSnapshot.size - 1];
-        }
-      }
+      const totalTokens = await sendMulticastInBatches(payload);
 
       return null;
     } catch (error) {
@@ -118,59 +123,7 @@ exports.sendUpdateNotification = functions.firestore
     };
 
     try {
-      let lastDoc = null;
-      let hasMore = true;
-
-      while (hasMore) {
-        let query = admin.firestore().collection('fcmTokens').orderBy(admin.firestore.FieldPath.documentId()).limit(500);
-        if (lastDoc) {
-          query = query.startAfter(lastDoc);
-        }
-
-        const tokensSnapshot = await query.get();
-        if (tokensSnapshot.empty) {
-          hasMore = false;
-          break;
-        }
-
-        const tokens = [];
-        const docs = [];
-        tokensSnapshot.forEach(doc => {
-          tokens.push(doc.data().token);
-          docs.push(doc);
-        });
-
-        const message = {
-          notification: payload.notification,
-          data: payload.data,
-          tokens: tokens
-        };
-        const response = await admin.messaging().sendEachForMulticast(message);
-
-        const batch = admin.firestore().batch();
-        let hasDeletes = false;
-
-        response.results.forEach((result, index) => {
-          const error = result.error;
-          if (error) {
-            if (error.code === 'messaging/invalid-registration-token' ||
-                error.code === 'messaging/registration-token-not-registered') {
-              batch.delete(docs[index].ref);
-              hasDeletes = true;
-            }
-          }
-        });
-
-        if (hasDeletes) {
-          await batch.commit();
-        }
-
-        if (tokensSnapshot.size < 500) {
-          hasMore = false;
-        } else {
-          lastDoc = tokensSnapshot.docs[tokensSnapshot.size - 1];
-        }
-      }
+      await sendMulticastInBatches(payload);
 
       return null;
     } catch (error) {
