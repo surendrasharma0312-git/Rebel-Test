@@ -1861,7 +1861,6 @@ async function subscribeToPush() {
     const reg = await navigator.serviceWorker.ready;
     const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
     if (token) {
-      console.log('FCM Token:', token);
       await saveTokenToFirestore(token);
       localStorage.setItem('pushEnabled', 'true');
       updatePushUI().catch(err => console.error('UI update failed:', err));
