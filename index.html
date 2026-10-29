@@ -674,6 +674,16 @@
       </div>
     </div>
 
+    <div class="card" id="grammarNavCardHome" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0;">📖 Grammar Academy</div>
+          <p class="muted" style="margin:6px 0 0;">Master English grammar step-by-step.</p>
+        </div>
+        <div style="font-size:24px;color:var(--primary);">→</div>
+      </div>
+    </div>
+
     <div class="card" id="mixedTestsCard" style="cursor:pointer;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
@@ -749,6 +759,47 @@
     <h2 class="section-title">🧩 Mixed Tests</h2>
     <p class="muted" id="mixedListStatusMsg" style="margin-bottom:14px;">Loading tests...</p>
     <div id="mixedTestsListPublic"></div>
+  </section>
+
+  <!-- ============ SCREEN: GRAMMAR ACADEMY ENTRY ============ -->
+  <section class="screen" id="screen-grammar">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromGrammarBtn">← Back</button>
+    </div>
+    <h2 class="section-title">📖 Grammar Academy</h2>
+    <p class="muted" style="margin-bottom:14px;">Welcome to the foundation of English grammar. Choose your learning path to begin.</p>
+
+    <div class="card" id="grammarStudentPathCard" style="cursor:pointer; border-left: 4px solid var(--success);">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0; font-size: 16px;">🎓 Student Path</div>
+          <p class="muted" style="margin:6px 0 0; font-size: 13px;">Simple explanations, guided exercises, and real-life usage.</p>
+        </div>
+        <div style="font-size:24px;color:var(--success);">→</div>
+      </div>
+    </div>
+
+    <div class="card" id="grammarTeacherPathCard" style="cursor:pointer; border-left: 4px solid var(--warning);">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0; font-size: 16px;">🍎 Teacher Path</div>
+          <p class="muted" style="margin:6px 0 0; font-size: 13px;">Grammar rules, common errors, and lesson-planning ideas.</p>
+        </div>
+        <div style="font-size:24px;color:var(--warning);">→</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN: GRAMMAR CURRICULUM ============ -->
+  <section class="screen" id="screen-grammar-path">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromGrammarPathBtn">← Paths</button>
+    </div>
+    <h2 class="section-title" id="grammarPathTitle">Curriculum</h2>
+    <p class="muted" id="grammarPathDesc" style="margin-bottom:14px;">Level-wise grammar topics.</p>
+    <div id="grammarLevelContainer">
+      <!-- Curriculum rendered here -->
+    </div>
   </section>
 
   <!-- ============ SCREEN: NOTIFICATIONS ============ -->
@@ -4286,6 +4337,118 @@ if (themeToggleBtn) {
     updateThemeIcon();
   });
 }
+
+/* =========================================================
+   GRAMMAR ACADEMY LOGIC
+========================================================= */
+
+/* Lesson Schema for future expansion:
+const lessonSchema = {
+  id: String,
+  title: String,
+  learningObjective: String,
+  simpleExplanation: String,
+  contextualExamples: [String],
+  patternDiscovery: String,
+  explicitRules: [String],
+  guidedExercises: [Object],
+  answerExplanations: [String],
+  commonMistakes: [String],
+  realLifeApplication: String,
+  revisionCheck: [Object],
+  teacherNotes: String (optional)
+};
+*/
+
+const grammarCurriculum = [
+  { id: "ga-pa1-01", level: "Pre-A1", category: "Parts of speech", title: "Introduction to Grammar Academy", objective: "Understand the basics of Grammar Academy.", status: "available" },
+  { id: "ga-a1-01", level: "A1", category: "Nouns, pronouns, articles", title: "Singular and Plural Nouns", objective: "Identify and use singular and plural nouns correctly.", status: "planned" },
+  { id: "ga-a2-01", level: "A2", category: "Verbs", title: "Present Simple Tense", objective: "Form and use the present simple tense for daily routines.", status: "planned" },
+  { id: "ga-a2-02", level: "A2", category: "Tense-aspect patterns", title: "Past Simple vs Present Perfect", objective: "Distinguish between past events and events with present relevance.", status: "planned" },
+  { id: "ga-b1-01", level: "B1", category: "Sentence structure", title: "Question Tags", objective: "Form and use question tags to confirm information.", status: "planned" },
+  { id: "ga-b1-02", level: "B1", category: "Adjectives", title: "Comparatives and Superlatives", objective: "Compare things using adjectives correctly.", status: "planned" },
+  { id: "ga-b1-03", level: "B1", category: "Prepositions", title: "Prepositions of Place and Time", objective: "Use in, on, at correctly in various contexts.", status: "planned" },
+  { id: "ga-b2-01", level: "B2", category: "Active/passive voice", title: "The Passive Voice", objective: "Form the passive voice and understand when to use it.", status: "planned" },
+  { id: "ga-b2-02", level: "B2", category: "Phrases, clauses", title: "Relative Clauses", objective: "Use defining and non-defining relative clauses.", status: "planned" },
+  { id: "ga-b2-03", level: "B2", category: "Gerunds, infinitives", title: "Verb Patterns", objective: "Know when to follow verbs with gerunds or infinitives.", status: "planned" },
+  { id: "ga-c1-01", level: "C1", category: "Conditionals", title: "Mixed Conditionals", objective: "Combine different conditional types to express complex hypotheses.", status: "planned" },
+  { id: "ga-c1-02", level: "C1", category: "Advanced modality", title: "Inversion and Emphasis", objective: "Use inversion for stylistic emphasis in writing and speech.", status: "planned" },
+  { id: "ga-c2-01", level: "C2", category: "Punctuation, natural usage", title: "Nuances of Register", objective: "Adapt language appropriately for different formal and informal contexts.", status: "planned" }
+];
+
+let currentGrammarPath = 'student'; // 'student' or 'teacher'
+
+function renderGrammarCurriculum() {
+  const container = $('grammarLevelContainer');
+  container.innerHTML = '';
+
+  const levels = ['Pre-A1', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+  levels.forEach(level => {
+    const levelTopics = grammarCurriculum.filter(t => t.level === level);
+    if (levelTopics.length === 0) return;
+
+    const levelGroup = document.createElement('div');
+    levelGroup.style.marginBottom = '20px';
+
+    const levelTitle = document.createElement('div');
+    levelTitle.className = 'section-title';
+    levelTitle.style.fontSize = '18px';
+    levelTitle.style.marginBottom = '10px';
+    levelTitle.textContent = `${level} Level`;
+    levelGroup.appendChild(levelTitle);
+
+    levelTopics.forEach(topic => {
+      const card = document.createElement('div');
+      card.className = 'hist-row';
+      card.style.cursor = topic.status === 'available' ? 'pointer' : 'default';
+      card.style.opacity = topic.status === 'available' ? '1' : '0.7';
+
+      let statusBadge = topic.status === 'available' ? '<div class="pctbadge" style="font-size:12px;">Start →</div>' : '<div style="font-size:12px; font-weight:bold; color:var(--text-muted); background:var(--surface-2); padding: 4px 8px; border-radius: 8px;">Coming Soon</div>';
+
+      card.innerHTML = `
+        <div class="left">
+          <div class="date" style="font-weight:800;color:var(--text);">${escapeHTML(topic.title)}</div>
+          <div class="meta">${escapeHTML(topic.category)} · ${escapeHTML(topic.objective)}</div>
+        </div>
+        ${statusBadge}
+      `;
+
+      if (topic.status === 'available') {
+        card.addEventListener('click', () => {
+          appAlert(`Welcome to the ${currentGrammarPath === 'student' ? 'Student' : 'Teacher'} Path for: ${topic.title}. Full lessons coming soon!`);
+        });
+      }
+
+      levelGroup.appendChild(card);
+    });
+
+    container.appendChild(levelGroup);
+  });
+}
+
+$('grammarNavCardHome').addEventListener('click', () => {
+  showScreen('screen-grammar');
+});
+$('backFromGrammarBtn').addEventListener('click', () => showScreen('screen-home'));
+
+$('grammarStudentPathCard').addEventListener('click', () => {
+  currentGrammarPath = 'student';
+  $('grammarPathTitle').textContent = '🎓 Student Path Curriculum';
+  $('grammarPathDesc').textContent = 'Learn grammar with simple explanations, patterns, and guided exercises.';
+  renderGrammarCurriculum();
+  showScreen('screen-grammar-path');
+});
+
+$('grammarTeacherPathCard').addEventListener('click', () => {
+  currentGrammarPath = 'teacher';
+  $('grammarPathTitle').textContent = '🍎 Teacher Path Curriculum';
+  $('grammarPathDesc').textContent = 'Learn accurate rules, diagnose student errors, and find lesson-planning ideas.';
+  renderGrammarCurriculum();
+  showScreen('screen-grammar-path');
+});
+
+$('backFromGrammarPathBtn').addEventListener('click', () => showScreen('screen-grammar'));
 
 /* =========================================================
    INIT
