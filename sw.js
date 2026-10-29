@@ -2,7 +2,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDqH_MHlDoOutizI4-Htcc18UIXouA2xDo",
+  apiKey: "PASTE_YOUR_API_KEY",
   authDomain: "rebel-test-9a453.firebaseapp.com",
   projectId: "rebel-test-9a453",
   storageBucket: "rebel-test-9a453.firebasestorage.app",
@@ -11,18 +11,20 @@ const firebaseConfig = {
 };
 
 try {
-  firebase.initializeApp(firebaseConfig);
-  const messaging = firebase.messaging();
-  messaging.onBackgroundMessage((payload) => {
-    console.log('[sw.js] Received background message ', payload);
-    const notificationTitle = payload.data.title || payload.notification?.title || 'Rebel Test Series';
-    const notificationOptions = {
-      body: payload.data.body || payload.notification?.body || '',
-      icon: './icon-192.png',
-      data: payload.data
-    };
-    self.registration.showNotification(notificationTitle, notificationOptions);
-  });
+  if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY") {
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
+    messaging.onBackgroundMessage((payload) => {
+      console.log('[sw.js] Received background message ', payload);
+      const notificationTitle = payload.data.title || payload.notification?.title || 'Rebel Test Series';
+      const notificationOptions = {
+        body: payload.data.body || payload.notification?.body || '',
+        icon: './icon-192.png',
+        data: payload.data
+      };
+      self.registration.showNotification(notificationTitle, notificationOptions);
+    });
+  }
 } catch(e) {
   console.error("Firebase SW init error:", e);
 }
