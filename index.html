@@ -3705,7 +3705,7 @@ async function getStudentName(forcePrompt = false) {
         <input type="text" class="modal-input" id="modalNameInput" placeholder="Enter your full name" value="${escapeHTML(name || '')}" style="margin-bottom:12px;" />
 
         <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Bio (Optional)</label>
-        <input type="text" class="modal-input" id="modalBioInput" placeholder="A short bio..." value="${escapeHTML(localStorage.getItem('vocabTestApp_studentBio') || '')}" style="margin-bottom:12px;" />
+        <input type="text" class="modal-input" id="modalBioInput" placeholder="A short bio..." value="${escapeHTML(fbData.bio || localStorage.getItem('vocabTestApp_studentBio') || '')}" style="margin-bottom:12px;" />
 
         <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Phone Number (Optional)</label>
         <input type="tel" class="modal-input" id="modalPhoneInput" placeholder="Phone Number" value="${escapeHTML(fbData.phone || '')}" style="margin-bottom:12px;" />
