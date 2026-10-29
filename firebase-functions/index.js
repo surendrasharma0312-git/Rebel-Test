@@ -84,7 +84,6 @@ exports.sendTestNotification = functions.firestore
         }
       }
 
-      console.log(`Sending notification to ${totalTokens} devices...`);
       return null;
     } catch (error) {
       console.error('Error sending push notification:', error);
