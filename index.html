@@ -131,6 +131,92 @@
   }
   /* ---------- generic screen/card ---------- */
   .screen{display:none;animation:riseIn .45s cubic-bezier(.2,.9,.25,1);}
+
+  /* ---------- grammar lesson styles ---------- */
+  .grammar-step-content {
+    animation: riseIn 0.3s ease;
+  }
+  .grammar-example {
+    background: var(--surface-2);
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border-left: 4px solid var(--primary);
+  }
+  .grammar-rule {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--coral);
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    border-left: 4px solid var(--coral);
+    font-weight: 600;
+  }
+  .grammar-mistake {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--surface-2);
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+  .grammar-mistake-wrong {
+    text-decoration: line-through;
+    color: var(--text-muted);
+  }
+  .grammar-mistake-right {
+    color: var(--success);
+    font-weight: 600;
+  }
+  .grammar-option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--surface-2);
+    border: 2px solid transparent;
+    color: var(--text);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.2s ease;
+  }
+  .grammar-option:hover {
+    border-color: var(--primary);
+  }
+  .grammar-option.selected {
+    border-color: var(--primary);
+    background: rgba(59,130,246,0.1);
+  }
+  .grammar-option.correct {
+    border-color: var(--success);
+    background: rgba(16,185,129,0.1);
+  }
+  .grammar-option.incorrect {
+    border-color: var(--coral);
+    background: rgba(239,68,68,0.1);
+  }
+  .grammar-feedback {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: 8px;
+    display: none;
+    font-size: 14px;
+  }
+  .grammar-feedback.correct {
+    display: block;
+    background: rgba(16,185,129,0.1);
+    color: var(--success);
+    border-left: 4px solid var(--success);
+  }
+  .grammar-feedback.incorrect {
+    display: block;
+    background: rgba(239,68,68,0.1);
+    color: var(--coral);
+    border-left: 4px solid var(--coral);
+  }
   .screen.active{display:block;}
   @keyframes riseIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
   .card{
@@ -799,6 +885,29 @@
     <p class="muted" id="grammarPathDesc" style="margin-bottom:14px;">Level-wise grammar topics.</p>
     <div id="grammarLevelContainer">
       <!-- Curriculum rendered here -->
+    </div>
+  </section>
+
+  <!-- ============ SCREEN: GRAMMAR LESSON ============ -->
+  <section class="screen" id="screen-grammar-lesson">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromGrammarLessonBtn">← Back</button>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      <h2 class="section-title" id="grammarLessonTitle" style="margin-top:0;">Lesson Title</h2>
+      <div id="grammarLessonProgressBar" style="height: 6px; background: var(--surface-2); border-radius: 4px; margin-top: 14px; overflow: hidden;">
+        <div id="grammarLessonProgressFill" style="height: 100%; width: 0%; background: var(--primary); transition: width 0.3s ease;"></div>
+      </div>
+    </div>
+
+    <div id="grammarLessonContent" style="min-height: 250px;">
+      <!-- Lesson steps rendered here -->
+    </div>
+
+    <div class="bottom-actions" style="display:flex; justify-content: space-between; margin-top: 20px; gap: 10px;">
+      <button class="btn btn-outline" id="grammarLessonBackBtn" style="flex: 1;">Previous</button>
+      <button class="btn btn-primary" id="grammarLessonNextBtn" style="flex: 1;">Next</button>
     </div>
   </section>
 
@@ -4357,6 +4466,42 @@ const lessonSchema = {
 };
 */
 
+const grammarLessons = {
+  "ga-pa1-01": {
+    id: "ga-pa1-01",
+    title: "Introduction to Grammar Academy",
+    learningObjective: "Learn to express your desires using 'I want...'",
+    simpleExplanation: "We use 'I want' to tell people what we need or desire. When you want a thing (a noun), you just say 'I want' + the thing. When you want to do an action (a verb), you say 'I want to' + the action.",
+    contextualExamples: [
+      { eng: "I want water.", hin: "मुझे पानी चाहिए।" },
+      { eng: "I want some food.", hin: "मुझे कुछ खाना चाहिए।" },
+      { eng: "I want to learn English.", hin: "मैं अंग्रेजी सीखना चाहता हूँ।" }
+    ],
+    patternDiscovery: "Notice how 'water' and 'some food' are things (noun phrases), but 'learn' is an action (a verb). When we use an action, we must use 'to' before it.",
+    explicitRules: [
+      "Rule 1: I want + Noun (thing) (e.g., I want an apple.)",
+      "Rule 2: I want + to + Verb (action) (e.g., I want to sleep.)",
+      "Exception/Note: Do not say 'I want learn'. Always include 'to' before the action."
+    ],
+    guidedExercises: [
+      { question: "I want ___ water.", options: ["to", "some", "learning"], answer: 1, explanation: "'water' is a thing (noun), so we don't use 'to'." },
+      { question: "I want ___ sleep.", options: ["to", "some", "water"], answer: 0, explanation: "'sleep' is an action (verb), so we must use 'to'." },
+      { question: "She asked what I need. I said, 'I want ___ apple.'", options: ["to", "an", "a"], answer: 1, explanation: "'apple' is a noun starting with a vowel sound, so we use 'an'." },
+      { question: "I want ___ play cricket.", options: ["a", "to", "some"], answer: 1, explanation: "'play' is an action, so we use 'to'." },
+      { question: "I want ___ new book.", options: ["to", "a", "some"], answer: 1, explanation: "'new book' is a thing (noun phrase), so we use 'a'." }
+    ],
+    commonMistakes: [
+      { mistake: "I want play.", correction: "I want to play." },
+      { mistake: "I want to water.", correction: "I want water." }
+    ],
+    realLifeApplication: "Imagine you are at a restaurant. How would you ask for food? You can say: 'I want a pizza, please.'",
+    revisionCheck: [
+      { question: "Which is correct?", options: ["I want to a pen.", "I want a pen.", "I want pen."], answer: 1, explanation: "'pen' is a countable noun, so it needs an article ('a'). It is not an action, so we don't use 'to'." }
+    ],
+    teacherNotes: "Ensure students understand the difference between nouns and verbs. Elicit more examples from them. Common errors stem from L1 interference where the infinitive marker 'to' is dropped. Remind them this pattern is very common but polite alternatives like 'I would like' will be introduced later."
+  }
+};
+
 const grammarCurriculum = [
   { id: "ga-pa1-01", level: "Pre-A1", category: "Parts of speech", title: "Introduction to Grammar Academy", objective: "Understand the basics of Grammar Academy.", status: "available" },
   { id: "ga-a1-01", level: "A1", category: "Nouns, pronouns, articles", title: "Singular and Plural Nouns", objective: "Identify and use singular and plural nouns correctly.", status: "planned" },
@@ -4413,7 +4558,7 @@ function renderGrammarCurriculum() {
 
       if (topic.status === 'available') {
         card.addEventListener('click', () => {
-          appAlert(`Welcome to the ${currentGrammarPath === 'student' ? 'Student' : 'Teacher'} Path for: ${topic.title}. Full lessons coming soon!`);
+          startGrammarLesson(topic.id);
         });
       }
 
@@ -4423,6 +4568,246 @@ function renderGrammarCurriculum() {
     container.appendChild(levelGroup);
   });
 }
+
+let currentLessonId = null;
+let currentLessonStepIndex = 0;
+let lessonSteps = [];
+
+function startGrammarLesson(id) {
+  const lesson = grammarLessons[id];
+  if (!lesson) {
+    appAlert("Lesson content not found.");
+    return;
+  }
+  currentLessonId = id;
+  currentLessonStepIndex = 0;
+
+  // Build lesson steps based on schema
+  lessonSteps = [];
+
+  // Step 1: Introduction & Simple Explanation
+  lessonSteps.push({
+    type: 'intro',
+    title: lesson.title,
+    content: `
+      <div class="grammar-step-content">
+        <h3 style="margin-top: 0; color: var(--primary);">Objective</h3>
+        <p>${escapeHTML(lesson.learningObjective)}</p>
+        <h3 style="color: var(--primary);">Explanation</h3>
+        <p>${escapeHTML(lesson.simpleExplanation)}</p>
+      </div>
+    `
+  });
+
+  // Step 2: Contextual Examples & Pattern
+  let examplesHtml = lesson.contextualExamples.map(ex => `
+    <div class="grammar-example">
+      <strong>${escapeHTML(ex.eng)}</strong><br>
+      <span class="muted" style="font-size: 13px;">${escapeHTML(ex.hin || '')}</span>
+    </div>
+  `).join('');
+
+  lessonSteps.push({
+    type: 'examples',
+    title: 'Examples & Pattern',
+    content: `
+      <div class="grammar-step-content">
+        ${examplesHtml}
+        <h3 style="color: var(--primary); margin-top: 15px;">Pattern Discovery</h3>
+        <p>${escapeHTML(lesson.patternDiscovery)}</p>
+      </div>
+    `
+  });
+
+  // Step 3: Explicit Rules & Common Mistakes
+  let rulesHtml = lesson.explicitRules.map(r => `<div class="grammar-rule">${escapeHTML(r)}</div>`).join('');
+  let mistakesHtml = lesson.commonMistakes.map(m => `
+    <div class="grammar-mistake">
+      <span class="grammar-mistake-wrong">❌ ${escapeHTML(m.mistake)}</span>
+      <span class="grammar-mistake-right">✅ ${escapeHTML(m.correction)}</span>
+    </div>
+  `).join('');
+
+  lessonSteps.push({
+    type: 'rules',
+    title: 'Rules & Common Mistakes',
+    content: `
+      <div class="grammar-step-content">
+        <h3 style="color: var(--primary); margin-top: 0;">Rules</h3>
+        ${rulesHtml}
+        <h3 style="color: var(--primary); margin-top: 15px;">Common Mistakes</h3>
+        ${mistakesHtml}
+      </div>
+    `
+  });
+
+  // Step 4: Guided Exercises
+  lesson.guidedExercises.forEach((ex, idx) => {
+    let optionsHtml = ex.options.map((opt, oIdx) => `
+      <button class="grammar-option" data-idx="${oIdx}" onclick="checkGrammarLessonAnswer(this, ${oIdx}, ${ex.answer}, '${escapeHTML(ex.explanation).replace(/'/g, "\\'")}')">
+        ${escapeHTML(opt)}
+      </button>
+    `).join('');
+
+    lessonSteps.push({
+      type: 'exercise',
+      title: `Practice (${idx + 1}/${lesson.guidedExercises.length})`,
+      content: `
+        <div class="grammar-step-content">
+          <p style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">${escapeHTML(ex.question)}</p>
+          <div id="exerciseOptionsContainer">${optionsHtml}</div>
+          <div id="exerciseFeedback" class="grammar-feedback"></div>
+        </div>
+      `,
+      isQuestion: true
+    });
+  });
+
+  // Step 5: Real Life & Revision
+  let revisionHtml = lesson.revisionCheck.map(rev => {
+    let opts = rev.options.map((opt, oIdx) => `
+      <button class="grammar-option" data-idx="${oIdx}" onclick="checkGrammarLessonAnswer(this, ${oIdx}, ${rev.answer}, '${escapeHTML(rev.explanation).replace(/'/g, "\\'")}')">
+        ${escapeHTML(opt)}
+      </button>
+    `).join('');
+    return `
+      <p style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">${escapeHTML(rev.question)}</p>
+      <div id="exerciseOptionsContainer">${opts}</div>
+      <div id="exerciseFeedback" class="grammar-feedback"></div>
+    `;
+  }).join('');
+
+  lessonSteps.push({
+    type: 'revision',
+    title: 'Real Life & Revision',
+    content: `
+      <div class="grammar-step-content">
+        <h3 style="color: var(--primary); margin-top: 0;">Real Life Application</h3>
+        <p>${escapeHTML(lesson.realLifeApplication)}</p>
+        <h3 style="color: var(--primary); margin-top: 15px;">Revision Check</h3>
+        ${revisionHtml}
+      </div>
+    `,
+    isQuestion: true
+  });
+
+  // Step 6: Completion (and Teacher Notes if applicable)
+  let completionContent = `
+    <div class="grammar-step-content" style="text-align: center; padding: 20px 0;">
+      <div style="font-size: 40px; margin-bottom: 15px;">🎉</div>
+      <h2 style="margin-top: 0;">Lesson Completed!</h2>
+      <p class="muted">You have successfully finished this lesson.</p>
+    </div>
+  `;
+
+  if (currentGrammarPath === 'teacher' && lesson.teacherNotes) {
+    completionContent += `
+      <div class="grammar-step-content" style="margin-top: 20px;">
+        <h3 style="color: var(--warning); border-bottom: 2px solid var(--warning); padding-bottom: 5px;">🍎 Teacher Notes</h3>
+        <p>${escapeHTML(lesson.teacherNotes)}</p>
+      </div>
+    `;
+  }
+
+  lessonSteps.push({
+    type: 'complete',
+    title: 'Lesson Complete',
+    content: completionContent
+  });
+
+  renderGrammarLessonStep();
+  showScreen('screen-grammar-lesson');
+}
+
+function renderGrammarLessonStep() {
+  const step = lessonSteps[currentLessonStepIndex];
+  if (!step) return;
+
+  $('grammarLessonTitle').textContent = step.title;
+  $('grammarLessonContent').innerHTML = step.content;
+
+  // Update progress bar
+  const progressPct = ((currentLessonStepIndex + 1) / lessonSteps.length) * 100;
+  $('grammarLessonProgressFill').style.width = `${progressPct}%`;
+
+  // Update buttons
+  $('grammarLessonBackBtn').style.display = currentLessonStepIndex === 0 ? 'none' : 'block';
+
+  if (currentLessonStepIndex === lessonSteps.length - 1) {
+    $('grammarLessonNextBtn').textContent = 'Finish';
+  } else {
+    $('grammarLessonNextBtn').textContent = 'Next';
+  }
+
+  // Disable next button on question steps until answered correctly
+  if (step.isQuestion) {
+    $('grammarLessonNextBtn').disabled = true;
+    $('grammarLessonNextBtn').style.opacity = '0.5';
+  } else {
+    $('grammarLessonNextBtn').disabled = false;
+    $('grammarLessonNextBtn').style.opacity = '1';
+  }
+}
+
+function checkGrammarLessonAnswer(btn, selectedIdx, correctIdx, explanation) {
+  const container = btn.parentElement;
+  const buttons = container.querySelectorAll('.grammar-option');
+  const feedback = container.parentElement.querySelector('.grammar-feedback');
+
+  // Reset buttons
+  buttons.forEach(b => {
+    b.classList.remove('selected', 'correct', 'incorrect');
+    b.disabled = true;
+  });
+
+  btn.classList.add('selected');
+
+  if (selectedIdx === correctIdx) {
+    btn.classList.add('correct');
+    feedback.className = 'grammar-feedback correct';
+    feedback.innerHTML = `<strong>✅ Correct!</strong> ${explanation}`;
+    $('grammarLessonNextBtn').disabled = false;
+    $('grammarLessonNextBtn').style.opacity = '1';
+  } else {
+    btn.classList.add('incorrect');
+    feedback.className = 'grammar-feedback incorrect';
+    feedback.innerHTML = `<strong>❌ Incorrect.</strong> ${explanation} <br><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" onclick="resetGrammarLessonQuestion(this)">Retry</button>`;
+  }
+}
+
+function resetGrammarLessonQuestion(retryBtn) {
+  const feedback = retryBtn.parentElement;
+  const container = feedback.parentElement.querySelector('#exerciseOptionsContainer') || feedback.parentElement.querySelector('.grammar-option').parentElement;
+  const buttons = container.querySelectorAll('.grammar-option');
+
+  buttons.forEach(b => {
+    b.classList.remove('selected', 'correct', 'incorrect');
+    b.disabled = false;
+  });
+
+  feedback.className = 'grammar-feedback';
+  feedback.innerHTML = '';
+}
+
+$('grammarLessonNextBtn').addEventListener('click', () => {
+  if (currentLessonStepIndex < lessonSteps.length - 1) {
+    currentLessonStepIndex++;
+    renderGrammarLessonStep();
+  } else {
+    showScreen('screen-grammar-path'); // Return to curriculum
+  }
+});
+
+$('grammarLessonBackBtn').addEventListener('click', () => {
+  if (currentLessonStepIndex > 0) {
+    currentLessonStepIndex--;
+    renderGrammarLessonStep();
+  }
+});
+
+$('backFromGrammarLessonBtn').addEventListener('click', () => {
+  showScreen('screen-grammar-path');
+});
 
 $('grammarNavCardHome').addEventListener('click', () => {
   showScreen('screen-grammar');
