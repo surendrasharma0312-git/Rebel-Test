@@ -55,4 +55,11 @@ test('getScore', async (t) => {
         ];
         assert.strictEqual(runScoreTest(data), 2);
     });
+
+    await t.test('should handle 0 questions without causing mathematical or divide-by-zero errors', () => {
+        const score = runScoreTest([]);
+        assert.strictEqual(score, 0);
+        assert.ok(!Number.isNaN(score));
+        assert.ok(Number.isFinite(score));
+    });
 });
