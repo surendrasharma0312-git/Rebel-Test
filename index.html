@@ -1959,7 +1959,6 @@ window.handleTogglePush = async () => {
 // Foreground messages
 if (messaging) {
   messaging.onMessage((payload) => {
-    console.log('Message received. ', payload);
     // The existing snapshot listener handles the in-app notification UI,
     // so we don't necessarily need to show a custom banner here unless desired.
     // If we wanted to, we could show a toast.
