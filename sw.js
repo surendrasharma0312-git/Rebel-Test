@@ -109,7 +109,6 @@ self.addEventListener('fetch', (event) => {
 
 
 self.addEventListener('notificationclick', function(event) {
-  console.log('Notification click received.');
   event.notification.close();
 
   let targetPath = '/';
