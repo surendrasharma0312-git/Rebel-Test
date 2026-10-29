@@ -14,7 +14,6 @@ try {
   firebase.initializeApp(firebaseConfig);
   const messaging = firebase.messaging();
   messaging.onBackgroundMessage((payload) => {
-    console.log('[sw.js] Received background message ', payload);
     const notificationTitle = payload.data.title || payload.notification?.title || 'Rebel Test Series';
     const notificationOptions = {
       body: payload.data.body || payload.notification?.body || '',
