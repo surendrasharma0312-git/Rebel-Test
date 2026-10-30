@@ -4778,14 +4778,14 @@ function renderGrammarLessonStep() {
     });
   }
 
-  // Disable next button on question steps until answered correctly
+  // Disable next button on question steps until answered
   if (step.isQuestion) {
-    let allCorrect = false;
+    let allAnswered = false;
     if (step.answersState && Object.keys(step.answersState).length === step.questionsCount) {
-      allCorrect = Object.values(step.answersState).every(s => s.isCorrect);
+      allAnswered = true;
     }
 
-    if (allCorrect) {
+    if (allAnswered) {
       $('grammarLessonNextBtn').disabled = false;
       $('grammarLessonNextBtn').style.opacity = '1';
     } else {
@@ -4802,7 +4802,7 @@ function checkGrammarLessonAnswer(btn, qIdx, selectedIdx, correctIdx, explanatio
   const step = lessonSteps[currentLessonStepIndex];
   const container = btn.parentElement;
   const buttons = container.querySelectorAll('.grammar-option');
-  const feedback = container.parentElement.querySelector('.grammar-feedback');
+  const feedback = container.nextElementSibling;
 
   // Reset buttons
   buttons.forEach(b => {
@@ -4826,18 +4826,16 @@ function checkGrammarLessonAnswer(btn, qIdx, selectedIdx, correctIdx, explanatio
     feedback.className = 'grammar-feedback correct';
     feedback.innerHTML = `<strong>✅ Correct!</strong> ${explanation}`;
 
-    // Check if all questions in step are correctly answered
-    if (step && Object.keys(step.answersState).length === step.questionsCount) {
-      const allCorrect = Object.values(step.answersState).every(s => s.isCorrect);
-      if (allCorrect) {
-        $('grammarLessonNextBtn').disabled = false;
-        $('grammarLessonNextBtn').style.opacity = '1';
-      }
-    }
   } else {
     btn.classList.add('incorrect');
     feedback.className = 'grammar-feedback incorrect';
     feedback.innerHTML = `<strong>❌ Incorrect.</strong> ${explanation} <br><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" onclick="resetGrammarLessonQuestion(this, ${qIdx})">Retry</button>`;
+  }
+
+  // Check if all questions in step are answered to enable Next
+  if (step && Object.keys(step.answersState).length === step.questionsCount) {
+    $('grammarLessonNextBtn').disabled = false;
+    $('grammarLessonNextBtn').style.opacity = '1';
   }
 }
 
@@ -4848,7 +4846,7 @@ function resetGrammarLessonQuestion(retryBtn, qIdx) {
   }
 
   const feedback = retryBtn.parentElement;
-  const container = feedback.parentElement.querySelector('.exerciseOptionsContainer') || feedback.parentElement.querySelector('.grammar-option').parentElement;
+  const container = feedback.previousElementSibling;
   const buttons = container.querySelectorAll('.grammar-option');
 
   buttons.forEach(b => {
@@ -4858,9 +4856,19 @@ function resetGrammarLessonQuestion(retryBtn, qIdx) {
 
   feedback.className = 'grammar-feedback';
   feedback.innerHTML = '';
+
+  // Disable Next button since an answer was cleared
+  if (step && step.isQuestion) {
+    $('grammarLessonNextBtn').disabled = true;
+    $('grammarLessonNextBtn').style.opacity = '0.5';
+  }
 }
 
 $('grammarLessonNextBtn').addEventListener('click', (e) => {
+  if (e.target.disabled || e.target.hasAttribute('data-debouncing')) return;
+  e.target.setAttribute('data-debouncing', 'true');
+  setTimeout(() => e.target.removeAttribute('data-debouncing'), 300);
+
   e.target.disabled = true;
   if (currentLessonStepIndex < lessonSteps.length - 1) {
     currentLessonStepIndex++;
@@ -4871,7 +4879,11 @@ $('grammarLessonNextBtn').addEventListener('click', (e) => {
   }
 });
 
-$('grammarLessonBackBtn').addEventListener('click', () => {
+$('grammarLessonBackBtn').addEventListener('click', (e) => {
+  if (e.target.hasAttribute('data-debouncing')) return;
+  e.target.setAttribute('data-debouncing', 'true');
+  setTimeout(() => e.target.removeAttribute('data-debouncing'), 300);
+
   if (currentLessonStepIndex > 0) {
     currentLessonStepIndex--;
     renderGrammarLessonStep();
