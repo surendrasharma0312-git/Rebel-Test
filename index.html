@@ -2182,7 +2182,7 @@ function renderMixedListPublic(docs){
     row.innerHTML = `
       <div class="left">
         <div class="date" style="font-weight:800;color:var(--text);">🧩 ${escapeHTML(data.name || 'Untitled Test')}</div>
-        <div class="meta">${data.questionCount+' random questions from '+data.wordCount+' words'} · ${dateStr}</div>
+        <div class="meta">${escapeHTML(data.questionCount+' random questions from '+data.wordCount+' words')} · ${escapeHTML(dateStr)}</div>
       </div>
       <div class="pctbadge" style="font-size:13px;">Start →</div>
     `;
@@ -2229,7 +2229,7 @@ function renderAdminList(docs){
       <span class="drag-handle" style="cursor:grab;font-size:18px;color:#786C9E;padding:4px 8px;touch-action:none;">☰</span>
       <div class="left" style="flex:1;">
         <div class="date" style="font-weight:800;color:var(--text);">${data.isMixed ? '🧩 ' : ''}${escapeHTML(data.name || 'Untitled Test')}</div>
-        <div class="meta">${data.isMixed ? (data.questionCount+' random Q from '+data.wordCount+' words') : ((data.wordCount || (data.words? data.words.length : 0))+' words')} · ${dateStr}</div>
+        <div class="meta">${escapeHTML(data.isMixed ? (data.questionCount+' random Q from '+data.wordCount+' words') : ((data.wordCount || (data.words? data.words.length : 0))+' words'))} · ${escapeHTML(dateStr)}</div>
       </div>
       <button class="btn btn-ghost btn-sm manage-btn" style="margin-right:8px;">✏️ Edit</button>
       <button class="btn btn-coral btn-sm delete-btn">🗑️</button>
@@ -2767,7 +2767,7 @@ function renderLeaderboardList(){
     row.innerHTML = `
       <div class="left">
         <div class="date" style="font-weight:800;color:var(--text);">${medal} ${escapeHTML(d.studentName || 'Anonymous')}</div>
-        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+escapeHTML(timeStr) : ''} · ${dateStr}</div>
+        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+escapeHTML(timeStr) : ''} · ${escapeHTML(dateStr)}</div>
       </div>
       <div class="pctbadge">${d.pct}%</div>
     `;
@@ -4029,8 +4029,8 @@ function renderHistory(){
     row.className = 'hist-row';
     row.innerHTML = `
       <div class="left">
-        <div class="date">Attempt ${attemptNum} — ${dateStr}</div>
-        <div class="meta">${h.correct}/${h.total} correct · ❌ ${h.wrong} · ⏰ ${h.timeout}${h.durationSeconds != null ? ' · ⏱️ '+formatDuration(h.durationSeconds) : ''}</div>
+        <div class="date">Attempt ${attemptNum} — ${escapeHTML(dateStr)}</div>
+        <div class="meta">${h.correct}/${h.total} correct · ❌ ${escapeHTML(h.wrong)} · ⏰ ${h.timeout}${h.durationSeconds != null ? ' · ⏱️ '+formatDuration(h.durationSeconds) : ''}</div>
       </div>
       <div class="pctbadge">${h.pct}%</div>
     `;
@@ -4765,13 +4765,13 @@ function checkGrammarLessonAnswer(btn, selectedIdx, correctIdx, explanation) {
   if (selectedIdx === correctIdx) {
     btn.classList.add('correct');
     feedback.className = 'grammar-feedback correct';
-    feedback.innerHTML = `<strong>✅ Correct!</strong> ${explanation}`;
+    feedback.innerHTML = `<strong>✅ Correct!</strong> ${escapeHTML(explanation)}`;
     $('grammarLessonNextBtn').disabled = false;
     $('grammarLessonNextBtn').style.opacity = '1';
   } else {
     btn.classList.add('incorrect');
     feedback.className = 'grammar-feedback incorrect';
-    feedback.innerHTML = `<strong>❌ Incorrect.</strong> ${explanation} <br><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" onclick="resetGrammarLessonQuestion(this)">Retry</button>`;
+    feedback.innerHTML = `<strong>❌ Incorrect.</strong> ${escapeHTML(explanation)} <br><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" onclick="resetGrammarLessonQuestion(this)">Retry</button>`;
   }
 }
 
