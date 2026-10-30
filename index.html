@@ -4644,7 +4644,7 @@ function startGrammarLesson(id) {
   // Step 4: Guided Exercises
   lesson.guidedExercises.forEach((ex, idx) => {
     let optionsHtml = ex.options.map((opt, oIdx) => `
-      <button class="grammar-option" data-idx="${oIdx}" onclick="checkGrammarLessonAnswer(this, ${oIdx}, ${ex.answer}, '${escapeHTML(ex.explanation).replace(/'/g, "\\'")}')">
+      <button class="grammar-option" data-idx="${oIdx}" onclick="checkGrammarLessonAnswer(this, 0, ${oIdx}, ${ex.answer}, '${escapeHTML(ex.explanation.replace(/'/g, "\\'"))}')">
         ${escapeHTML(opt)}
       </button>
     `).join('');
@@ -4655,25 +4655,27 @@ function startGrammarLesson(id) {
       content: `
         <div class="grammar-step-content">
           <p style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">${escapeHTML(ex.question)}</p>
-          <div id="exerciseOptionsContainer">${optionsHtml}</div>
-          <div id="exerciseFeedback" class="grammar-feedback"></div>
+          <div class="exerciseOptionsContainer">${optionsHtml}</div>
+          <div class="grammar-feedback"></div>
         </div>
       `,
-      isQuestion: true
+      isQuestion: true,
+      questionsCount: 1,
+      answersState: {}
     });
   });
 
   // Step 5: Real Life & Revision
-  let revisionHtml = lesson.revisionCheck.map(rev => {
+  let revisionHtml = lesson.revisionCheck.map((rev, rIdx) => {
     let opts = rev.options.map((opt, oIdx) => `
-      <button class="grammar-option" data-idx="${oIdx}" onclick="checkGrammarLessonAnswer(this, ${oIdx}, ${rev.answer}, '${escapeHTML(rev.explanation).replace(/'/g, "\\'")}')">
+      <button class="grammar-option" data-idx="${oIdx}" onclick="checkGrammarLessonAnswer(this, ${rIdx}, ${oIdx}, ${rev.answer}, '${escapeHTML(rev.explanation.replace(/'/g, "\\'"))}')">
         ${escapeHTML(opt)}
       </button>
     `).join('');
     return `
       <p style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">${escapeHTML(rev.question)}</p>
-      <div id="exerciseOptionsContainer">${opts}</div>
-      <div id="exerciseFeedback" class="grammar-feedback"></div>
+      <div class="exerciseOptionsContainer">${opts}</div>
+      <div class="grammar-feedback"></div>
     `;
   }).join('');
 
@@ -4688,7 +4690,9 @@ function startGrammarLesson(id) {
         ${revisionHtml}
       </div>
     `,
-    isQuestion: true
+    isQuestion: true,
+    questionsCount: lesson.revisionCheck.length,
+    answersState: {}
   });
 
   // Step 6: Completion (and Teacher Notes if applicable)
@@ -4739,17 +4743,63 @@ function renderGrammarLessonStep() {
     $('grammarLessonNextBtn').textContent = 'Next';
   }
 
+  // Restore answers state if present
+  if (step.isQuestion && step.answersState) {
+    const containers = $('grammarLessonContent').querySelectorAll('.exerciseOptionsContainer');
+    const feedbacks = $('grammarLessonContent').querySelectorAll('.grammar-feedback');
+
+    Object.keys(step.answersState).forEach(qIdxStr => {
+      const qIdx = parseInt(qIdxStr, 10);
+      const state = step.answersState[qIdx];
+      const container = containers[qIdx];
+      const feedback = feedbacks[qIdx];
+
+      if (container && feedback) {
+        const buttons = container.querySelectorAll('.grammar-option');
+        buttons.forEach(b => {
+          b.classList.remove('selected', 'correct', 'incorrect');
+          b.disabled = true;
+        });
+
+        const selectedBtn = container.querySelector(`[data-idx="${state.selectedIdx}"]`);
+        if (selectedBtn) {
+          selectedBtn.classList.add('selected');
+          if (state.isCorrect) {
+            selectedBtn.classList.add('correct');
+            feedback.className = 'grammar-feedback correct';
+            feedback.innerHTML = `<strong>✅ Correct!</strong> ${state.explanation}`;
+          } else {
+            selectedBtn.classList.add('incorrect');
+            feedback.className = 'grammar-feedback incorrect';
+            feedback.innerHTML = `<strong>❌ Incorrect.</strong> ${state.explanation} <br><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" onclick="resetGrammarLessonQuestion(this, ${qIdx})">Retry</button>`;
+          }
+        }
+      }
+    });
+  }
+
   // Disable next button on question steps until answered correctly
   if (step.isQuestion) {
-    $('grammarLessonNextBtn').disabled = true;
-    $('grammarLessonNextBtn').style.opacity = '0.5';
+    let allCorrect = false;
+    if (step.answersState && Object.keys(step.answersState).length === step.questionsCount) {
+      allCorrect = Object.values(step.answersState).every(s => s.isCorrect);
+    }
+
+    if (allCorrect) {
+      $('grammarLessonNextBtn').disabled = false;
+      $('grammarLessonNextBtn').style.opacity = '1';
+    } else {
+      $('grammarLessonNextBtn').disabled = true;
+      $('grammarLessonNextBtn').style.opacity = '0.5';
+    }
   } else {
     $('grammarLessonNextBtn').disabled = false;
     $('grammarLessonNextBtn').style.opacity = '1';
   }
 }
 
-function checkGrammarLessonAnswer(btn, selectedIdx, correctIdx, explanation) {
+function checkGrammarLessonAnswer(btn, qIdx, selectedIdx, correctIdx, explanation) {
+  const step = lessonSteps[currentLessonStepIndex];
   const container = btn.parentElement;
   const buttons = container.querySelectorAll('.grammar-option');
   const feedback = container.parentElement.querySelector('.grammar-feedback');
@@ -4761,23 +4811,44 @@ function checkGrammarLessonAnswer(btn, selectedIdx, correctIdx, explanation) {
   });
 
   btn.classList.add('selected');
+  const isCorrect = (selectedIdx === correctIdx);
 
-  if (selectedIdx === correctIdx) {
+  if (step && step.answersState) {
+    step.answersState[qIdx] = {
+      selectedIdx: selectedIdx,
+      isCorrect: isCorrect,
+      explanation: explanation
+    };
+  }
+
+  if (isCorrect) {
     btn.classList.add('correct');
     feedback.className = 'grammar-feedback correct';
     feedback.innerHTML = `<strong>✅ Correct!</strong> ${explanation}`;
-    $('grammarLessonNextBtn').disabled = false;
-    $('grammarLessonNextBtn').style.opacity = '1';
+
+    // Check if all questions in step are correctly answered
+    if (step && Object.keys(step.answersState).length === step.questionsCount) {
+      const allCorrect = Object.values(step.answersState).every(s => s.isCorrect);
+      if (allCorrect) {
+        $('grammarLessonNextBtn').disabled = false;
+        $('grammarLessonNextBtn').style.opacity = '1';
+      }
+    }
   } else {
     btn.classList.add('incorrect');
     feedback.className = 'grammar-feedback incorrect';
-    feedback.innerHTML = `<strong>❌ Incorrect.</strong> ${explanation} <br><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" onclick="resetGrammarLessonQuestion(this)">Retry</button>`;
+    feedback.innerHTML = `<strong>❌ Incorrect.</strong> ${explanation} <br><br><button class="btn btn-sm btn-outline" style="margin-top:10px;" onclick="resetGrammarLessonQuestion(this, ${qIdx})">Retry</button>`;
   }
 }
 
-function resetGrammarLessonQuestion(retryBtn) {
+function resetGrammarLessonQuestion(retryBtn, qIdx) {
+  const step = lessonSteps[currentLessonStepIndex];
+  if (step && step.answersState) {
+    delete step.answersState[qIdx];
+  }
+
   const feedback = retryBtn.parentElement;
-  const container = feedback.parentElement.querySelector('#exerciseOptionsContainer') || feedback.parentElement.querySelector('.grammar-option').parentElement;
+  const container = feedback.parentElement.querySelector('.exerciseOptionsContainer') || feedback.parentElement.querySelector('.grammar-option').parentElement;
   const buttons = container.querySelectorAll('.grammar-option');
 
   buttons.forEach(b => {
@@ -4789,12 +4860,14 @@ function resetGrammarLessonQuestion(retryBtn) {
   feedback.innerHTML = '';
 }
 
-$('grammarLessonNextBtn').addEventListener('click', () => {
+$('grammarLessonNextBtn').addEventListener('click', (e) => {
+  e.target.disabled = true;
   if (currentLessonStepIndex < lessonSteps.length - 1) {
     currentLessonStepIndex++;
     renderGrammarLessonStep();
   } else {
     showScreen('screen-grammar-path'); // Return to curriculum
+    e.target.disabled = false;
   }
 });
 
