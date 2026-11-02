@@ -3518,13 +3518,23 @@ function lockOptions(q, chosenBtn){
 $('speakQWordBtn').addEventListener('click', ()=>{
   speakWord($('speakQWordBtn').getAttribute('data-word'));
 });
-$('prevQBtn').addEventListener('click', ()=>{
+$('prevQBtn').addEventListener('click', (e)=>{
+  const btn = e.currentTarget;
+  if (btn.disabled || btn.hasAttribute('data-debouncing')) return;
+  btn.setAttribute('data-debouncing', 'true');
+  setTimeout(() => btn.removeAttribute('data-debouncing'), 300);
+
   if(currentIndex > 0){
     currentIndex--;
     renderQuestion();
   }
 });
-$('nextQBtn').addEventListener('click', ()=>{
+$('nextQBtn').addEventListener('click', (e)=>{
+  const btn = e.currentTarget;
+  if (btn.disabled || btn.hasAttribute('data-debouncing')) return;
+  btn.setAttribute('data-debouncing', 'true');
+  setTimeout(() => btn.removeAttribute('data-debouncing'), 300);
+
   if(currentIndex < currentTest.length - 1){
     currentIndex++;
     renderQuestion();
