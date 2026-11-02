@@ -4865,24 +4865,26 @@ function resetGrammarLessonQuestion(retryBtn, qIdx) {
 }
 
 $('grammarLessonNextBtn').addEventListener('click', (e) => {
-  if (e.target.disabled || e.target.hasAttribute('data-debouncing')) return;
-  e.target.setAttribute('data-debouncing', 'true');
-  setTimeout(() => e.target.removeAttribute('data-debouncing'), 300);
+  const target = e.currentTarget;
+  if (target.disabled || target.hasAttribute('data-debouncing')) return;
+  target.setAttribute('data-debouncing', 'true');
+  setTimeout(() => target.removeAttribute('data-debouncing'), 300);
 
-  e.target.disabled = true;
+  target.disabled = true;
   if (currentLessonStepIndex < lessonSteps.length - 1) {
     currentLessonStepIndex++;
     renderGrammarLessonStep();
   } else {
     showScreen('screen-grammar-path'); // Return to curriculum
-    e.target.disabled = false;
+    target.disabled = false;
   }
 });
 
 $('grammarLessonBackBtn').addEventListener('click', (e) => {
-  if (e.target.hasAttribute('data-debouncing')) return;
-  e.target.setAttribute('data-debouncing', 'true');
-  setTimeout(() => e.target.removeAttribute('data-debouncing'), 300);
+  const target = e.currentTarget;
+  if (target.hasAttribute('data-debouncing')) return;
+  target.setAttribute('data-debouncing', 'true');
+  setTimeout(() => target.removeAttribute('data-debouncing'), 300);
 
   if (currentLessonStepIndex > 0) {
     currentLessonStepIndex--;
