@@ -702,6 +702,325 @@
       document.documentElement.setAttribute('data-theme', 'dark');
     }
   })();
+
+
+
+// ==================== VERB FORMS LOGIC ====================
+$('verbFormsCard').addEventListener('click', () => {
+  showScreen('screen-verb-list');
+  loadVerbTests();
+});
+$('backFromVerbListBtn').addEventListener('click', () => showScreen('screen-home'));
+$('refreshVerbBtn').addEventListener('click', loadVerbTests);
+
+async function loadVerbTests() {
+  const statusEl = $('verbStatusMsg');
+  const listEl = $('verbTestsList');
+  listEl.innerHTML = '';
+
+  if(!firebaseReady) {
+    statusEl.innerHTML = `Rebel Test Series isn't active yet. Add your Firebase config.`;
+    return;
+  }
+
+  try {
+    const snapshot = await db.collection('verbTests').orderBy('createdAt', 'desc').get();
+    lastVerbDocs = snapshot.docs;
+    if(lastVerbDocs.length === 0) {
+      statusEl.textContent = 'No verb lists available yet.';
+      return;
+    }
+
+    // Only show published verb tests to students
+    const publishedDocs = lastVerbDocs.filter(doc => doc.data().isPublished);
+    if(publishedDocs.length === 0) {
+      statusEl.textContent = 'No verb lists available yet.';
+      return;
+    }
+
+    statusEl.textContent = `Found ${publishedDocs.length} verb lists.`;
+
+    publishedDocs.forEach(doc => {
+      const data = doc.data();
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      div.innerHTML = `
+        <div class="left">
+          <div class="title">${escapeHTML(data.name || 'Untitled List')}</div>
+          <div class="meta">📚 ${data.verbCount || 0} verbs</div>
+        </div>
+        <div class="arrow">→</div>
+      `;
+      div.addEventListener('click', () => openVerbLearn(doc.id, data));
+      listEl.appendChild(div);
+    });
+  } catch (err) {
+    console.error('Error loading verb tests:', err);
+    statusEl.textContent = 'Error loading verb lists.';
+  }
+}
+
+let currentVerbData = null;
+
+function openVerbLearn(docId, data) {
+  currentTestDocId = null; // Do not mix with leaderboard tests
+  currentVerbTestName = data.name;
+  currentVerbData = data.verbs || [];
+
+  $('verbLearnTitle').textContent = data.name || 'Verb Forms';
+  $('verbLearnMeta').textContent = `${currentVerbData.length} verbs`;
+
+  renderVerbTable(currentVerbData);
+  showScreen('screen-verb-learn');
+}
+
+function renderVerbTable(verbs) {
+  const tbody = $('verbLearnTableBody');
+  tbody.innerHTML = verbs.map(v => `
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding:10px 0;"><strong>${escapeHTML(v.v1)}</strong></td>
+      <td style="padding:10px 0;">${escapeHTML(v.v2)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v3)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v4)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v5)}</td>
+      <td style="padding:10px 0; color:var(--text-light);">${escapeHTML(v.hi)}</td>
+    </tr>
+  `).join('');
+}
+
+$('verbSearchInput').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase();
+  const filtered = currentVerbData.filter(v =>
+    v.v1.toLowerCase().includes(q) ||
+    v.hi.toLowerCase().includes(q) ||
+    v.v2.toLowerCase().includes(q) ||
+    v.v3.toLowerCase().includes(q)
+  );
+  renderVerbTable(filtered);
+});
+
+$('backFromVerbLearnBtn').addEventListener('click', () => showScreen('screen-verb-list'));
+
+$('startVerbTestBtn').addEventListener('click', () => {
+  const type = $('verbTestTypeSelect').value;
+  let bank = [];
+
+  if (type === 'mixed' || type === 'all') {
+    const modes = ['v2', 'v3', 'v4', 'v5', 'hi'];
+    let allQs = [];
+    for(const m of modes) {
+      allQs = allQs.concat(buildVerbQuestionBank(currentVerbData, m));
+    }
+    bank = allQs;
+  } else {
+    bank = buildVerbQuestionBank(currentVerbData, type);
+  }
+
+  if (bank.length < 1) {
+    alert('Not enough valid words to generate this test.');
+    return;
+  }
+
+  currentTest = shuffle(bank).slice(0, 20).map((q, idx)=>({
+    ...q,
+    originalIndex: idx,
+    options: shuffle(q.options),
+    userAnswer: null,
+    status: null
+  }));
+
+  currentTestName = currentVerbTestName;
+  currentTestQuestionCount = currentTest.length;
+  currentTestDocId = null;
+
+  $('qCounter').textContent = `Question 1 of ${currentTest.length}`;
+  $('qCorrectCount').textContent = `✅ 0`;
+  currentQuestionIndex = 0;
+  correctAnswers = 0;
+  lastReportFilter = 'all';
+  $('reviewTopBtn').style.display = 'none';
+  $('reviewTopCount').textContent = '0';
+
+  renderQuestion(currentQuestionIndex);
+  showScreen('screen-test');
+});
+
+// Admin Manage Verbs
+$('manageVerbsNavCard').addEventListener('click', () => {
+  showScreen('screen-verb-manage');
+  loadAdminVerbLists();
+});
+$('backFromVerbManageBtn').addEventListener('click', () => showScreen('screen-admin'));
+
+async function loadAdminVerbLists() {
+  const listEl = $('verbManageList');
+  listEl.innerHTML = 'Loading...';
+
+  try {
+    const snapshot = await db.collection('verbTests').orderBy('createdAt', 'desc').get();
+    if(snapshot.empty) {
+      listEl.innerHTML = '<p>No verb lists uploaded yet.</p>';
+      return;
+    }
+    listEl.innerHTML = '';
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const item = document.createElement('div');
+      item.className = 'list-item';
+
+      const publishText = data.isPublished ? 'Published' : 'Unpublished';
+      const publishColor = data.isPublished ? 'var(--success)' : 'var(--warning-text)';
+      const publishAction = data.isPublished ? 'Unpublish' : 'Publish';
+
+      item.innerHTML = `
+        <div class="left">
+          <div class="title">${escapeHTML(data.name || 'Untitled')}</div>
+          <div class="meta">📚 ${data.verbCount || 0} verbs <span style="margin-left:8px;color:${publishColor};font-weight:600;">${publishText}</span></div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;">
+          <button class="btn btn-ghost btn-sm" onclick="togglePublishVerbList('${doc.id}', ${data.isPublished})">${publishAction}</button>
+          <button class="btn btn-ghost btn-sm" onclick="renameVerbList('${doc.id}', '${escapeHTML(data.name || '').replace(/'/g, "\'")}')">Rename</button>
+          <button class="btn btn-coral btn-sm" onclick="deleteVerbList('${doc.id}')">Delete</button>
+        </div>
+      `;
+      listEl.appendChild(item);
+    });
+  } catch (err) {
+    listEl.innerHTML = 'Error loading lists.';
+  }
+}
+
+window.togglePublishVerbList = async function(id, isPublished) {
+  try {
+    await db.collection('verbTests').doc(id).update({ isPublished: !isPublished });
+    loadAdminVerbLists();
+  } catch(e) {
+    alert('Error toggling publish status');
+  }
+};
+
+window.renameVerbList = async function(id, oldName) {
+  const newName = prompt('Enter new verb list name:', oldName);
+  if(!newName || !newName.trim()) return;
+  try {
+    await db.collection('verbTests').doc(id).update({ name: newName.trim() });
+    loadAdminVerbLists();
+  } catch(e) {
+    alert('Error renaming list');
+  }
+};
+
+window.deleteVerbList = async function(id) {
+  if(!confirm('Are you sure you want to delete this verb list?')) return;
+  try {
+    await db.collection('verbTests').doc(id).delete();
+    loadAdminVerbLists();
+  } catch(e) {
+    alert('Error deleting list');
+  }
+};
+
+// Upload logic
+$('fileInputVerbAdmin').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+
+  if (file.type === 'application/pdf' && window.extractTextFromPdf) {
+    try {
+      const text = await extractTextFromPdf(file);
+      processVerbUpload(text);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to parse PDF.');
+    }
+  } else {
+    // Fallback for text files if accepted
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      processVerbUpload(text);
+    };
+    reader.readAsText(file);
+  }
+});
+$('uploadZoneVerbAdmin').addEventListener('click', () => $('fileInputVerbAdmin').click());
+
+$('parsePasteVerbAdminBtn').addEventListener('click', () => {
+  const text = $('pasteTextVerbAdmin').value.trim();
+  if(!text) return;
+  processVerbUpload(text);
+});
+
+function processVerbUpload(text) {
+  const name = $('verbNameInput').value.trim();
+  if(!name) {
+    alert('Please enter a Verb List Name before uploading.');
+    return;
+  }
+
+  const parseResult = parseVerbText(text);
+  const verbs = parseResult.verbs;
+
+  if(verbs.length === 0) {
+    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">No valid verb rows found. Make sure columns are separated by pipes, tabs, or commas.<br>Total: ${parseResult.totalCount}, Invalid: ${parseResult.invalidCount}, Duplicates: ${parseResult.duplicateCount}</div>`;
+    return;
+  }
+
+  pendingAdminVerbPublish = { name, verbs };
+
+  // Render Preview
+  $('verbPreviewTitle').textContent = `Preview: ${name}`;
+  $('verbPreviewCount').innerHTML = `<strong>Total Words:</strong> ${parseResult.totalCount}<br><strong>Valid:</strong> ${verbs.length}<br><strong>Invalid Rows:</strong> ${parseResult.invalidCount}<br><strong>Duplicates Ignored:</strong> ${parseResult.duplicateCount}`;
+
+  const tbody = $('verbPreviewTableBody');
+  tbody.innerHTML = verbs.map(v => `
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding:10px 0;"><strong>${escapeHTML(v.v1)}</strong></td>
+      <td style="padding:10px 0;">${escapeHTML(v.v2)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v3)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v4)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v5)}</td>
+      <td style="padding:10px 0; color:var(--text-light);">${escapeHTML(v.hi)}</td>
+    </tr>
+  `).join('');
+
+  $('verbPublishBanner').style.display = 'block';
+  $('verbPublishBtnRow').style.display = 'flex';
+  $('verbPreviewError').innerHTML = '';
+
+  showScreen('screen-verb-preview');
+}
+
+$('backFromVerbPreviewBtn').addEventListener('click', () => showScreen('screen-admin'));
+$('backToVerbUploadBtn').addEventListener('click', () => showScreen('screen-admin'));
+
+$('publishVerbBtn').addEventListener('click', async () => {
+  if(!pendingAdminVerbPublish) return;
+  const btn = $('publishVerbBtn');
+  btn.disabled = true;
+  btn.textContent = 'Publishing...';
+
+  try {
+    await db.collection('verbTests').add({
+      name: pendingAdminVerbPublish.name,
+      verbs: pendingAdminVerbPublish.verbs,
+      verbCount: pendingAdminVerbPublish.verbs.length,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      isPublished: true
+    });
+    alert('Verb list published successfully!');
+    pendingAdminVerbPublish = null;
+    showScreen('screen-admin');
+  } catch (err) {
+    console.error(err);
+    $('verbPreviewError').innerHTML = `<div class="error-box">Failed to publish.</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📤 Publish Verb List';
+  }
+});
+// ==================== END VERB FORMS LOGIC ====================
+
 </script>
 
 </head>
@@ -755,6 +1074,17 @@
         <div>
           <div class="section-title" style="margin:0;">🎯 Rebel Test Series</div>
           <p class="muted" id="cloudSummaryMsg" style="margin:6px 0 0;">Loading tests...</p>
+        </div>
+        <div style="font-size:24px;color:var(--primary);">→</div>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:24px;margin-bottom:12px;">📚 VERB FORMS</div>
+    <div class="card" id="verbFormsCard" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0;">📚 Browse Verb Lists</div>
+          <p class="muted" id="verbSummaryMsg" style="margin:6px 0 0;">Loading verb lists...</p>
         </div>
         <div style="font-size:24px;color:var(--primary);">→</div>
       </div>
@@ -837,6 +1167,112 @@
   </section>
 
   <!-- ============ SCREEN 1B-3: MIXED TESTS (public list) ============ -->
+  <!-- ============ SCREEN: VERB FORMS LIST ============ -->
+  <section class="screen" id="screen-verb-list">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromVerbListBtn">← Back</button>
+      <button class="icon-btn" id="refreshVerbBtn" title="Refresh">🔄</button>
+    </div>
+    <h2 class="section-title">📚 Verb Forms</h2>
+    <p class="muted" id="verbStatusMsg" style="margin-bottom:14px;">Loading verb lists...</p>
+    <div id="verbTestsList"></div>
+  </section>
+
+  <!-- ============ SCREEN: VERB FORMS LEARN ============ -->
+  <section class="screen" id="screen-verb-learn">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromVerbLearnBtn">← Back</button>
+    </div>
+    <div class="card">
+      <h2 class="section-title" id="verbLearnTitle" style="margin-bottom:4px;">Verb Forms</h2>
+      <p class="muted" id="verbLearnMeta" style="margin-bottom:14px;"></p>
+
+      <div class="search-bar" style="margin-bottom: 12px; position: relative;">
+        <input type="text" id="verbSearchInput" placeholder="Search verbs..." style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:10px 12px;font-family:inherit;font-size:14px;background:var(--surface-2);color:var(--text);" />
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="leaderboard-table" style="width:100%; text-align:left; white-space:nowrap; margin-bottom:14px;">
+          <thead>
+            <tr>
+              <th style="padding-bottom:8px;">V1</th>
+              <th style="padding-bottom:8px;">V2</th>
+              <th style="padding-bottom:8px;">V3</th>
+              <th style="padding-bottom:8px;">V4</th>
+              <th style="padding-bottom:8px;">V5</th>
+              <th style="padding-bottom:8px;">Hindi</th>
+            </tr>
+          </thead>
+          <tbody id="verbLearnTableBody">
+          </tbody>
+        </table>
+      </div>
+
+      <div class="btn-row" style="margin-top:6px; flex-wrap:wrap;">
+        <button class="btn btn-primary" id="startVerbTestBtn" style="flex:1;">Start Test</button>
+      </div>
+      <div style="margin-top:12px;">
+        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Select test type:</label>
+        <select id="verbTestTypeSelect" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:10px;font-family:inherit;font-size:14px;background:var(--surface-2);color:var(--text);">
+          <option value="mixed">Mixed Practice</option>
+          <option value="v2">V2 (Past Simple) Only</option>
+          <option value="v3">V3 (Past Participle) Only</option>
+          <option value="v4">V4 (-ing Form) Only</option>
+          <option value="v5">V5 (Third Person) Only</option>
+          <option value="hi">Hindi Meaning Only</option>
+          <option value="all">All Forms Practice</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN: VERB FORMS PREVIEW ============ -->
+  <section class="screen" id="screen-verb-preview">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromVerbPreviewBtn">← Back</button>
+    </div>
+    <h2 class="section-title">Preview Verb List</h2>
+    <div class="card">
+      <div class="section-title" id="verbPreviewTitle">Verb List Preview</div>
+      <p class="muted" id="verbPreviewCount"></p>
+
+      <div style="overflow-x:auto;">
+        <table class="leaderboard-table" style="width:100%; text-align:left; white-space:nowrap; margin-bottom:14px;">
+          <thead>
+            <tr>
+              <th style="padding-bottom:8px;">V1</th>
+              <th style="padding-bottom:8px;">V2</th>
+              <th style="padding-bottom:8px;">V3</th>
+              <th style="padding-bottom:8px;">V4</th>
+              <th style="padding-bottom:8px;">V5</th>
+              <th style="padding-bottom:8px;">Hindi</th>
+            </tr>
+          </thead>
+          <tbody id="verbPreviewTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div id="verbPreviewError"></div>
+    <div id="verbPublishBanner" style="display:none;" class="practice-banner">🔓 This verb list hasn't been published yet.</div>
+    <div class="btn-row" id="verbPublishBtnRow" style="margin-top:6px;margin-bottom:10px;display:none;">
+      <button class="btn btn-mint" id="publishVerbBtn">📤 Publish Verb List</button>
+    </div>
+    <div class="btn-row" style="margin-top:6px;">
+      <button class="btn btn-ghost" id="backToVerbUploadBtn">Upload Different</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN: VERB FORMS MANAGE ============ -->
+  <section class="screen" id="screen-verb-manage">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromVerbManageBtn">← Back</button>
+    </div>
+    <h2 class="section-title">Manage Verb Lists</h2>
+    <p class="muted" style="margin-bottom:14px;">Rename, unpublish, or delete uploaded verb lists.</p>
+    <div id="verbManageList"></div>
+  </section>
+
   <section class="screen" id="screen-mixed-list">
     <div class="top-actions">
       <button class="btn btn-ghost" id="backFromMixedListBtn">← Back</button>
@@ -970,6 +1406,44 @@
         </div>
         <div style="font-size:24px;color:var(--primary);">→</div>
       </div>
+    </div>
+
+    <div class="card" id="manageVerbsNavCard" style="cursor:pointer;">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div>
+          <div class="section-title" style="margin:0;">📚 Manage Verb Lists</div>
+          <p class="muted" style="margin:6px 0 0;">Upload, rename, or delete verb forms lists</p>
+        </div>
+        <div style="font-size:24px;color:var(--primary);">→</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:14px;">Add a New Verb Test</div>
+      <div class="upload-zone" id="uploadZoneVerbAdmin">
+        <span class="emoji">📄</span>
+        <strong>Upload Verb Forms File</strong>
+        <span>Tap to choose your PDF</span>
+      </div>
+      <input type="file" id="fileInputVerbAdmin" accept="application/pdf" />
+      <div style="margin-top:12px;">
+        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Test name (visible to everyone)</label>
+        <input type="text" id="verbNameInput" placeholder="e.g. Daily Use Verbs" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);" />
+      </div>
+
+      <div class="or-row"><div class="line"></div>OR<div class="line"></div></div>
+
+      <div class="paste-box">
+        <textarea id="pasteTextVerbAdmin" placeholder="Or paste your verb forms here, e.g.&#10;Go – Went – Gone – Going – Goes"></textarea>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-ghost" id="parsePasteVerbAdminBtn">Use Pasted Text</button>
+      </div>
+
+      <div class="format-hint">
+        Supported formats: <code>Go – Went – Gone – Going – Goes</code>, <code>Go | Went | Gone | Going | Goes</code>, tab-separated, and comma-separated. Hindi is optional.
+      </div>
+      <div id="uploadStatusVerbAdmin"></div>
     </div>
 
     <div class="card">
@@ -1301,6 +1775,12 @@ let db = null;
 let firebaseReady = false;
 let messaging = null;
 
+let currentVerbTest = null;
+let currentVerbTestName = null;
+let pendingAdminVerbPublish = null;
+let unsubscribeVerbTests = null;
+let lastVerbDocs = [];
+
 try{
   if(firebaseConfig.apiKey && firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY"){
     firebase.initializeApp(firebaseConfig);
@@ -1579,6 +2059,48 @@ function parseLine(line) {
   if(meaning.length === 0) return null;
 
   return { word, meaning };
+}
+
+function parseVerbLine(line) {
+  if(/^(page|unit|chapter|lesson|s\.?no|verb list|vocabulary|v1|v2|v3|v4|v5|hindi)\b/i.test(line) && line.length < 30) return 'skip';
+  // Support -, –, |, tabs, commas, or multiple spaces
+  const parts = line.split(/\s*(?:\||,|\t|	|–|-|\s{2,})\s*/).filter(Boolean);
+  if(parts.length >= 5) {
+    return {
+      v1: parts[0],
+      v2: parts[1],
+      v3: parts[2],
+      v4: parts[3],
+      v5: parts[4],
+      hi: parts.length > 5 ? parts.slice(5).join(' ') : ''
+    };
+  }
+  return null;
+}
+
+function parseVerbText(text) {
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+  const verbs = [];
+  const seen = new Set();
+  let invalidCount = 0;
+  let duplicateCount = 0;
+
+  for (const line of lines) {
+    const parsed = parseVerbLine(line);
+    if (parsed === 'skip') continue;
+    if (!parsed) {
+      invalidCount++;
+      continue;
+    }
+    const key = parsed.v1.toLowerCase();
+    if (seen.has(key)) {
+      duplicateCount++;
+      continue;
+    }
+    seen.add(key);
+    verbs.push(parsed); // NO SPELLING MODIFICATION
+  }
+  return { verbs, invalidCount, duplicateCount, totalCount: lines.length };
 }
 
 function parseVocabText(text){
@@ -3246,6 +3768,57 @@ $('backFromManageBtn').addEventListener('click', ()=> showScreen('screen-admin')
 /* =========================================================
    QUESTION GENERATION
 ========================================================= */
+function buildVerbQuestionBank(verbList, mode) {
+  const bank = [];
+  if (verbList.length < 4) return bank;
+
+  verbList.forEach(v => {
+    let questionText = "";
+    let correct = "";
+    let distractors = [];
+    let pool = [];
+
+    if (mode === 'v2') {
+      questionText = `What is the V2 (Past Simple) form of "${v.v1}"?`;
+      correct = v.v2;
+      pool = [...new Set(verbList.map(x => x.v2))];
+    } else if (mode === 'v3') {
+      questionText = `What is the V3 (Past Participle) form of "${v.v1}"?`;
+      correct = v.v3;
+      pool = [...new Set(verbList.map(x => x.v3))];
+    } else if (mode === 'v4') {
+      questionText = `What is the V4 (-ing form) of "${v.v1}"?`;
+      correct = v.v4;
+      pool = [...new Set(verbList.map(x => x.v4))];
+    } else if (mode === 'v5') {
+      questionText = `What is the V5 (Third Person) form of "${v.v1}"?`;
+      correct = v.v5;
+      pool = [...new Set(verbList.map(x => x.v5))];
+    } else if (mode === 'hi') {
+      if (!v.hi) return; // Skip if no Hindi meaning
+      // HINDI MEANING -> V1 as requested
+      questionText = `What is the V1 (Base Form) for "${v.hi}"?`;
+      correct = v.v1;
+      pool = [...new Set(verbList.map(x => x.v1))];
+    }
+
+    if (pool.length < 4) return;
+    pool = pool.filter(x => x.toLowerCase() !== correct.toLowerCase());
+    pool = shuffle(pool);
+    distractors = pool.slice(0, 3);
+
+    if (distractors.length < 3) return;
+
+    bank.push({
+      en: (mode === 'hi') ? v.hi : v.v1,
+      correct: correct,
+      options: shuffle([correct, ...distractors]),
+      question: questionText
+    });
+  });
+  return bank;
+}
+
 function buildQuestionBank(vocabList){
   const allMeanings = vocabList.map(v=>v.hi);
   const uniqueMeanings = [...new Set(allMeanings)];
