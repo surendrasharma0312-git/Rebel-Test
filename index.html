@@ -2062,8 +2062,40 @@ function parseLine(line) {
 
 function parseVerbLine(line) {
   if(/^(page|unit|chapter|lesson|s\.?no|verb list|vocabulary|v1|v2|v3|v4|v5|hindi)\b/i.test(line) && line.length < 30) return 'skip';
-  // Support -, –, |, tabs, commas, or multiple spaces
-  const parts = line.split(/\s*(?:\||,|\t|	|–|-|\s{2,})\s*/).filter(Boolean);
+
+  let parts = [];
+
+  if (line.includes('|')) {
+    parts = line.split(/\s*\|\s*/).filter(Boolean);
+  } else if (line.includes('\t')) {
+    parts = line.split(/\s*\t\s*/).filter(Boolean);
+  } else {
+    if (line.includes(',')) {
+      // Look for a dash with spaces around it first.
+      const matchWithSpace = line.match(/^(.*?)\s+[-–]\s+(.*)$/);
+
+      if (matchWithSpace && matchWithSpace[2].includes(',')) {
+        const v1 = matchWithSpace[1].trim();
+        const restParts = matchWithSpace[2].split(/\s*,\s*/).map(s => s.trim()).filter(Boolean);
+        parts = [v1, ...restParts];
+      } else {
+        // Look for the first dash
+        const firstDashIndex = line.search(/[-–]/);
+        if (firstDashIndex !== -1 && line.substring(firstDashIndex).includes(',')) {
+            const v1 = line.substring(0, firstDashIndex).trim();
+            const rest = line.substring(firstDashIndex + 1).trim();
+            const restParts = rest.split(/\s*,\s*/).map(s => s.trim()).filter(Boolean);
+            parts = [v1, ...restParts];
+        } else {
+            parts = line.split(/\s*,\s*/).filter(Boolean);
+        }
+      }
+    } else {
+       // Support hyphen-separated, multiple spaces, etc.
+       parts = line.split(/\s*(?:–|-|\s{2,})\s*/).filter(Boolean);
+    }
+  }
+
   if(parts.length >= 5) {
     return {
       v1: parts[0],
