@@ -947,24 +947,30 @@ $('uploadZoneVerbAdmin').addEventListener('click', () => $('fileInputVerbAdmin')
 
 $('parsePasteVerbAdminBtn').addEventListener('click', () => {
   const text = $('pasteTextVerbAdmin').value.trim();
-  if(!text) return;
+  if(!text) {
+    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">Please paste some text first.</div>`;
+    return;
+  }
   processVerbUpload(text);
 });
 
 function processVerbUpload(text) {
   const name = $('verbNameInput').value.trim();
   if(!name) {
-    alert('Please enter a Verb List Name before uploading.');
+    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">Please enter a Verb List Name before uploading.</div>`;
     return;
   }
 
   const parseResult = parseVerbText(text);
   const verbs = parseResult.verbs;
 
-  if(verbs.length === 0) {
-    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">No valid verb rows found. Make sure columns are separated by pipes, tabs, or commas.<br>Total: ${parseResult.totalCount}, Invalid: ${parseResult.invalidCount}, Duplicates: ${parseResult.duplicateCount}</div>`;
+  if(verbs.length === 0 || parseResult.invalidCount > 0) {
+    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">${verbs.length === 0 ? "No valid verb rows found." : "Parsing failed: Invalid rows detected."} Make sure columns are separated by pipes, tabs, or commas.<br>Total: ${parseResult.totalCount}, Valid: ${verbs.length}, Invalid: ${parseResult.invalidCount}, Duplicates: ${parseResult.duplicateCount}</div>`;
+    $('uploadStatusVerbAdmin').scrollIntoView({ behavior: 'smooth' });
     return;
   }
+
+  $('uploadStatusVerbAdmin').innerHTML = ''; // clear errors
 
   pendingAdminVerbPublish = { name, verbs };
 
@@ -1269,6 +1275,34 @@ $('publishVerbBtn').addEventListener('click', async () => {
     </div>
     <h2 class="section-title">Manage Verb Lists</h2>
     <p class="muted" style="margin-bottom:14px;">Rename, unpublish, or delete uploaded verb lists.</p>
+    <div class="card">
+          <div class="section-title" style="margin-bottom:14px;">Add a New Verb Test</div>
+          <div class="upload-zone" id="uploadZoneVerbAdmin">
+            <span class="emoji">📄</span>
+            <strong>Upload Verb Forms File</strong>
+            <span>Tap to choose your PDF</span>
+          </div>
+          <input type="file" id="fileInputVerbAdmin" accept="application/pdf" />
+          <div style="margin-top:12px;">
+            <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Test name (visible to everyone)</label>
+            <input type="text" id="verbNameInput" placeholder="e.g. Daily Use Verbs" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);" />
+          </div>
+
+          <div class="or-row"><div class="line"></div>OR<div class="line"></div></div>
+
+          <div class="paste-box">
+            <textarea id="pasteTextVerbAdmin" placeholder="Or paste your verb forms here, e.g.&#10;Go – Went – Gone – Going – Goes"></textarea>
+          </div>
+          <div style="margin-top:10px;">
+            <button class="btn btn-ghost" id="parsePasteVerbAdminBtn">Use Pasted Text</button>
+          </div>
+
+          <div class="format-hint">
+            Supported formats: <code>Go – Went – Gone – Going – Goes</code>, <code>Go | Went | Gone | Going | Goes</code>, tab-separated, and comma-separated. Hindi is optional.
+          </div>
+          <div id="uploadStatusVerbAdmin"></div>
+        </div>
+
     <div id="verbManageList"></div>
   </section>
 
@@ -1417,33 +1451,6 @@ $('publishVerbBtn').addEventListener('click', async () => {
       </div>
     </div>
 
-    <div class="card">
-      <div class="section-title" style="margin-bottom:14px;">Add a New Verb Test</div>
-      <div class="upload-zone" id="uploadZoneVerbAdmin">
-        <span class="emoji">📄</span>
-        <strong>Upload Verb Forms File</strong>
-        <span>Tap to choose your PDF</span>
-      </div>
-      <input type="file" id="fileInputVerbAdmin" accept="application/pdf" />
-      <div style="margin-top:12px;">
-        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Test name (visible to everyone)</label>
-        <input type="text" id="verbNameInput" placeholder="e.g. Daily Use Verbs" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);" />
-      </div>
-
-      <div class="or-row"><div class="line"></div>OR<div class="line"></div></div>
-
-      <div class="paste-box">
-        <textarea id="pasteTextVerbAdmin" placeholder="Or paste your verb forms here, e.g.&#10;Go – Went – Gone – Going – Goes"></textarea>
-      </div>
-      <div style="margin-top:10px;">
-        <button class="btn btn-ghost" id="parsePasteVerbAdminBtn">Use Pasted Text</button>
-      </div>
-
-      <div class="format-hint">
-        Supported formats: <code>Go – Went – Gone – Going – Goes</code>, <code>Go | Went | Gone | Going | Goes</code>, tab-separated, and comma-separated. Hindi is optional.
-      </div>
-      <div id="uploadStatusVerbAdmin"></div>
-    </div>
 
     <div class="card">
       <div class="section-title" style="margin-bottom:14px;">Add a New Test</div>
