@@ -2104,13 +2104,17 @@ function parseVerbLine(line) {
   }
 
   if(parts.length >= 5) {
+    const cleanVerb = (w) => {
+      let cleaned = w.replace(/^(?:s\.?no\.?\s*\d+\s*)/i, '');
+      return cleanWord(cleaned);
+    };
     return {
-      v1: parts[0],
-      v2: parts[1],
-      v3: parts[2],
-      v4: parts[3],
-      v5: parts[4],
-      hi: parts.length > 5 ? parts.slice(5).join(' ') : ''
+      v1: cleanVerb(parts[0]),
+      v2: cleanVerb(parts[1]),
+      v3: cleanVerb(parts[2]),
+      v4: cleanVerb(parts[3]),
+      v5: cleanVerb(parts[4]),
+      hi: parts.length > 5 ? cleanVerb(parts.slice(5).join(' ')) : ''
     };
   }
   return null;
