@@ -705,327 +705,7 @@
 
 
 
-// ==================== VERB FORMS LOGIC ====================
-$('verbFormsCard').addEventListener('click', () => {
-  showScreen('screen-verb-list');
-  loadVerbTests();
-});
-$('backFromVerbListBtn').addEventListener('click', () => showScreen('screen-home'));
-$('refreshVerbBtn').addEventListener('click', loadVerbTests);
 
-async function loadVerbTests() {
-  const statusEl = $('verbStatusMsg');
-  const listEl = $('verbTestsList');
-  listEl.innerHTML = '';
-
-  if(!firebaseReady) {
-    statusEl.innerHTML = `Rebel Test Series isn't active yet. Add your Firebase config.`;
-    return;
-  }
-
-  try {
-    const snapshot = await db.collection('verbTests').orderBy('createdAt', 'desc').get();
-    lastVerbDocs = snapshot.docs;
-    if(lastVerbDocs.length === 0) {
-      statusEl.textContent = 'No verb lists available yet.';
-      return;
-    }
-
-    // Only show published verb tests to students
-    const publishedDocs = lastVerbDocs.filter(doc => doc.data().isPublished);
-    if(publishedDocs.length === 0) {
-      statusEl.textContent = 'No verb lists available yet.';
-      return;
-    }
-
-    statusEl.textContent = `Found ${publishedDocs.length} verb lists.`;
-
-    publishedDocs.forEach(doc => {
-      const data = doc.data();
-      const div = document.createElement('div');
-      div.className = 'list-item';
-      div.innerHTML = `
-        <div class="left">
-          <div class="title">${escapeHTML(data.name || 'Untitled List')}</div>
-          <div class="meta">📚 ${data.verbCount || 0} verbs</div>
-        </div>
-        <div class="arrow">→</div>
-      `;
-      div.addEventListener('click', () => openVerbLearn(doc.id, data));
-      listEl.appendChild(div);
-    });
-  } catch (err) {
-    console.error('Error loading verb tests:', err);
-    statusEl.textContent = 'Error loading verb lists.';
-  }
-}
-
-let currentVerbData = null;
-
-function openVerbLearn(docId, data) {
-  currentTestDocId = null; // Do not mix with leaderboard tests
-  currentVerbTestName = data.name;
-  currentVerbData = data.verbs || [];
-
-  $('verbLearnTitle').textContent = data.name || 'Verb Forms';
-  $('verbLearnMeta').textContent = `${currentVerbData.length} verbs`;
-
-  renderVerbTable(currentVerbData);
-  showScreen('screen-verb-learn');
-}
-
-function renderVerbTable(verbs) {
-  const tbody = $('verbLearnTableBody');
-  tbody.innerHTML = verbs.map(v => `
-    <tr style="border-bottom: 1px solid var(--border);">
-      <td style="padding:10px 0;"><strong>${escapeHTML(v.v1)}</strong></td>
-      <td style="padding:10px 0;">${escapeHTML(v.v2)}</td>
-      <td style="padding:10px 0;">${escapeHTML(v.v3)}</td>
-      <td style="padding:10px 0;">${escapeHTML(v.v4)}</td>
-      <td style="padding:10px 0;">${escapeHTML(v.v5)}</td>
-      <td style="padding:10px 0; color:var(--text-light);">${escapeHTML(v.hi)}</td>
-    </tr>
-  `).join('');
-}
-
-$('verbSearchInput').addEventListener('input', (e) => {
-  const q = e.target.value.toLowerCase();
-  const filtered = currentVerbData.filter(v =>
-    v.v1.toLowerCase().includes(q) ||
-    v.hi.toLowerCase().includes(q) ||
-    v.v2.toLowerCase().includes(q) ||
-    v.v3.toLowerCase().includes(q)
-  );
-  renderVerbTable(filtered);
-});
-
-$('backFromVerbLearnBtn').addEventListener('click', () => showScreen('screen-verb-list'));
-
-$('startVerbTestBtn').addEventListener('click', () => {
-  const type = $('verbTestTypeSelect').value;
-  let bank = [];
-
-  if (type === 'mixed' || type === 'all') {
-    const modes = ['v2', 'v3', 'v4', 'v5', 'hi'];
-    let allQs = [];
-    for(const m of modes) {
-      allQs = allQs.concat(buildVerbQuestionBank(currentVerbData, m));
-    }
-    bank = allQs;
-  } else {
-    bank = buildVerbQuestionBank(currentVerbData, type);
-  }
-
-  if (bank.length < 1) {
-    alert('Not enough valid words to generate this test.');
-    return;
-  }
-
-  currentTest = shuffle(bank).slice(0, 20).map((q, idx)=>({
-    ...q,
-    originalIndex: idx,
-    options: shuffle(q.options),
-    userAnswer: null,
-    status: null
-  }));
-
-  currentTestName = currentVerbTestName;
-  currentTestQuestionCount = currentTest.length;
-  currentTestDocId = null;
-
-  $('qCounter').textContent = `Question 1 of ${currentTest.length}`;
-  $('qCorrectCount').textContent = `✅ 0`;
-  currentQuestionIndex = 0;
-  correctAnswers = 0;
-  lastReportFilter = 'all';
-  $('reviewTopBtn').style.display = 'none';
-  $('reviewTopCount').textContent = '0';
-
-  renderQuestion(currentQuestionIndex);
-  showScreen('screen-test');
-});
-
-// Admin Manage Verbs
-$('manageVerbsNavCard').addEventListener('click', () => {
-  showScreen('screen-verb-manage');
-  loadAdminVerbLists();
-});
-$('backFromVerbManageBtn').addEventListener('click', () => showScreen('screen-admin'));
-
-async function loadAdminVerbLists() {
-  const listEl = $('verbManageList');
-  listEl.innerHTML = 'Loading...';
-
-  try {
-    const snapshot = await db.collection('verbTests').orderBy('createdAt', 'desc').get();
-    if(snapshot.empty) {
-      listEl.innerHTML = '<p>No verb lists uploaded yet.</p>';
-      return;
-    }
-    listEl.innerHTML = '';
-    snapshot.docs.forEach(doc => {
-      const data = doc.data();
-      const item = document.createElement('div');
-      item.className = 'list-item';
-
-      const publishText = data.isPublished ? 'Published' : 'Unpublished';
-      const publishColor = data.isPublished ? 'var(--success)' : 'var(--warning-text)';
-      const publishAction = data.isPublished ? 'Unpublish' : 'Publish';
-
-      item.innerHTML = `
-        <div class="left">
-          <div class="title">${escapeHTML(data.name || 'Untitled')}</div>
-          <div class="meta">📚 ${data.verbCount || 0} verbs <span style="margin-left:8px;color:${publishColor};font-weight:600;">${publishText}</span></div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;">
-          <button class="btn btn-ghost btn-sm" onclick="togglePublishVerbList('${doc.id}', ${data.isPublished})">${publishAction}</button>
-          <button class="btn btn-ghost btn-sm" onclick="renameVerbList('${doc.id}', '${escapeHTML(data.name || '').replace(/'/g, "\'")}')">Rename</button>
-          <button class="btn btn-coral btn-sm" onclick="deleteVerbList('${doc.id}')">Delete</button>
-        </div>
-      `;
-      listEl.appendChild(item);
-    });
-  } catch (err) {
-    listEl.innerHTML = 'Error loading lists.';
-  }
-}
-
-window.togglePublishVerbList = async function(id, isPublished) {
-  try {
-    await db.collection('verbTests').doc(id).update({ isPublished: !isPublished });
-    loadAdminVerbLists();
-  } catch(e) {
-    alert('Error toggling publish status');
-  }
-};
-
-window.renameVerbList = async function(id, oldName) {
-  const newName = prompt('Enter new verb list name:', oldName);
-  if(!newName || !newName.trim()) return;
-  try {
-    await db.collection('verbTests').doc(id).update({ name: newName.trim() });
-    loadAdminVerbLists();
-  } catch(e) {
-    alert('Error renaming list');
-  }
-};
-
-window.deleteVerbList = async function(id) {
-  if(!confirm('Are you sure you want to delete this verb list?')) return;
-  try {
-    await db.collection('verbTests').doc(id).delete();
-    loadAdminVerbLists();
-  } catch(e) {
-    alert('Error deleting list');
-  }
-};
-
-// Upload logic
-$('fileInputVerbAdmin').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if(!file) return;
-
-  if (file.type === 'application/pdf' && window.extractTextFromPdf) {
-    try {
-      const text = await extractTextFromPdf(file);
-      processVerbUpload(text);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to parse PDF.');
-    }
-  } else {
-    // Fallback for text files if accepted
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      processVerbUpload(text);
-    };
-    reader.readAsText(file);
-  }
-});
-$('uploadZoneVerbAdmin').addEventListener('click', () => $('fileInputVerbAdmin').click());
-
-$('parsePasteVerbAdminBtn').addEventListener('click', () => {
-  const text = $('pasteTextVerbAdmin').value.trim();
-  if(!text) {
-    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">Please paste some text first.</div>`;
-    return;
-  }
-  processVerbUpload(text);
-});
-
-function processVerbUpload(text) {
-  const name = $('verbNameInput').value.trim();
-  if(!name) {
-    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">Please enter a Verb List Name before uploading.</div>`;
-    return;
-  }
-
-  const parseResult = parseVerbText(text);
-  const verbs = parseResult.verbs;
-
-  if(verbs.length === 0 || parseResult.invalidCount > 0) {
-    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">${verbs.length === 0 ? "No valid verb rows found." : "Parsing failed: Invalid rows detected."} Make sure columns are separated by pipes, tabs, or commas.<br>Total: ${parseResult.totalCount}, Valid: ${verbs.length}, Invalid: ${parseResult.invalidCount}, Duplicates: ${parseResult.duplicateCount}</div>`;
-    $('uploadStatusVerbAdmin').scrollIntoView({ behavior: 'smooth' });
-    return;
-  }
-
-  $('uploadStatusVerbAdmin').innerHTML = ''; // clear errors
-
-  pendingAdminVerbPublish = { name, verbs };
-
-  // Render Preview
-  $('verbPreviewTitle').textContent = `Preview: ${name}`;
-  $('verbPreviewCount').innerHTML = `<strong>Total Words:</strong> ${parseResult.totalCount}<br><strong>Valid:</strong> ${verbs.length}<br><strong>Invalid Rows:</strong> ${parseResult.invalidCount}<br><strong>Duplicates Ignored:</strong> ${parseResult.duplicateCount}`;
-
-  const tbody = $('verbPreviewTableBody');
-  tbody.innerHTML = verbs.map(v => `
-    <tr style="border-bottom: 1px solid var(--border);">
-      <td style="padding:10px 0;"><strong>${escapeHTML(v.v1)}</strong></td>
-      <td style="padding:10px 0;">${escapeHTML(v.v2)}</td>
-      <td style="padding:10px 0;">${escapeHTML(v.v3)}</td>
-      <td style="padding:10px 0;">${escapeHTML(v.v4)}</td>
-      <td style="padding:10px 0;">${escapeHTML(v.v5)}</td>
-      <td style="padding:10px 0; color:var(--text-light);">${escapeHTML(v.hi)}</td>
-    </tr>
-  `).join('');
-
-  $('verbPublishBanner').style.display = 'block';
-  $('verbPublishBtnRow').style.display = 'flex';
-  $('verbPreviewError').innerHTML = '';
-
-  showScreen('screen-verb-preview');
-}
-
-$('backFromVerbPreviewBtn').addEventListener('click', () => showScreen('screen-admin'));
-$('backToVerbUploadBtn').addEventListener('click', () => showScreen('screen-admin'));
-
-$('publishVerbBtn').addEventListener('click', async () => {
-  if(!pendingAdminVerbPublish) return;
-  const btn = $('publishVerbBtn');
-  btn.disabled = true;
-  btn.textContent = 'Publishing...';
-
-  try {
-    await db.collection('verbTests').add({
-      name: pendingAdminVerbPublish.name,
-      verbs: pendingAdminVerbPublish.verbs,
-      verbCount: pendingAdminVerbPublish.verbs.length,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      isPublished: true
-    });
-    alert('Verb list published successfully!');
-    pendingAdminVerbPublish = null;
-    showScreen('screen-admin');
-  } catch (err) {
-    console.error(err);
-    $('verbPreviewError').innerHTML = `<div class="error-box">Failed to publish.</div>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '📤 Publish Verb List';
-  }
-});
-// ==================== END VERB FORMS LOGIC ====================
 
 </script>
 
@@ -5543,6 +5223,328 @@ $('grammarTeacherPathCard').addEventListener('click', () => {
 });
 
 $('backFromGrammarPathBtn').addEventListener('click', () => showScreen('screen-grammar'));
+
+// ==================== VERB FORMS LOGIC ====================
+$('verbFormsCard').addEventListener('click', () => {
+  showScreen('screen-verb-list');
+  loadVerbTests();
+});
+$('backFromVerbListBtn').addEventListener('click', () => showScreen('screen-home'));
+$('refreshVerbBtn').addEventListener('click', loadVerbTests);
+
+async function loadVerbTests() {
+  const statusEl = $('verbStatusMsg');
+  const listEl = $('verbTestsList');
+  listEl.innerHTML = '';
+
+  if(!firebaseReady) {
+    statusEl.innerHTML = `Rebel Test Series isn't active yet. Add your Firebase config.`;
+    return;
+  }
+
+  try {
+    const snapshot = await db.collection('verbTests').orderBy('createdAt', 'desc').get();
+    lastVerbDocs = snapshot.docs;
+    if(lastVerbDocs.length === 0) {
+      statusEl.textContent = 'No verb lists available yet.';
+      return;
+    }
+
+    // Only show published verb tests to students
+    const publishedDocs = lastVerbDocs.filter(doc => doc.data().isPublished);
+    if(publishedDocs.length === 0) {
+      statusEl.textContent = 'No verb lists available yet.';
+      return;
+    }
+
+    statusEl.textContent = `Found ${publishedDocs.length} verb lists.`;
+
+    publishedDocs.forEach(doc => {
+      const data = doc.data();
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      div.innerHTML = `
+        <div class="left">
+          <div class="title">${escapeHTML(data.name || 'Untitled List')}</div>
+          <div class="meta">📚 ${data.verbCount || 0} verbs</div>
+        </div>
+        <div class="arrow">→</div>
+      `;
+      div.addEventListener('click', () => openVerbLearn(doc.id, data));
+      listEl.appendChild(div);
+    });
+  } catch (err) {
+    console.error('Error loading verb tests:', err);
+    statusEl.textContent = 'Error loading verb lists.';
+  }
+}
+
+let currentVerbData = null;
+
+function openVerbLearn(docId, data) {
+  currentTestDocId = null; // Do not mix with leaderboard tests
+  currentVerbTestName = data.name;
+  currentVerbData = data.verbs || [];
+
+  $('verbLearnTitle').textContent = data.name || 'Verb Forms';
+  $('verbLearnMeta').textContent = `${currentVerbData.length} verbs`;
+
+  renderVerbTable(currentVerbData);
+  showScreen('screen-verb-learn');
+}
+
+function renderVerbTable(verbs) {
+  const tbody = $('verbLearnTableBody');
+  tbody.innerHTML = verbs.map(v => `
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding:10px 0;"><strong>${escapeHTML(v.v1)}</strong></td>
+      <td style="padding:10px 0;">${escapeHTML(v.v2)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v3)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v4)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v5)}</td>
+      <td style="padding:10px 0; color:var(--text-light);">${escapeHTML(v.hi)}</td>
+    </tr>
+  `).join('');
+}
+
+$('verbSearchInput').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase();
+  const filtered = currentVerbData.filter(v =>
+    v.v1.toLowerCase().includes(q) ||
+    v.hi.toLowerCase().includes(q) ||
+    v.v2.toLowerCase().includes(q) ||
+    v.v3.toLowerCase().includes(q)
+  );
+  renderVerbTable(filtered);
+});
+
+$('backFromVerbLearnBtn').addEventListener('click', () => showScreen('screen-verb-list'));
+
+$('startVerbTestBtn').addEventListener('click', () => {
+  const type = $('verbTestTypeSelect').value;
+  let bank = [];
+
+  if (type === 'mixed' || type === 'all') {
+    const modes = ['v2', 'v3', 'v4', 'v5', 'hi'];
+    let allQs = [];
+    for(const m of modes) {
+      allQs = allQs.concat(buildVerbQuestionBank(currentVerbData, m));
+    }
+    bank = allQs;
+  } else {
+    bank = buildVerbQuestionBank(currentVerbData, type);
+  }
+
+  if (bank.length < 1) {
+    alert('Not enough valid words to generate this test.');
+    return;
+  }
+
+  currentTest = shuffle(bank).slice(0, 20).map((q, idx)=>({
+    ...q,
+    originalIndex: idx,
+    options: shuffle(q.options),
+    userAnswer: null,
+    status: null
+  }));
+
+  currentTestName = currentVerbTestName;
+  currentTestQuestionCount = currentTest.length;
+  currentTestDocId = null;
+
+  $('qCounter').textContent = `Question 1 of ${currentTest.length}`;
+  $('qCorrectCount').textContent = `✅ 0`;
+  currentQuestionIndex = 0;
+  correctAnswers = 0;
+  lastReportFilter = 'all';
+  $('reviewTopBtn').style.display = 'none';
+  $('reviewTopCount').textContent = '0';
+
+  renderQuestion(currentQuestionIndex);
+  showScreen('screen-test');
+});
+
+// Admin Manage Verbs
+$('manageVerbsNavCard').addEventListener('click', () => {
+  showScreen('screen-verb-manage');
+  loadAdminVerbLists();
+});
+$('backFromVerbManageBtn').addEventListener('click', () => showScreen('screen-admin'));
+
+async function loadAdminVerbLists() {
+  const listEl = $('verbManageList');
+  listEl.innerHTML = 'Loading...';
+
+  try {
+    const snapshot = await db.collection('verbTests').orderBy('createdAt', 'desc').get();
+    if(snapshot.empty) {
+      listEl.innerHTML = '<p>No verb lists uploaded yet.</p>';
+      return;
+    }
+    listEl.innerHTML = '';
+    snapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const item = document.createElement('div');
+      item.className = 'list-item';
+
+      const publishText = data.isPublished ? 'Published' : 'Unpublished';
+      const publishColor = data.isPublished ? 'var(--success)' : 'var(--warning-text)';
+      const publishAction = data.isPublished ? 'Unpublish' : 'Publish';
+
+      item.innerHTML = `
+        <div class="left">
+          <div class="title">${escapeHTML(data.name || 'Untitled')}</div>
+          <div class="meta">📚 ${data.verbCount || 0} verbs <span style="margin-left:8px;color:${publishColor};font-weight:600;">${publishText}</span></div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;">
+          <button class="btn btn-ghost btn-sm" onclick="togglePublishVerbList('${doc.id}', ${data.isPublished})">${publishAction}</button>
+          <button class="btn btn-ghost btn-sm" onclick="renameVerbList('${doc.id}', '${escapeHTML(data.name || '').replace(/'/g, "\'")}')">Rename</button>
+          <button class="btn btn-coral btn-sm" onclick="deleteVerbList('${doc.id}')">Delete</button>
+        </div>
+      `;
+      listEl.appendChild(item);
+    });
+  } catch (err) {
+    listEl.innerHTML = 'Error loading lists.';
+  }
+}
+
+window.togglePublishVerbList = async function(id, isPublished) {
+  try {
+    await db.collection('verbTests').doc(id).update({ isPublished: !isPublished });
+    loadAdminVerbLists();
+  } catch(e) {
+    alert('Error toggling publish status');
+  }
+};
+
+window.renameVerbList = async function(id, oldName) {
+  const newName = prompt('Enter new verb list name:', oldName);
+  if(!newName || !newName.trim()) return;
+  try {
+    await db.collection('verbTests').doc(id).update({ name: newName.trim() });
+    loadAdminVerbLists();
+  } catch(e) {
+    alert('Error renaming list');
+  }
+};
+
+window.deleteVerbList = async function(id) {
+  if(!confirm('Are you sure you want to delete this verb list?')) return;
+  try {
+    await db.collection('verbTests').doc(id).delete();
+    loadAdminVerbLists();
+  } catch(e) {
+    alert('Error deleting list');
+  }
+};
+
+// Upload logic
+$('fileInputVerbAdmin').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+
+  if (file.type === 'application/pdf' && window.extractTextFromPdf) {
+    try {
+      const text = await extractTextFromPdf(file);
+      processVerbUpload(text);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to parse PDF.');
+    }
+  } else {
+    // Fallback for text files if accepted
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      processVerbUpload(text);
+    };
+    reader.readAsText(file);
+  }
+});
+$('uploadZoneVerbAdmin').addEventListener('click', () => $('fileInputVerbAdmin').click());
+
+$('parsePasteVerbAdminBtn').addEventListener('click', () => {
+  const text = $('pasteTextVerbAdmin').value.trim();
+  if(!text) {
+    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">Please paste some text first.</div>`;
+    return;
+  }
+  processVerbUpload(text);
+});
+
+function processVerbUpload(text) {
+  const name = $('verbNameInput').value.trim();
+  if(!name) {
+    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">Please enter a Verb List Name before uploading.</div>`;
+    return;
+  }
+
+  const parseResult = parseVerbText(text);
+  const verbs = parseResult.verbs;
+
+  if(verbs.length === 0 || parseResult.invalidCount > 0) {
+    $('uploadStatusVerbAdmin').innerHTML = `<div class="error-box">${verbs.length === 0 ? "No valid verb rows found." : "Parsing failed: Invalid rows detected."} Make sure columns are separated by pipes, tabs, or commas.<br>Total: ${parseResult.totalCount}, Valid: ${verbs.length}, Invalid: ${parseResult.invalidCount}, Duplicates: ${parseResult.duplicateCount}</div>`;
+    $('uploadStatusVerbAdmin').scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+
+  $('uploadStatusVerbAdmin').innerHTML = ''; // clear errors
+
+  pendingAdminVerbPublish = { name, verbs };
+
+  // Render Preview
+  $('verbPreviewTitle').textContent = `Preview: ${name}`;
+  $('verbPreviewCount').innerHTML = `<strong>Total Words:</strong> ${parseResult.totalCount}<br><strong>Valid:</strong> ${verbs.length}<br><strong>Invalid Rows:</strong> ${parseResult.invalidCount}<br><strong>Duplicates Ignored:</strong> ${parseResult.duplicateCount}`;
+
+  const tbody = $('verbPreviewTableBody');
+  tbody.innerHTML = verbs.map(v => `
+    <tr style="border-bottom: 1px solid var(--border);">
+      <td style="padding:10px 0;"><strong>${escapeHTML(v.v1)}</strong></td>
+      <td style="padding:10px 0;">${escapeHTML(v.v2)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v3)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v4)}</td>
+      <td style="padding:10px 0;">${escapeHTML(v.v5)}</td>
+      <td style="padding:10px 0; color:var(--text-light);">${escapeHTML(v.hi)}</td>
+    </tr>
+  `).join('');
+
+  $('verbPublishBanner').style.display = 'block';
+  $('verbPublishBtnRow').style.display = 'flex';
+  $('verbPreviewError').innerHTML = '';
+
+  showScreen('screen-verb-preview');
+}
+
+$('backFromVerbPreviewBtn').addEventListener('click', () => showScreen('screen-admin'));
+$('backToVerbUploadBtn').addEventListener('click', () => showScreen('screen-admin'));
+
+$('publishVerbBtn').addEventListener('click', async () => {
+  if(!pendingAdminVerbPublish) return;
+  const btn = $('publishVerbBtn');
+  btn.disabled = true;
+  btn.textContent = 'Publishing...';
+
+  try {
+    await db.collection('verbTests').add({
+      name: pendingAdminVerbPublish.name,
+      verbs: pendingAdminVerbPublish.verbs,
+      verbCount: pendingAdminVerbPublish.verbs.length,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      isPublished: true
+    });
+    alert('Verb list published successfully!');
+    pendingAdminVerbPublish = null;
+    showScreen('screen-admin');
+  } catch (err) {
+    console.error(err);
+    $('verbPreviewError').innerHTML = `<div class="error-box">Failed to publish.</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📤 Publish Verb List';
+  }
+});
+// ==================== END VERB FORMS LOGIC ====================
 
 /* =========================================================
    INIT
