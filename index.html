@@ -5246,8 +5246,8 @@ async function loadVerbTests() {
   try {
     // Get all and filter locally to avoid needing a composite index on Firestore
     let snapshot = await db.collection('vocabTests').orderBy('createdAt', 'desc').get();
-    snapshot.docs = snapshot.docs.filter(doc => doc.data().isVerbTest === true);
-    lastVerbDocs = snapshot.docs;
+    const verbDocs = snapshot.docs.filter(doc => doc.data().isVerbTest === true);
+    lastVerbDocs = verbDocs;
     if(lastVerbDocs.length === 0) {
       statusEl.textContent = 'No verb lists available yet.';
       return;
@@ -5381,13 +5381,13 @@ async function loadAdminVerbLists() {
   try {
     // Get all and filter locally to avoid needing a composite index on Firestore
     let snapshot = await db.collection('vocabTests').orderBy('createdAt', 'desc').get();
-    snapshot.docs = snapshot.docs.filter(doc => doc.data().isVerbTest === true);
-    if(snapshot.docs.length === 0) {
+    const verbDocs = snapshot.docs.filter(doc => doc.data().isVerbTest === true);
+    if(verbDocs.length === 0) {
       listEl.innerHTML = '<p>No verb lists uploaded yet.</p>';
       return;
     }
     listEl.innerHTML = '';
-    snapshot.docs.forEach(doc => {
+    verbDocs.forEach(doc => {
       const data = doc.data();
       const item = document.createElement('div');
       item.className = 'list-item';
