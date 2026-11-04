@@ -1305,13 +1305,15 @@
       <button class="filter-btn" data-period="all-time">All-Time</button>
     </div>
     <div id="leaderboardWeekLabel" style="text-align: center; font-size: 14px; margin-bottom: 10px; color: var(--text-light); font-weight: bold;"></div>
-    <div class="filter-row" id="leaderboardModuleFilterRow" style="margin-bottom:10px;">
-      <button class="filter-btn active" data-module="all">All Modules</button>
-      <button class="filter-btn" data-module="vocab">Word Meaning</button>
-      <button class="filter-btn" data-module="verb">Verb Forms</button>
-    </div>
-    <div class="filter-row" id="leaderboardTestFilterRow" style="margin-bottom:14px;">
-      <button class="filter-btn active" data-test="all">All Tests</button>
+    <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+      <select id="leaderboardModuleSelect" style="flex:1; border-radius:var(--radius-sm); border:1.5px solid var(--border); padding:10px; font-family:inherit; font-size:14px; background:var(--surface-2); color:var(--text);">
+        <option value="all">All Modules</option>
+        <option value="vocab">Word Meaning</option>
+        <option value="verb">Verb Forms</option>
+      </select>
+      <select id="leaderboardTestSelect" style="flex:1; border-radius:var(--radius-sm); border:1.5px solid var(--border); padding:10px; font-family:inherit; font-size:14px; background:var(--surface-2); color:var(--text);">
+        <option value="all">All Tests</option>
+      </select>
     </div>
     <div id="leaderboardList"></div>
   </section>
@@ -2821,7 +2823,8 @@ function loadLeaderboard(){
     }
   } else {
     weekLabelEl.style.display = 'none';
-    query = query.orderBy('createdAt', 'desc').limit(300);
+    // Remove query limitations for All-Time to recover all historical data,
+    // including legacy records missing 'createdAt' or using string dates.
   }
 
   leaderboardUnsubscribe = query.onSnapshot((snap) => {
@@ -2844,23 +2847,35 @@ function renderLeaderboardFilters(){
 
     if(d.testDocId && !seen.has(d.testDocId)) seen.set(d.testDocId, d.testName || 'Untitled Test');
   });
-  const row = $('leaderboardTestFilterRow');
-  row.innerHTML = `<button class="filter-btn ${leaderboardFilter==='all'?'active':''}" data-test="all">All Tests</button>`;
+  const select = $('leaderboardTestSelect');
+  // Preserve the current value if it's still available in the new options
+  const previousValue = leaderboardFilter;
+
+  let optionsHTML = `<option value="all">All Tests</option>`;
   seen.forEach((name, id)=>{
-    const btn = document.createElement('button');
-    btn.className = `filter-btn ${leaderboardFilter===id?'active':''}`;
-    btn.setAttribute('data-test', id);
-    btn.textContent = name;
-    row.appendChild(btn);
+    optionsHTML += `<option value="${escapeHTML(id)}">${escapeHTML(name)}</option>`;
   });
-  row.querySelectorAll('.filter-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      leaderboardFilter = btn.getAttribute('data-test');
-      renderLeaderboardFilters();
-      renderLeaderboardList();
-    });
-  });
+  select.innerHTML = optionsHTML;
+
+  if (seen.has(previousValue)) {
+    select.value = previousValue;
+  } else {
+    leaderboardFilter = 'all';
+    select.value = 'all';
+  }
 }
+
+$('leaderboardModuleSelect').addEventListener('change', (e) => {
+  leaderboardModuleFilter = e.target.value;
+  leaderboardFilter = 'all'; // reset test filter when module changes
+  renderLeaderboardFilters();
+  renderLeaderboardList();
+});
+
+$('leaderboardTestSelect').addEventListener('change', (e) => {
+  leaderboardFilter = e.target.value;
+  renderLeaderboardList();
+});
 
 document.querySelectorAll('#leaderboardPeriodFilterRow .filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -2871,16 +2886,6 @@ document.querySelectorAll('#leaderboardPeriodFilterRow .filter-btn').forEach(btn
   });
 });
 
-document.querySelectorAll('#leaderboardModuleFilterRow .filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#leaderboardModuleFilterRow .filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    leaderboardModuleFilter = btn.getAttribute('data-module');
-    leaderboardFilter = 'all'; // reset test filter when module changes
-    renderLeaderboardFilters();
-    renderLeaderboardList();
-  });
-});
 
 
 function bestPerStudentPerTest(docs){
@@ -2889,7 +2894,7 @@ function bestPerStudentPerTest(docs){
   const best = new Map();
   docs.forEach(doc=>{
     const d = doc.data();
-    if (d.total === 0) return;
+    if (!d.total || Number(d.total) === 0 || Number.isNaN(d.pct) || d.pct === Infinity) return;
     const testId = d.testDocId || d.testId || d.testName || doc.id;
     const key = `${(d.studentName||'').trim().toLowerCase()}|${testId}`;
 
@@ -3183,7 +3188,8 @@ $('leaderboardNavCard').addEventListener('click', ()=>{
   showScreen('screen-leaderboard');
   leaderboardFilter = 'all';
   leaderboardModuleFilter = 'all';
-  document.querySelectorAll('#leaderboardModuleFilterRow .filter-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-module') === 'all'));
+  $('leaderboardModuleSelect').value = 'all';
+  $('leaderboardTestSelect').value = 'all';
   loadLeaderboard();
 });
 $('leaderboardNavCardHome').addEventListener('click', ()=>{
@@ -3191,7 +3197,8 @@ $('leaderboardNavCardHome').addEventListener('click', ()=>{
   showScreen('screen-leaderboard');
   leaderboardFilter = 'all';
   leaderboardModuleFilter = 'all';
-  document.querySelectorAll('#leaderboardModuleFilterRow .filter-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-module') === 'all'));
+  $('leaderboardModuleSelect').value = 'all';
+  $('leaderboardTestSelect').value = 'all';
   loadLeaderboard();
 });
 $('backFromLeaderboardBtn').addEventListener('click', ()=> {
