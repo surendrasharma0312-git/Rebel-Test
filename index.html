@@ -1573,6 +1573,7 @@ try{
   if(firebaseConfig.apiKey && firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY"){
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
+    db.enablePersistence().catch(err => console.error("Firestore persistence failed", err));
     messaging = typeof firebase.messaging === 'function' ? firebase.messaging() : null;
     firebaseReady = true;
   }
@@ -2888,7 +2889,10 @@ function bestPerStudentPerTest(docs){
   const best = new Map();
   docs.forEach(doc=>{
     const d = doc.data();
-    const key = `${(d.studentName||'').trim().toLowerCase()}|${d.testDocId}`;
+    if (d.total === 0) return;
+    const testId = d.testDocId || d.testId || d.testName || doc.id;
+    const key = `${(d.studentName||'').trim().toLowerCase()}|${testId}`;
+
     const existing = best.get(key);
     if(!existing){
       best.set(key, doc);
@@ -4140,6 +4144,7 @@ function playResultAudio(){
 }
 
 function submitScoreToFirebase(stats){
+  stats.attemptId = stats.attemptId || generateUUID();
   saveHistoryEntry({
     date: new Date().toISOString(),
     ...stats
@@ -4159,6 +4164,12 @@ function finishTest(){
     }
   });
   const total = currentTest.length;
+  if (total === 0) {
+    appAlert("Test contains no questions. Result not saved.");
+    showScreen("screen-home");
+    return;
+  }
+
   const correct = currentTest.filter(q=>q.status==='correct').length;
   const wrong = currentTest.filter(q=>q.status==='wrong').length;
   const timeout = currentTest.filter(q=>q.status==='timeout').length;
@@ -4454,13 +4465,13 @@ async function getStudentName(forcePrompt = false) {
   });
 }
 
-async function saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds }){
+async function saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds, attemptId }){
   if(!currentTestDocId || !firebaseReady) return;
   const studentName = await getStudentName();
   if(!studentName) return; // they skipped entering a name — don't save
   const testType = window._activeTestMode === 'verb' ? 'verb' : 'vocab';
   try{
-    await db.collection('testResults').add({
+    await db.collection('testResults').doc(attemptId).set({
       studentName,
       studentId: ensureStudentId(),
       testDocId: currentTestDocId,
@@ -4471,26 +4482,58 @@ async function saveToLeaderboard({ total, correct, wrong, timeout, pct, duration
     });
   }catch(err){
     console.error('Leaderboard save failed', err);
+    appAlert("Your score was saved locally, but there was an issue syncing it to the leaderboard.");
   }
 }
 
-function renderHistory(){
-  let history = [];
+async function renderHistory(){
+  const listEl = $('historyList');
+  listEl.innerHTML = '<div class="empty-state"><span class="emoji">⏳</span>Loading history...</div>';
+
+  let localHistory = [];
   try{
     const raw = localStorage.getItem(STORAGE_HISTORY);
-    if(raw) history = JSON.parse(raw);
+    if(raw) localHistory = JSON.parse(raw);
   }catch(e){}
 
-  const listEl = $('historyList');
+  let cloudHistory = [];
+  if (firebaseReady) {
+    try {
+      const snap = await db.collection('testResults')
+        .where('studentId', '==', ensureStudentId())
+        .get();
+      cloudHistory = snap.docs.map(doc => ({
+         attemptId: doc.id,
+         date: doc.data().createdAt ? doc.data().createdAt.toDate().toISOString() : new Date().toISOString(),
+         ...doc.data()
+      }));
+    } catch (e) {
+      console.error("Failed to fetch cloud history", e);
+    }
+  }
+
+  const mergedMap = new Map();
+  localHistory.forEach(h => {
+     if (h.attemptId) mergedMap.set(h.attemptId, h);
+     else mergedMap.set(JSON.stringify(h), h);
+  });
+  cloudHistory.forEach(h => {
+     mergedMap.set(h.attemptId, h);
+  });
+
+  const mergedHistory = Array.from(mergedMap.values())
+     .filter(h => h.total > 0)
+     .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
   listEl.innerHTML = '';
 
-  if(history.length === 0){
+  if(mergedHistory.length === 0){
     listEl.innerHTML = `<div class="empty-state"><span class="emoji">📈</span>No attempts yet. Take a test to start building your history!</div>`;
     return;
   }
 
-  history.slice().reverse().forEach((h, revIdx)=>{
-    const attemptNum = history.length - revIdx;
+  mergedHistory.slice().reverse().forEach((h, revIdx)=>{
+    const attemptNum = mergedHistory.length - revIdx;
     const d = new Date(h.date);
     const dateStr = d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
     const row = document.createElement('div');
