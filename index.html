@@ -968,6 +968,20 @@
             <input type="text" id="verbNameInput" placeholder="e.g. Daily Use Verbs" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);" />
           </div>
 
+          <div style="margin-top:12px;">
+            <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Number of Questions (per test)</label>
+            <select id="verbUploadQuestionCount" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);margin-bottom:8px;" onchange="if(this.value==='custom'){$('verbUploadCustomQCountDiv').style.display='block';}else{$('verbUploadCustomQCountDiv').style.display='none';}">
+              <option value="10">10 Questions</option>
+              <option value="20" selected>20 Questions</option>
+              <option value="30">30 Questions</option>
+              <option value="50">50 Questions</option>
+              <option value="custom">Custom Number</option>
+            </select>
+            <div id="verbUploadCustomQCountDiv" style="display:none;">
+              <input type="number" id="verbUploadCustomQCount" placeholder="Enter custom number" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);" min="1" max="1000"/>
+            </div>
+          </div>
+
           <div class="or-row"><div class="line"></div>OR<div class="line"></div></div>
 
           <div class="paste-box">
@@ -984,6 +998,56 @@
         </div>
 
     <div id="verbManageList"></div>
+  </section>
+
+  <!-- ============ SCREEN: VERB FORMS EDIT ============ -->
+  <section class="screen" id="screen-verb-edit">
+    <div class="top-actions">
+      <button class="btn btn-ghost" id="backFromVerbEditBtn">← Cancel</button>
+    </div>
+    <h2 class="section-title">Edit Verb List</h2>
+    <div class="card">
+      <div style="margin-bottom:12px;">
+        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Test name</label>
+        <input type="text" id="verbEditNameInput" placeholder="Test Name" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);" />
+      </div>
+      <div style="margin-bottom:12px;">
+        <label class="muted" style="font-weight:700;display:block;margin-bottom:6px;">Number of Questions (per test)</label>
+        <select id="verbEditQuestionCount" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);margin-bottom:8px;" onchange="if(this.value==='custom'){$('verbEditCustomQCountDiv').style.display='block';}else{$('verbEditCustomQCountDiv').style.display='none';}">
+          <option value="10">10 Questions</option>
+          <option value="20">20 Questions</option>
+          <option value="30">30 Questions</option>
+          <option value="50">50 Questions</option>
+          <option value="custom">Custom Number</option>
+        </select>
+        <div id="verbEditCustomQCountDiv" style="display:none;">
+          <input type="number" id="verbEditCustomQCount" placeholder="Enter custom number" style="width:100%;border-radius:var(--radius-sm);border:1.5px solid var(--border);padding:11px 13px;font-family:inherit;font-size:13.5px;background:var(--surface-2);color:var(--text);" min="1" max="1000"/>
+        </div>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="leaderboard-table" style="width:100%; text-align:left; white-space:nowrap; margin-bottom:14px;">
+          <thead>
+            <tr>
+              <th style="padding-bottom:8px;">V1 (Base)</th>
+              <th style="padding-bottom:8px;">V2 (Past)</th>
+              <th style="padding-bottom:8px;">V3 (Participle)</th>
+              <th style="padding-bottom:8px;">V4 (-ing)</th>
+              <th style="padding-bottom:8px;">V5 (s/es)</th>
+              <th style="padding-bottom:8px;">Hindi</th>
+              <th style="padding-bottom:8px;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="verbEditTableBody">
+          </tbody>
+        </table>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="verbEditAddRowBtn">+ Add Verb</button>
+    </div>
+    <div id="verbEditError"></div>
+    <div class="btn-row" style="margin-top:12px;">
+      <button class="btn btn-primary" id="saveVerbEditBtn">Save Changes</button>
+    </div>
   </section>
 
   <section class="screen" id="screen-mixed-list">
@@ -2084,6 +2148,25 @@ function renderHomeSummary(docs){
     : `${mixed.length} mixed test${mixed.length>1?'s':''} available — tap to view`;
 }
 
+function updateVerbSummary(docs) {
+  const el = $('verbSummaryMsg');
+  if (!el) return;
+  if (!firebaseReady) {
+    el.textContent = "Not set up yet.";
+    return;
+  }
+
+  const publishedVerbs = docs.filter(doc => doc.data().isVerbTest && doc.data().isPublished);
+
+  if (publishedVerbs.length === 0) {
+    el.textContent = "No published verb tests yet";
+  } else if (publishedVerbs.length === 1) {
+    el.textContent = "1 test available — tap to view";
+  } else {
+    el.textContent = `${publishedVerbs.length} tests available — tap to view`;
+  }
+}
+
 let notifSelectMode = false;
 let selectedNotifIds = new Set();
 
@@ -2533,6 +2616,7 @@ function listenToCloudTests(){
       // Filter out verb tests
       lastCloudDocs = snapshot.docs.filter(doc => !doc.data().isVerbTest);
       renderCloudUI(lastCloudDocs);
+      updateVerbSummary(snapshot.docs);
     }, err=>{
       console.error(err);
       $('cloudStatusMsg').innerHTML = `Couldn't load shared tests: ${escapeHTML(err.message)}`;
@@ -5260,20 +5344,35 @@ async function loadVerbTests() {
       return;
     }
 
-    statusEl.textContent = `Found ${publishedDocs.length} verb lists.`;
+    statusEl.style.display = 'none';
 
     publishedDocs.forEach(doc => {
       const data = doc.data();
       const div = document.createElement('div');
-      div.className = 'list-item';
+      div.className = 'card';
+      div.style.cursor = 'pointer';
+      div.style.marginBottom = '12px';
+
+      const qCount = data.questionCount || 20;
+
       div.innerHTML = `
-        <div class="left">
-          <div class="title">${escapeHTML(data.name || 'Untitled List')}</div>
-          <div class="meta">📚 ${data.verbCount || 0} verbs</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="left">
+            <div class="title" style="margin-bottom:6px;">${escapeHTML(data.name || 'Untitled List')}</div>
+            <div class="meta">📚 ${data.verbCount || 0} verbs · 📝 ${qCount} questions</div>
+          </div>
+          <div class="arrow" style="font-size:20px;color:var(--primary);">→</div>
         </div>
-        <div class="arrow">→</div>
+        <div class="btn-row" style="margin-top:10px;">
+           <span style="font-size:13px; font-weight:600; color:var(--primary);">Start Test</span>
+        </div>
       `;
-      div.addEventListener('click', () => openVerbLearn(doc.id, data));
+
+      attachLongPress(div, () => {});
+      div.addEventListener('click', (e) => {
+        if(div._suppressClick) { div._suppressClick = false; return; }
+        openVerbLearn(doc.id, data);
+      });
       listEl.appendChild(div);
     });
   } catch (err) {
@@ -5283,11 +5382,13 @@ async function loadVerbTests() {
 }
 
 let currentVerbData = null;
+let currentVerbTestData = null;
 
 function openVerbLearn(docId, data) {
   currentTestDocId = null; // Do not mix with leaderboard tests
   currentVerbTestName = data.name;
   currentVerbData = data.verbs || [];
+  currentVerbTestData = data;
 
   $('verbLearnTitle').textContent = data.name || 'Verb Forms';
   $('verbLearnMeta').textContent = `${currentVerbData.length} verbs`;
@@ -5343,7 +5444,12 @@ $('startVerbTestBtn').addEventListener('click', () => {
     return;
   }
 
-  currentTest = shuffle(bank).slice(0, 20).map((q, idx)=>({
+  const requestedCount = currentVerbTestData && currentVerbTestData.questionCount ? parseInt(currentVerbTestData.questionCount, 10) : 20;
+
+  // Do not generate more questions than available in the pool
+  const actualCount = Math.min(requestedCount, bank.length);
+
+  currentTest = shuffle(bank).slice(0, actualCount).map((q, idx)=>({
     ...q,
     originalIndex: idx,
     options: shuffle(q.options),
@@ -5395,14 +5501,16 @@ async function loadAdminVerbLists() {
       const publishText = data.isPublished ? 'Published' : 'Unpublished';
       const publishColor = data.isPublished ? 'var(--success)' : 'var(--warning-text)';
       const publishAction = data.isPublished ? 'Unpublish' : 'Publish';
+      const questionCount = data.questionCount || 20;
 
       item.innerHTML = `
         <div class="left">
           <div class="title">${escapeHTML(data.name || 'Untitled')}</div>
-          <div class="meta">📚 ${data.verbCount || 0} verbs <span style="margin-left:8px;color:${publishColor};font-weight:600;">${publishText}</span></div>
+          <div class="meta">📚 ${data.verbCount || 0} verbs · 📝 ${questionCount} questions <span style="margin-left:8px;color:${publishColor};font-weight:600;">${publishText}</span></div>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;">
           <button class="btn btn-ghost btn-sm" onclick="togglePublishVerbList('${doc.id}', ${data.isPublished})">${publishAction}</button>
+          <button class="btn btn-ghost btn-sm" onclick="editVerbList('${doc.id}')">Edit</button>
           <button class="btn btn-ghost btn-sm" onclick="renameVerbList('${doc.id}', '${escapeHTML(data.name || '').replace(/'/g, "\'")}')">Rename</button>
           <button class="btn btn-coral btn-sm" onclick="deleteVerbList('${doc.id}')">Delete</button>
         </div>
@@ -5443,6 +5551,154 @@ window.deleteVerbList = async function(id) {
     alert('Error deleting list');
   }
 };
+
+let editingVerbListId = null;
+let editingVerbListOriginal = null;
+
+window.editVerbList = async function(id) {
+  try {
+    const doc = await db.collection('vocabTests').doc(id).get();
+    if (!doc.exists) return;
+
+    editingVerbListId = id;
+    editingVerbListOriginal = doc.data();
+
+    $('verbEditNameInput').value = editingVerbListOriginal.name || '';
+
+    const qc = editingVerbListOriginal.questionCount || 20;
+    const select = $('verbEditQuestionCount');
+    const customDiv = $('verbEditCustomQCountDiv');
+    const customInput = $('verbEditCustomQCount');
+
+    if ([10, 20, 30, 50].includes(parseInt(qc))) {
+      select.value = qc;
+      customDiv.style.display = 'none';
+    } else {
+      select.value = 'custom';
+      customDiv.style.display = 'block';
+      customInput.value = qc;
+    }
+
+    renderVerbEditTable(editingVerbListOriginal.verbs || []);
+    $('verbEditError').innerHTML = '';
+    showScreen('screen-verb-edit');
+  } catch (err) {
+    console.error(err);
+    alert('Error opening verb list for editing');
+  }
+};
+
+function renderVerbEditTable(verbs) {
+  const tbody = $('verbEditTableBody');
+  tbody.innerHTML = '';
+  verbs.forEach((v, idx) => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--border)';
+    tr.innerHTML = `
+      <td style="padding:10px 0;"><input type="text" class="edit-v1" value="${escapeHTML(v.v1 || '')}" style="width:90px;" /></td>
+      <td style="padding:10px 0;"><input type="text" class="edit-v2" value="${escapeHTML(v.v2 || '')}" style="width:90px;" /></td>
+      <td style="padding:10px 0;"><input type="text" class="edit-v3" value="${escapeHTML(v.v3 || '')}" style="width:90px;" /></td>
+      <td style="padding:10px 0;"><input type="text" class="edit-v4" value="${escapeHTML(v.v4 || '')}" style="width:90px;" /></td>
+      <td style="padding:10px 0;"><input type="text" class="edit-v5" value="${escapeHTML(v.v5 || '')}" style="width:90px;" /></td>
+      <td style="padding:10px 0;"><input type="text" class="edit-hi" value="${escapeHTML(v.hi || '')}" style="width:90px;" /></td>
+      <td style="padding:10px 0;"><button class="btn btn-coral btn-sm" onclick="this.closest('tr').remove()">X</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+$('verbEditAddRowBtn').addEventListener('click', () => {
+  const tbody = $('verbEditTableBody');
+  const tr = document.createElement('tr');
+  tr.style.borderBottom = '1px solid var(--border)';
+  tr.innerHTML = `
+    <td style="padding:10px 0;"><input type="text" class="edit-v1" style="width:90px;" /></td>
+    <td style="padding:10px 0;"><input type="text" class="edit-v2" style="width:90px;" /></td>
+    <td style="padding:10px 0;"><input type="text" class="edit-v3" style="width:90px;" /></td>
+    <td style="padding:10px 0;"><input type="text" class="edit-v4" style="width:90px;" /></td>
+    <td style="padding:10px 0;"><input type="text" class="edit-v5" style="width:90px;" /></td>
+    <td style="padding:10px 0;"><input type="text" class="edit-hi" style="width:90px;" /></td>
+    <td style="padding:10px 0;"><button class="btn btn-coral btn-sm" onclick="this.closest('tr').remove()">X</button></td>
+  `;
+  tbody.appendChild(tr);
+});
+
+$('backFromVerbEditBtn').addEventListener('click', () => {
+  editingVerbListId = null;
+  editingVerbListOriginal = null;
+  showScreen('screen-verb-manage');
+});
+
+$('saveVerbEditBtn').addEventListener('click', async () => {
+  if (!editingVerbListId) return;
+
+  const newName = $('verbEditNameInput').value.trim();
+  if (!newName) {
+    $('verbEditError').innerHTML = '<div class="error-box">Name cannot be empty.</div>';
+    return;
+  }
+
+  const selectVal = $('verbEditQuestionCount').value;
+  let qCount = selectVal === 'custom' ? parseInt($('verbEditCustomQCount').value) : parseInt(selectVal);
+  if (!qCount || qCount < 1) qCount = 20;
+
+  const trs = $('verbEditTableBody').querySelectorAll('tr');
+  const updatedVerbs = [];
+  let invalidCount = 0;
+
+  trs.forEach(tr => {
+    const v1 = tr.querySelector('.edit-v1').value.trim();
+    const v2 = tr.querySelector('.edit-v2').value.trim();
+    const v3 = tr.querySelector('.edit-v3').value.trim();
+    const v4 = tr.querySelector('.edit-v4').value.trim();
+    const v5 = tr.querySelector('.edit-v5').value.trim();
+    const hi = tr.querySelector('.edit-hi').value.trim();
+
+    if (!v1 && !v2 && !v3 && !v4 && !v5) return; // skip empty rows
+
+    if (v1 && v2 && v3 && v4 && v5) {
+      updatedVerbs.push({ v1, v2, v3, v4, v5, hi });
+    } else {
+      invalidCount++;
+    }
+  });
+
+  if (invalidCount > 0) {
+    $('verbEditError').innerHTML = `<div class="error-box">${invalidCount} row(s) are incomplete. All 5 forms are required.</div>`;
+    return;
+  }
+  if (updatedVerbs.length === 0) {
+    $('verbEditError').innerHTML = '<div class="error-box">No valid verbs found.</div>';
+    return;
+  }
+
+  const sure = await appConfirm(`Save changes to "${escapeHTML(newName)}"?`, { confirmText: 'Save' });
+  if (!sure) return;
+
+  try {
+    $('saveVerbEditBtn').disabled = true;
+    $('saveVerbEditBtn').textContent = 'Saving...';
+
+    await db.collection('vocabTests').doc(editingVerbListId).update({
+      name: newName,
+      questionCount: qCount,
+      verbs: updatedVerbs,
+      verbCount: updatedVerbs.length,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    editingVerbListId = null;
+    editingVerbListOriginal = null;
+    loadAdminVerbLists();
+    showScreen('screen-verb-manage');
+  } catch (err) {
+    console.error(err);
+    $('verbEditError').innerHTML = `<div class="error-box">Error saving: ${escapeHTML(err.message)}</div>`;
+  } finally {
+    $('saveVerbEditBtn').disabled = false;
+    $('saveVerbEditBtn').textContent = 'Save Changes';
+  }
+});
 
 // Upload logic
 $('fileInputVerbAdmin').addEventListener('change', async (e) => {
@@ -5500,7 +5756,13 @@ function processVerbUpload(text) {
 
   // Render Preview
   $('verbPreviewTitle').textContent = `Preview: ${name}`;
-  $('verbPreviewCount').innerHTML = `<strong>Total Words:</strong> ${parseResult.totalCount}<br><strong>Valid:</strong> ${verbs.length}<br><strong>Invalid Rows:</strong> ${parseResult.invalidCount}<br><strong>Duplicates Ignored:</strong> ${parseResult.duplicateCount}`;
+  const selectVal = $('verbUploadQuestionCount').value;
+  let qCount = selectVal === 'custom' ? parseInt($('verbUploadCustomQCount').value) : parseInt(selectVal);
+  if (!qCount || qCount < 1) qCount = 20;
+
+  $('verbPreviewCount').innerHTML = `<strong>Total Words:</strong> ${parseResult.totalCount}<br><strong>Valid:</strong> ${verbs.length}<br><strong>Invalid Rows:</strong> ${parseResult.invalidCount}<br><strong>Duplicates Ignored:</strong> ${parseResult.duplicateCount}<br><strong>Questions per Test:</strong> ${qCount}`;
+
+  pendingAdminVerbPublish.questionCount = qCount;
 
   const tbody = $('verbPreviewTableBody');
   tbody.innerHTML = verbs.map(v => `
@@ -5541,6 +5803,7 @@ $('publishVerbBtn').addEventListener('click', async () => {
       name: pendingAdminVerbPublish.name,
       verbs: pendingAdminVerbPublish.verbs,
       verbCount: pendingAdminVerbPublish.verbs.length,
+      questionCount: pendingAdminVerbPublish.questionCount,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       isVerbTest: true,
       isPublished: true
