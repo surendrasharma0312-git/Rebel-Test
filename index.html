@@ -2528,10 +2528,11 @@ function listenToCloudTests(){
     unsubscribeCloudTests();
   }
 
-  unsubscribeCloudTests = db.collection('vocabTests').orderBy('createdAt','desc').limit(30)
+  unsubscribeCloudTests = db.collection('vocabTests').orderBy('createdAt','desc').limit(50)
     .onSnapshot(snapshot=>{
-      lastCloudDocs = snapshot.docs;
-      renderCloudUI(snapshot.docs);
+      // Filter out verb tests
+      lastCloudDocs = snapshot.docs.filter(doc => !doc.data().isVerbTest);
+      renderCloudUI(lastCloudDocs);
     }, err=>{
       console.error(err);
       $('cloudStatusMsg').innerHTML = `Couldn't load shared tests: ${escapeHTML(err.message)}`;
@@ -3524,8 +3525,8 @@ function buildVerbQuestionBank(verbList, mode) {
       pool = [...new Set(verbList.map(x => x.v1))];
     }
 
-    if (pool.length < 4) return;
     pool = pool.filter(x => x.toLowerCase() !== correct.toLowerCase());
+    if (pool.length < 3) return; // need 3 distractors
     pool = shuffle(pool);
     distractors = pool.slice(0, 3);
 
@@ -5243,7 +5244,9 @@ async function loadVerbTests() {
   }
 
   try {
-    const snapshot = await db.collection('verbTests').orderBy('createdAt', 'desc').get();
+    // Get all and filter locally to avoid needing a composite index on Firestore
+    let snapshot = await db.collection('vocabTests').orderBy('createdAt', 'desc').get();
+    snapshot.docs = snapshot.docs.filter(doc => doc.data().isVerbTest === true);
     lastVerbDocs = snapshot.docs;
     if(lastVerbDocs.length === 0) {
       statusEl.textContent = 'No verb lists available yet.';
@@ -5376,8 +5379,10 @@ async function loadAdminVerbLists() {
   listEl.innerHTML = 'Loading...';
 
   try {
-    const snapshot = await db.collection('verbTests').orderBy('createdAt', 'desc').get();
-    if(snapshot.empty) {
+    // Get all and filter locally to avoid needing a composite index on Firestore
+    let snapshot = await db.collection('vocabTests').orderBy('createdAt', 'desc').get();
+    snapshot.docs = snapshot.docs.filter(doc => doc.data().isVerbTest === true);
+    if(snapshot.docs.length === 0) {
       listEl.innerHTML = '<p>No verb lists uploaded yet.</p>';
       return;
     }
@@ -5411,7 +5416,7 @@ async function loadAdminVerbLists() {
 
 window.togglePublishVerbList = async function(id, isPublished) {
   try {
-    await db.collection('verbTests').doc(id).update({ isPublished: !isPublished });
+    await db.collection('vocabTests').doc(id).update({ isPublished: !isPublished });
     loadAdminVerbLists();
   } catch(e) {
     alert('Error toggling publish status');
@@ -5422,7 +5427,7 @@ window.renameVerbList = async function(id, oldName) {
   const newName = prompt('Enter new verb list name:', oldName);
   if(!newName || !newName.trim()) return;
   try {
-    await db.collection('verbTests').doc(id).update({ name: newName.trim() });
+    await db.collection('vocabTests').doc(id).update({ name: newName.trim() });
     loadAdminVerbLists();
   } catch(e) {
     alert('Error renaming list');
@@ -5432,7 +5437,7 @@ window.renameVerbList = async function(id, oldName) {
 window.deleteVerbList = async function(id) {
   if(!confirm('Are you sure you want to delete this verb list?')) return;
   try {
-    await db.collection('verbTests').doc(id).delete();
+    await db.collection('vocabTests').doc(id).delete();
     loadAdminVerbLists();
   } catch(e) {
     alert('Error deleting list');
@@ -5521,16 +5526,23 @@ $('backToVerbUploadBtn').addEventListener('click', () => showScreen('screen-admi
 
 $('publishVerbBtn').addEventListener('click', async () => {
   if(!pendingAdminVerbPublish) return;
+  if(!firebaseReady) {
+    $('verbPreviewError').innerHTML = `<div class="error-box">Rebel Test Series isn't set up yet — add your Firebase config.</div>`;
+    return;
+  }
   const btn = $('publishVerbBtn');
+  const originalLabel = btn.textContent;
   btn.disabled = true;
   btn.textContent = 'Publishing...';
 
   try {
-    await db.collection('verbTests').add({
+    // Write to vocabTests instead of verbTests to reuse existing collection rules
+    await db.collection('vocabTests').add({
       name: pendingAdminVerbPublish.name,
       verbs: pendingAdminVerbPublish.verbs,
       verbCount: pendingAdminVerbPublish.verbs.length,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      isVerbTest: true,
       isPublished: true
     });
     alert('Verb list published successfully!');
@@ -5538,10 +5550,10 @@ $('publishVerbBtn').addEventListener('click', async () => {
     showScreen('screen-admin');
   } catch (err) {
     console.error(err);
-    $('verbPreviewError').innerHTML = `<div class="error-box">Failed to publish.</div>`;
+    $('verbPreviewError').innerHTML = `<div class="error-box">Couldn't publish: ${escapeHTML(err.message)}</div>`;
   } finally {
     btn.disabled = false;
-    btn.textContent = '📤 Publish Verb List';
+    btn.textContent = originalLabel;
   }
 });
 // ==================== END VERB FORMS LOGIC ====================
