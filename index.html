@@ -4164,7 +4164,7 @@ async function getStudentName(forcePrompt = false) {
         </div>
 
         <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Full Name (Required)</label>
-        <input type="text" class="modal-input" id="modalNameInput" placeholder="Enter your full name" value="${escapeHTML(name || '')}" style="margin-bottom:12px;" />
+        <input type="text" class="modal-input" id="modalNameInput" placeholder="Enter your full name" value="${escapeHTML(fbData.name || name || '')}" style="margin-bottom:12px;" />
 
         <label class="muted" style="font-size:12px;font-weight:700;display:block;margin-bottom:6px;text-align:left;">Bio (Optional)</label>
         <input type="text" class="modal-input" id="modalBioInput" placeholder="A short bio..." value="${escapeHTML(fbData.bio || localStorage.getItem('vocabTestApp_studentBio') || '')}" style="margin-bottom:12px;" />
@@ -4206,7 +4206,7 @@ async function getStudentName(forcePrompt = false) {
     const okBtn = overlay.querySelector('.modal-ok');
     const cancelBtn = overlay.querySelector('.modal-cancel');
 
-    let currentPhoto = localStorage.getItem(STORAGE_STUDENT_PHOTO);
+    let currentPhoto = fbData.photo || localStorage.getItem(STORAGE_STUDENT_PHOTO);
     if (currentPhoto) {
       photoImg.src = currentPhoto;
       photoImg.style.display = 'block';
