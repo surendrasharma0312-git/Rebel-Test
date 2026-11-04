@@ -1305,6 +1305,11 @@
       <button class="filter-btn" data-period="all-time">All-Time</button>
     </div>
     <div id="leaderboardWeekLabel" style="text-align: center; font-size: 14px; margin-bottom: 10px; color: var(--text-light); font-weight: bold;"></div>
+    <div class="filter-row" id="leaderboardModuleFilterRow" style="margin-bottom:10px;">
+      <button class="filter-btn active" data-module="all">All Modules</button>
+      <button class="filter-btn" data-module="vocab">Word Meaning</button>
+      <button class="filter-btn" data-module="verb">Verb Forms</button>
+    </div>
     <div class="filter-row" id="leaderboardTestFilterRow" style="margin-bottom:14px;">
       <button class="filter-btn active" data-test="all">All Tests</button>
     </div>
@@ -2734,6 +2739,7 @@ function updateAdminUI(){
 ========================================================= */
 let lastLeaderboardDocs = [];
 let leaderboardFilter = 'all';
+let leaderboardModuleFilter = 'all';
 let leaderboardPeriod = 'weekly';
 let leaderboardUnsubscribe = null;
 let leaderboardWeekTimeout = null;
@@ -2831,6 +2837,10 @@ function renderLeaderboardFilters(){
   const seen = new Map();
   lastLeaderboardDocs.forEach(doc=>{
     const d = doc.data();
+    const isVerb = d.testType === 'verb' || (d.testType == null && d.testName && d.testName.toLowerCase().includes('verb'));
+    const tType = isVerb ? 'verb' : 'vocab';
+    if(leaderboardModuleFilter !== 'all' && tType !== leaderboardModuleFilter) return;
+
     if(d.testDocId && !seen.has(d.testDocId)) seen.set(d.testDocId, d.testName || 'Untitled Test');
   });
   const row = $('leaderboardTestFilterRow');
@@ -2857,6 +2867,17 @@ document.querySelectorAll('#leaderboardPeriodFilterRow .filter-btn').forEach(btn
     btn.classList.add('active');
     leaderboardPeriod = btn.getAttribute('data-period');
     loadLeaderboard();
+  });
+});
+
+document.querySelectorAll('#leaderboardModuleFilterRow .filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#leaderboardModuleFilterRow .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    leaderboardModuleFilter = btn.getAttribute('data-module');
+    leaderboardFilter = 'all'; // reset test filter when module changes
+    renderLeaderboardFilters();
+    renderLeaderboardList();
   });
 });
 
@@ -3101,6 +3122,16 @@ function renderLeaderboardList(){
   const listEl = $('leaderboardList');
   listEl.innerHTML = '';
   let docs = lastLeaderboardDocs;
+
+  if (leaderboardModuleFilter !== 'all') {
+    docs = docs.filter(doc => {
+      const d = doc.data();
+      const isVerb = d.testType === 'verb' || (d.testType == null && d.testName && d.testName.toLowerCase().includes('verb'));
+      const tType = isVerb ? 'verb' : 'vocab';
+      return tType === leaderboardModuleFilter;
+    });
+  }
+
   if(leaderboardFilter !== 'all'){
     docs = docs.filter(doc=> doc.data().testDocId === leaderboardFilter);
   }
@@ -3147,12 +3178,16 @@ $('leaderboardNavCard').addEventListener('click', ()=>{
   leaderboardReturnScreen = 'screen-admin';
   showScreen('screen-leaderboard');
   leaderboardFilter = 'all';
+  leaderboardModuleFilter = 'all';
+  document.querySelectorAll('#leaderboardModuleFilterRow .filter-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-module') === 'all'));
   loadLeaderboard();
 });
 $('leaderboardNavCardHome').addEventListener('click', ()=>{
   leaderboardReturnScreen = 'screen-home';
   showScreen('screen-leaderboard');
   leaderboardFilter = 'all';
+  leaderboardModuleFilter = 'all';
+  document.querySelectorAll('#leaderboardModuleFilterRow .filter-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-module') === 'all'));
   loadLeaderboard();
 });
 $('backFromLeaderboardBtn').addEventListener('click', ()=> {
@@ -4423,12 +4458,14 @@ async function saveToLeaderboard({ total, correct, wrong, timeout, pct, duration
   if(!currentTestDocId || !firebaseReady) return;
   const studentName = await getStudentName();
   if(!studentName) return; // they skipped entering a name — don't save
+  const testType = window._activeTestMode === 'verb' ? 'verb' : 'vocab';
   try{
     await db.collection('testResults').add({
       studentName,
       studentId: ensureStudentId(),
       testDocId: currentTestDocId,
       testName: currentTestName || 'Untitled Test',
+      testType,
       total, correct, wrong, timeout, pct, durationSeconds,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -5426,7 +5463,7 @@ let currentVerbData = null;
 let currentVerbTestData = null;
 
 function openVerbLearn(docId, data) {
-  currentTestDocId = null; // Do not mix with leaderboard tests
+  currentTestDocId = docId;
   currentVerbTestName = data.name;
   currentVerbData = data.verbs || [];
   currentVerbTestData = data;
@@ -5520,7 +5557,6 @@ $('startVerbTestBtn').addEventListener('click', () => {
 
   currentTestName = currentVerbTestName;
   currentTestQuestionCount = currentTest.length;
-  currentTestDocId = null;
 
   $('qCounter').textContent = `Question 1 of ${currentTest.length}`;
   $('qCorrectCount').textContent = `✅ 0`;
