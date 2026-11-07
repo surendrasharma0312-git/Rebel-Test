@@ -3573,7 +3573,7 @@ function renderManageVocabList(){
   });
   listEl.querySelectorAll('button[title="Edit"]').forEach(btn=>{
     btn.addEventListener('click', async (e)=>{
-      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
       const current = managingWords[idx];
       const result = await showEditWordModal(current.en, current.hi);
       if(!result) return;
@@ -3583,7 +3583,7 @@ function renderManageVocabList(){
   });
   listEl.querySelectorAll('button[title="Remove"]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
-      const idx = parseInt(e.target.getAttribute('data-idx'));
+      const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
       managingWords.splice(idx,1);
       renderManageVocabList();
     });
