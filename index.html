@@ -5660,7 +5660,7 @@ async function loadAdminVerbLists() {
         <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;">
           <button class="btn btn-ghost btn-sm" onclick="togglePublishVerbList('${doc.id}', ${data.isPublished})">${publishAction}</button>
           <button class="btn btn-ghost btn-sm" onclick="editVerbList('${doc.id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" onclick="renameVerbList('${doc.id}', '${escapeHTML(data.name || '').replace(/'/g, "\'")}')">Rename</button>
+          <button class="btn btn-ghost btn-sm" onclick="renameVerbList('${doc.id}', '${escapeHTML((data.name || '').replace(/'/g, "\\'"))}')">Rename</button>
           <button class="btn btn-coral btn-sm" onclick="deleteVerbList('${doc.id}')">Delete</button>
         </div>
       `;
