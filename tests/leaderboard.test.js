@@ -164,6 +164,18 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(filterLeaderboardDocsByModule(docs, 'all').length, 3);
   });
 
+  await t.test('resolves legacy test aliases within the selected module only', () => {
+    const docs = [
+      createDoc('legacy-verb', { testName: 'Verb Daily Set', total: 10, correct: 7, pct: 70 }),
+      createDoc('modern-verb', { testDocId: 'verb-test-id', testName: 'Verb Daily Set', testType: 'verb', total: 10, correct: 8, pct: 80 }),
+      createDoc('modern-vocab', { testDocId: 'vocab-test-id', testName: 'Verb Daily Set', testType: 'vocab', total: 10, correct: 9, pct: 90 })
+    ];
+
+    const verbOptions = buildLeaderboardFilterOptions(docs, 'verb');
+    assert.strictEqual(verbOptions.length, 1);
+    assert.strictEqual(verbOptions[0].key, 'id:verb-test-id');
+  });
+
   await t.test('excludes invalid-only tests and disambiguates duplicate test names', () => {
     const docs = [
       createDoc('modern-one', { testDocId: 'test-123456', testName: 'Vocabulary Set', testType: 'vocab', total: 10, correct: 8, pct: 80 }),
