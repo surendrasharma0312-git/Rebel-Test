@@ -131,3 +131,55 @@ exports.sendUpdateNotification = functions.firestore
       return null;
     }
   });
+
+const crypto = require('crypto');
+const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
+
+const adminPasswordSecret = defineSecret('REBEL_ADMIN_PASSWORD');
+
+exports.adminAccess = onCall(
+  { secrets: [adminPasswordSecret] },
+  async (request) => {
+    if (!request.auth || !request.auth.uid) {
+      throw new HttpsError('unauthenticated', 'Sign in is required.');
+    }
+
+    const uid = request.auth.uid;
+    const action = request.data && request.data.action;
+
+    if (action === 'logout') {
+      const current = await admin.auth().getUser(uid);
+      const claims = { ...(current.customClaims || {}) };
+      delete claims.admin;
+      await admin.auth().setCustomUserClaims(uid, claims);
+      return { ok: true, admin: false };
+    }
+
+    if (action !== 'login') {
+      throw new HttpsError('invalid-argument', 'Unsupported admin action.');
+    }
+
+    const suppliedPassword = request.data && request.data.password;
+    const configuredPassword = adminPasswordSecret.value();
+    if (typeof suppliedPassword !== 'string' || !suppliedPassword ||
+        typeof configuredPassword !== 'string' || !configuredPassword) {
+      throw new HttpsError('failed-precondition', 'Admin password secret is not configured.');
+    }
+
+    const supplied = Buffer.from(suppliedPassword, 'utf8');
+    const expected = Buffer.from(configuredPassword, 'utf8');
+    const matches = supplied.length === expected.length &&
+      crypto.timingSafeEqual(supplied, expected);
+    if (!matches) {
+      throw new HttpsError('permission-denied', 'Incorrect admin password.');
+    }
+
+    const current = await admin.auth().getUser(uid);
+    await admin.auth().setCustomUserClaims(uid, {
+      ...(current.customClaims || {}),
+      admin: true
+    });
+    return { ok: true, admin: true };
+  }
+);
