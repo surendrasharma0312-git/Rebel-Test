@@ -2838,13 +2838,12 @@ function loadLeaderboard(){
 }
 
 function buildLeaderboardFilterOptions(docs, moduleFilter) {
-  const testAliases = buildLeaderboardTestAliases(docs);
+  const moduleDocs = filterLeaderboardDocsByModule(docs, moduleFilter);
+  const testAliases = buildLeaderboardTestAliases(moduleDocs);
   const optionsByKey = new Map();
 
-  docs.forEach(doc => {
+  moduleDocs.forEach(doc => {
     const data = doc.data();
-    const moduleType = isVerbLeaderboardResult(data) ? 'verb' : 'vocab';
-    if (moduleFilter && moduleFilter !== 'all' && moduleType !== moduleFilter) return;
 
     const total = Number(data && data.total);
     if (!Number.isFinite(total) || total <= 0 || getLeaderboardPercentage(data) === null) return;
@@ -3305,10 +3304,8 @@ function showPublicProfile(studentId, nameFallback) {
 function renderLeaderboardList(){
   const listEl = $('leaderboardList');
   listEl.innerHTML = '';
-  let docs = lastLeaderboardDocs;
-  const testAliases = buildLeaderboardTestAliases(lastLeaderboardDocs);
-
-  docs = filterLeaderboardDocsByModule(docs, leaderboardModuleFilter);
+  let docs = filterLeaderboardDocsByModule(lastLeaderboardDocs, leaderboardModuleFilter);
+  const testAliases = buildLeaderboardTestAliases(docs);
 
   if(leaderboardFilter !== 'all'){
     docs = docs.filter(doc => getLeaderboardTestKey(doc.data(), testAliases) === leaderboardFilter);
