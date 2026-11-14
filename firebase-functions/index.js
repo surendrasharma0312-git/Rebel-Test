@@ -138,6 +138,32 @@ const { defineSecret } = require('firebase-functions/params');
 
 const adminPasswordSecret = defineSecret('REBEL_ADMIN_PASSWORD');
 
+async function recordAdminLoginFailure(request, uid) {
+  const rawIp = request.rawRequest && request.rawRequest.ip;
+  const identity = rawIp || uid;
+  const key = crypto.createHash('sha256').update(String(identity)).digest('hex');
+  const ref = admin.firestore().collection('adminLoginAttempts').doc(key);
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxAttempts = 5;
+
+  return admin.firestore().runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists ? snapshot.data() : {};
+    const startedAt = Number(data.windowStartedAt || 0);
+    const withinWindow = startedAt > 0 && now - startedAt < windowMs;
+    const attempts = withinWindow ? Number(data.failedAttempts || 0) : 0;
+    if (attempts >= maxAttempts) return false;
+
+    transaction.set(ref, {
+      failedAttempts: attempts + 1,
+      windowStartedAt: withinWindow ? startedAt : now,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return true;
+  });
+}
+
 exports.adminAccess = onCall(
   { secrets: [adminPasswordSecret] },
   async (request) => {
@@ -172,8 +198,16 @@ exports.adminAccess = onCall(
     const matches = supplied.length === expected.length &&
       crypto.timingSafeEqual(supplied, expected);
     if (!matches) {
+      const mayRetry = await recordAdminLoginFailure(request, uid);
+      if (!mayRetry) {
+        throw new HttpsError('resource-exhausted', 'Too many failed admin sign-in attempts. Try again in 15 minutes.');
+      }
       throw new HttpsError('permission-denied', 'Incorrect admin password.');
     }
+
+    const rawIp = request.rawRequest && request.rawRequest.ip;
+    const rateLimitKey = crypto.createHash('sha256').update(String(rawIp || uid)).digest('hex');
+    await admin.firestore().collection('adminLoginAttempts').doc(rateLimitKey).delete();
 
     const current = await admin.auth().getUser(uid);
     await admin.auth().setCustomUserClaims(uid, {
