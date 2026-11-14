@@ -3002,6 +3002,14 @@ function isVerbLeaderboardResult(data) {
     (data.testType == null && String(data.testName || '').toLowerCase().includes('verb')));
 }
 
+function filterLeaderboardDocsByModule(docs, moduleFilter) {
+  if (!moduleFilter || moduleFilter === 'all') return docs.slice();
+  return docs.filter(doc => {
+    const moduleType = isVerbLeaderboardResult(doc.data()) ? 'verb' : 'vocab';
+    return moduleType === moduleFilter;
+  });
+}
+
 function getLeaderboardDuration(data) {
   const rawDuration = data && data.durationSeconds;
   const duration = rawDuration !== null && rawDuration !== undefined && rawDuration !== ''
@@ -3231,7 +3239,7 @@ function listenToStudentStats(studentId, profileData, onChange) {
 
     return query.onSnapshot(resultsSnap => {
         if (resultsSnap && !resultsSnap.empty) {
-            let docs = resultsSnap.docs;
+            let docs = filterLeaderboardDocsByModule(resultsSnap.docs, leaderboardModuleFilter);
             const testAliases = buildLeaderboardTestAliases(docs);
             if (leaderboardFilter !== 'all') {
                 docs = docs.filter(doc => getLeaderboardTestKey(doc.data(), testAliases) === leaderboardFilter);
@@ -3300,12 +3308,7 @@ function renderLeaderboardList(){
   let docs = lastLeaderboardDocs;
   const testAliases = buildLeaderboardTestAliases(lastLeaderboardDocs);
 
-  if (leaderboardModuleFilter !== 'all') {
-    docs = docs.filter(doc => {
-      const tType = isVerbLeaderboardResult(doc.data()) ? 'verb' : 'vocab';
-      return tType === leaderboardModuleFilter;
-    });
-  }
+  docs = filterLeaderboardDocsByModule(docs, leaderboardModuleFilter);
 
   if(leaderboardFilter !== 'all'){
     docs = docs.filter(doc => getLeaderboardTestKey(doc.data(), testAliases) === leaderboardFilter);
