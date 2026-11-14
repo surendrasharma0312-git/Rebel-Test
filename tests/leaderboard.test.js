@@ -5,10 +5,14 @@ const { setupJSDOM } = require('./setupTest');
 const { window } = setupJSDOM();
 const {
   bestPerStudentPerTest,
+  rankLeaderboardEntries,
+  hasLeaderboardProfile,
+  buildLeaderboardFilterOptions,
   getLeaderboardPercentage,
   getLeaderboardDate,
   getLeaderboardTestKey,
-  buildLeaderboardTestAliases
+  buildLeaderboardTestAliases,
+  filterLeaderboardDocsByModule
 } = window;
 
 function createDoc(id, data) {
@@ -109,4 +113,85 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(fromWindowDate.toISOString(), expected.toISOString());
     assert.strictEqual(getLeaderboardDate('not-a-date'), null);
   });
+  await t.test('assigns competition ranks when percentage and duration are tied', () => {
+    const docs = [
+      createDoc('z-attempt', { studentId: 'z', studentName: 'Zara', total: 10, correct: 9, pct: 90, durationSeconds: 30 }),
+      createDoc('b-attempt', { studentId: 'b', studentName: 'Aman', total: 10, correct: 9, pct: 90, durationSeconds: 30 }),
+      createDoc('c-attempt', { studentId: 'c', studentName: 'Chetan', total: 10, correct: 8, pct: 80, durationSeconds: 35 })
+    ];
+
+    const ranked = rankLeaderboardEntries(docs);
+    assert.deepStrictEqual(ranked.map(item => item.rank), [1, 1, 3]);
+    assert.deepStrictEqual(ranked.map(item => item.doc.id), ['b-attempt', 'z-attempt', 'c-attempt']);
+  });
+
+  await t.test('does not tie students when their durations differ', () => {
+    const docs = [
+      createDoc('slower', { studentName: 'A', total: 10, correct: 9, pct: 90, durationSeconds: 31 }),
+      createDoc('faster', { studentName: 'B', total: 10, correct: 9, pct: 90, durationSeconds: 30 })
+    ];
+
+    assert.deepStrictEqual(rankLeaderboardEntries(docs).map(item => item.rank), [1, 2]);
+  });
+
+  await t.test('treats two missing durations as a tie and keeps a stable name order', () => {
+    const docs = [
+      createDoc('z', { studentName: 'Zara', total: 10, correct: 9, pct: 90 }),
+      createDoc('a', { studentName: 'Aman', total: 10, correct: 9, pct: 90 })
+    ];
+
+    const ranked = rankLeaderboardEntries(docs);
+    assert.deepStrictEqual(ranked.map(item => item.rank), [1, 1]);
+    assert.deepStrictEqual(ranked.map(item => item.doc.id), ['a', 'z']);
+  });
+
+  await t.test('only modern records with a studentId can open a public profile', () => {
+    assert.strictEqual(hasLeaderboardProfile({ studentId: 'student-a' }), true);
+    assert.strictEqual(hasLeaderboardProfile({ studentId: '  student-a  ' }), true);
+    assert.strictEqual(hasLeaderboardProfile({ studentName: 'Rahul' }), false);
+    assert.strictEqual(hasLeaderboardProfile({ studentId: '  ' }), false);
+  });
+
+  await t.test('keeps profile module stats scoped to the selected leaderboard module', () => {
+    const docs = [
+      createDoc('vocab-attempt', { testType: 'vocab', total: 10, correct: 8, pct: 80 }),
+      createDoc('verb-attempt', { testType: 'verb', total: 10, correct: 7, pct: 70 }),
+      createDoc('legacy-verb-attempt', { testName: 'Verb Forms', total: 10, correct: 6, pct: 60 })
+    ];
+
+    assert.deepStrictEqual(filterLeaderboardDocsByModule(docs, 'vocab').map(doc => doc.id), ['vocab-attempt']);
+    assert.deepStrictEqual(filterLeaderboardDocsByModule(docs, 'verb').map(doc => doc.id), ['verb-attempt', 'legacy-verb-attempt']);
+    assert.strictEqual(filterLeaderboardDocsByModule(docs, 'all').length, 3);
+  });
+
+  await t.test('resolves legacy test aliases within the selected module only', () => {
+    const docs = [
+      createDoc('legacy-verb', { testName: 'Verb Daily Set', total: 10, correct: 7, pct: 70 }),
+      createDoc('modern-verb', { testDocId: 'verb-test-id', testName: 'Verb Daily Set', testType: 'verb', total: 10, correct: 8, pct: 80 }),
+      createDoc('modern-vocab', { testDocId: 'vocab-test-id', testName: 'Verb Daily Set', testType: 'vocab', total: 10, correct: 9, pct: 90 })
+    ];
+
+    const verbOptions = buildLeaderboardFilterOptions(docs, 'verb');
+    assert.strictEqual(verbOptions.length, 1);
+    assert.strictEqual(verbOptions[0].key, 'id:verb-test-id');
+  });
+
+  await t.test('excludes invalid-only tests and disambiguates duplicate test names', () => {
+    const docs = [
+      createDoc('modern-one', { testDocId: 'test-123456', testName: 'Vocabulary Set', testType: 'vocab', total: 10, correct: 8, pct: 80 }),
+      createDoc('modern-two', { testDocId: 'test-abcdef', testName: 'Vocabulary Set', testType: 'vocab', total: 10, correct: 9, pct: 90 }),
+      createDoc('invalid', { testDocId: 'test-invalid', testName: 'Broken Test', testType: 'vocab', total: 0, pct: 100 }),
+      createDoc('verb', { testDocId: 'verb-1', testName: 'Verb Forms', testType: 'verb', total: 10, correct: 7, pct: 70 })
+    ];
+
+    const allOptions = buildLeaderboardFilterOptions(docs, 'all');
+    assert.strictEqual(allOptions.length, 3);
+    assert.notStrictEqual(allOptions[0].label, allOptions[1].label);
+    assert.strictEqual(allOptions.some(option => option.label.includes('Broken Test')), false);
+
+    const vocabOptions = buildLeaderboardFilterOptions(docs, 'vocab');
+    assert.strictEqual(vocabOptions.length, 2);
+    assert.strictEqual(vocabOptions.every(option => option.key.startsWith('id:')), true);
+  });
+
 });
