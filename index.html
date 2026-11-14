@@ -2916,7 +2916,9 @@ function getLeaderboardDate(value) {
     let date;
     if (typeof value.toDate === 'function') {
       date = value.toDate();
-    } else if (value instanceof Date) {
+    } else if (value instanceof Date ||
+               (typeof value.getTime === 'function' && Number.isFinite(value.getTime()))) {
+      // Accept Date objects from other JS realms (for example, embedded test environments).
       date = value;
     } else if (typeof value === 'number') {
       date = new Date(value);
@@ -2925,7 +2927,7 @@ function getLeaderboardDate(value) {
     } else if (typeof value === 'object' && Number.isFinite(Number(value.seconds))) {
       date = new Date(Number(value.seconds) * 1000);
     }
-    return date instanceof Date && Number.isFinite(date.getTime()) ? date : null;
+    return date && typeof date.getTime === 'function' && Number.isFinite(date.getTime()) ? date : null;
   } catch (error) {
     return null;
   }
