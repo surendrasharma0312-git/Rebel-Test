@@ -1719,6 +1719,9 @@ function appAlert(message){
 function appConfirm(message, opts={}){
   return showModal({ message, type:'confirm', confirmText: opts.confirmText||'OK', cancelText: opts.cancelText||'Cancel', danger: !!opts.danger });
 }
+function appPrompt(message, defaultValue=''){
+  return showModal({ message, type:'prompt', defaultValue, placeholder: defaultValue });
+}
 function showEditWordModal(currentEn, currentHi){
   return new Promise((resolve)=>{
     const overlay = document.createElement('div');
@@ -5703,7 +5706,7 @@ $('startVerbTestBtn').addEventListener('click', () => {
   }
 
   if (bank.length < 1) {
-    alert('Not enough valid words to generate this test.');
+    appAlert('Not enough valid words to generate this test.');
     return;
   }
 
@@ -5791,28 +5794,28 @@ window.togglePublishVerbList = async function(id, isPublished) {
     await db.collection('vocabTests').doc(id).update({ isPublished: !isPublished });
     loadAdminVerbLists();
   } catch(e) {
-    alert('Error toggling publish status');
+    appAlert('Error toggling publish status');
   }
 };
 
 window.renameVerbList = async function(id, oldName) {
-  const newName = prompt('Enter new verb list name:', oldName);
+  const newName = await appPrompt('Enter new verb list name:', oldName);
   if(!newName || !newName.trim()) return;
   try {
     await db.collection('vocabTests').doc(id).update({ name: newName.trim() });
     loadAdminVerbLists();
   } catch(e) {
-    alert('Error renaming list');
+    appAlert('Error renaming list');
   }
 };
 
 window.deleteVerbList = async function(id) {
-  if(!confirm('Are you sure you want to delete this verb list?')) return;
+  if(!(await appConfirm('Are you sure you want to delete this verb list?'))) return;
   try {
     await db.collection('vocabTests').doc(id).delete();
     loadAdminVerbLists();
   } catch(e) {
-    alert('Error deleting list');
+    appAlert('Error deleting list');
   }
 };
 
@@ -5848,7 +5851,7 @@ window.editVerbList = async function(id) {
     showScreen('screen-verb-edit');
   } catch (err) {
     console.error(err);
-    alert('Error opening verb list for editing');
+    appAlert('Error opening verb list for editing');
   }
 };
 
@@ -5975,7 +5978,7 @@ $('fileInputVerbAdmin').addEventListener('change', async (e) => {
       processVerbUpload(text);
     } catch (err) {
       console.error(err);
-      alert('Failed to parse PDF.');
+      appAlert('Failed to parse PDF.');
     }
   } else {
     // Fallback for text files if accepted
@@ -6072,7 +6075,7 @@ $('publishVerbBtn').addEventListener('click', async () => {
       isVerbTest: true,
       isPublished: true
     });
-    alert('Verb list published successfully!');
+    appAlert('Verb list published successfully!');
     pendingAdminVerbPublish = null;
     showScreen('screen-admin');
   } catch (err) {
