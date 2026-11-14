@@ -7,7 +7,8 @@ const {
   bestPerStudentPerTest,
   getLeaderboardPercentage,
   getLeaderboardDate,
-  getLeaderboardTestKey
+  getLeaderboardTestKey,
+  buildLeaderboardTestAliases
 } = window;
 
 function createDoc(id, data) {
@@ -42,6 +43,30 @@ test('All-Time leaderboard data integrity', async (t) => {
     const result = bestPerStudentPerTest(docs);
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0].id, 'attempt-2');
+  });
+
+  await t.test('matches legacy name-only attempts to one unambiguous modern test ID', () => {
+    const docs = [
+      createDoc('legacy-attempt', { studentId: 'student-a', studentName: 'Rahul', testName: 'Vocabulary Set 1', total: 10, correct: 7, pct: 70 }),
+      createDoc('modern-attempt', { studentId: 'student-a', studentName: 'Rahul', testDocId: 'test-1', testName: ' vocabulary set 1 ', total: 10, correct: 9, pct: 90 })
+    ];
+
+    const aliases = buildLeaderboardTestAliases(docs);
+    assert.strictEqual(getLeaderboardTestKey(docs[0].data(), aliases), 'id:test-1');
+    assert.strictEqual(bestPerStudentPerTest(docs).length, 1);
+    assert.strictEqual(bestPerStudentPerTest(docs)[0].id, 'modern-attempt');
+  });
+
+  await t.test('does not guess when one test name maps to multiple IDs', () => {
+    const docs = [
+      createDoc('legacy-attempt', { studentId: 'student-a', testName: 'Vocabulary Set', total: 10, correct: 7, pct: 70 }),
+      createDoc('modern-one', { studentId: 'student-a', testDocId: 'test-1', testName: 'Vocabulary Set', total: 10, correct: 8, pct: 80 }),
+      createDoc('modern-two', { studentId: 'student-a', testDocId: 'test-2', testName: 'Vocabulary Set', total: 10, correct: 9, pct: 90 })
+    ];
+
+    const aliases = buildLeaderboardTestAliases(docs);
+    assert.strictEqual(aliases.has('vocabulary set'), false);
+    assert.strictEqual(getLeaderboardTestKey(docs[0].data(), aliases), 'name:vocabulary set');
   });
 
   await t.test('rejects zero-total and non-recoverable invalid score records', () => {
