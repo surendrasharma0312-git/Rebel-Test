@@ -2837,30 +2837,50 @@ function loadLeaderboard(){
   });
 }
 
-function renderLeaderboardFilters(){
-  const seen = new Map();
-  const testAliases = buildLeaderboardTestAliases(lastLeaderboardDocs);
-  lastLeaderboardDocs.forEach(doc=>{
-    const d = doc.data();
-    const isVerb = isVerbLeaderboardResult(d);
-    const tType = isVerb ? 'verb' : 'vocab';
-    if(leaderboardModuleFilter !== 'all' && tType !== leaderboardModuleFilter) return;
+function buildLeaderboardFilterOptions(docs, moduleFilter) {
+  const testAliases = buildLeaderboardTestAliases(docs);
+  const optionsByKey = new Map();
 
-    const testKey = getLeaderboardTestKey(d, testAliases);
-    if(testKey && !seen.has(testKey)) {
-      seen.set(testKey, String(d.testName || 'Untitled Test'));
-    }
+  docs.forEach(doc => {
+    const data = doc.data();
+    const moduleType = isVerbLeaderboardResult(data) ? 'verb' : 'vocab';
+    if (moduleFilter && moduleFilter !== 'all' && moduleType !== moduleFilter) return;
+
+    const total = Number(data && data.total);
+    if (!Number.isFinite(total) || total <= 0 || getLeaderboardPercentage(data) === null) return;
+
+    const key = getLeaderboardTestKey(data, testAliases);
+    if (!key || optionsByKey.has(key)) return;
+    optionsByKey.set(key, String(data.testName || 'Untitled Test').trim() || 'Untitled Test');
   });
 
+  const nameCounts = new Map();
+  optionsByKey.forEach(name => {
+    const normalized = name.toLocaleLowerCase();
+    nameCounts.set(normalized, (nameCounts.get(normalized) || 0) + 1);
+  });
+
+  return Array.from(optionsByKey, ([key, name]) => {
+    let label = name;
+    if (nameCounts.get(name.toLocaleLowerCase()) > 1) {
+      const suffix = key.startsWith('id:') ? key.slice(3, 9) : 'legacy';
+      label += ' (' + suffix + ')';
+    }
+    return { key, label };
+  });
+}
+
+function renderLeaderboardFilters(){
+  const options = buildLeaderboardFilterOptions(lastLeaderboardDocs, leaderboardModuleFilter);
   const select = $('leaderboardTestSelect');
   const previousValue = leaderboardFilter;
   let optionsHTML = '<option value="all">All Tests</option>';
-  seen.forEach((name, key)=>{
-    optionsHTML += '<option value="' + escapeHTML(key) + '">' + escapeHTML(name) + '</option>';
+  options.forEach(({ key, label })=>{
+    optionsHTML += '<option value="' + escapeHTML(key) + '">' + escapeHTML(label) + '</option>';
   });
   select.innerHTML = optionsHTML;
 
-  if (seen.has(previousValue)) {
+  if (options.some(option => option.key === previousValue)) {
     select.value = previousValue;
   } else {
     leaderboardFilter = 'all';
