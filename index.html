@@ -2839,13 +2839,14 @@ function loadLeaderboard(){
 
 function renderLeaderboardFilters(){
   const seen = new Map();
+  const testAliases = buildLeaderboardTestAliases(lastLeaderboardDocs);
   lastLeaderboardDocs.forEach(doc=>{
     const d = doc.data();
     const isVerb = isVerbLeaderboardResult(d);
     const tType = isVerb ? 'verb' : 'vocab';
     if(leaderboardModuleFilter !== 'all' && tType !== leaderboardModuleFilter) return;
 
-    const testKey = getLeaderboardTestKey(d);
+    const testKey = getLeaderboardTestKey(d, testAliases);
     if(testKey && !seen.has(testKey)) {
       seen.set(testKey, String(d.testName || 'Untitled Test'));
     }
@@ -2946,12 +2947,34 @@ function getLeaderboardStudentKey(data, docId) {
   return studentName ? 'name:' + studentName : 'anonymous:' + String(docId || '');
 }
 
-function getLeaderboardTestKey(data) {
+function buildLeaderboardTestAliases(docs) {
+  // A legacy name-only result can be attached to a modern test ID only
+  // when that normalized name maps to exactly one ID in this dataset.
+  const idsByName = new Map();
+  docs.forEach(doc => {
+    const data = doc.data();
+    const name = String(data && data.testName || '').trim().toLowerCase();
+    const id = String(data && (data.testDocId || data.testId) || '').trim();
+    if (!name || !id) return;
+    if (!idsByName.has(name)) idsByName.set(name, new Set());
+    idsByName.get(name).add(id);
+  });
+
+  const aliases = new Map();
+  idsByName.forEach((ids, name) => {
+    if (ids.size === 1) aliases.set(name, ids.values().next().value);
+  });
+  return aliases;
+}
+
+function getLeaderboardTestKey(data, aliases) {
   const testId = String(data && (data.testDocId || data.testId) || '').trim();
   if (testId) return 'id:' + testId;
 
   const testName = String(data && data.testName || '').trim().toLowerCase();
-  return testName ? 'name:' + testName : null;
+  if (!testName) return null;
+  const matchingId = aliases && aliases.get(testName);
+  return matchingId ? 'id:' + matchingId : 'name:' + testName;
 }
 
 function isVerbLeaderboardResult(data) {
@@ -2971,13 +2994,14 @@ function bestPerStudentPerTest(docs){
   // Keep one best attempt per stable student identity and test.
   // Legacy records without studentId fall back to the normalized name.
   const best = new Map();
+  const testAliases = buildLeaderboardTestAliases(docs);
   docs.forEach(doc=>{
     const d = doc.data();
     const total = Number(d && d.total);
     const pct = getLeaderboardPercentage(d);
     if (!Number.isFinite(total) || total <= 0 || pct === null) return;
 
-    const testKey = getLeaderboardTestKey(d) || ('doc:' + doc.id);
+    const testKey = getLeaderboardTestKey(d, testAliases) || ('doc:' + doc.id);
     const key = getLeaderboardStudentKey(d, doc.id) + '|' + testKey;
     const existing = best.get(key);
     if(!existing){
@@ -3148,8 +3172,9 @@ function listenToStudentStats(studentId, profileData, onChange) {
     return query.onSnapshot(resultsSnap => {
         if (resultsSnap && !resultsSnap.empty) {
             let docs = resultsSnap.docs;
+            const testAliases = buildLeaderboardTestAliases(docs);
             if (leaderboardFilter !== 'all') {
-                docs = docs.filter(doc => getLeaderboardTestKey(doc.data()) === leaderboardFilter);
+                docs = docs.filter(doc => getLeaderboardTestKey(doc.data(), testAliases) === leaderboardFilter);
             }
 
             const validDocs = bestPerStudentPerTest(docs);
@@ -3213,6 +3238,7 @@ function renderLeaderboardList(){
   const listEl = $('leaderboardList');
   listEl.innerHTML = '';
   let docs = lastLeaderboardDocs;
+  const testAliases = buildLeaderboardTestAliases(lastLeaderboardDocs);
 
   if (leaderboardModuleFilter !== 'all') {
     docs = docs.filter(doc => {
@@ -3222,7 +3248,7 @@ function renderLeaderboardList(){
   }
 
   if(leaderboardFilter !== 'all'){
-    docs = docs.filter(doc => getLeaderboardTestKey(doc.data()) === leaderboardFilter);
+    docs = docs.filter(doc => getLeaderboardTestKey(doc.data(), testAliases) === leaderboardFilter);
   }
 
   docs = bestPerStudentPerTest(docs);
