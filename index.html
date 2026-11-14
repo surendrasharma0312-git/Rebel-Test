@@ -1538,6 +1538,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
@@ -1562,6 +1563,8 @@ const firebaseConfig = {
 };
 
 let db = null;
+let auth = null;
+let authSessionPromise = null;
 let firebaseReady = false;
 let messaging = null;
 
@@ -1574,6 +1577,17 @@ let lastVerbDocs = [];
 try{
   if(firebaseConfig.apiKey && firebaseConfig.apiKey !== "PASTE_YOUR_API_KEY"){
     firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    // Give each browser/phone a stable Firebase identity without requiring
+    // students to create an email/password account. This is migration
+    // groundwork: existing Firestore rules remain unchanged until a separate,
+    // tested rules migration is ready.
+    authSessionPromise = auth.signInAnonymously()
+      .then(credential => credential.user)
+      .catch(err => {
+        console.warn('Anonymous Firebase sign-in unavailable; using legacy mode until Authentication is enabled.', err);
+        return null;
+      });
     db = firebase.firestore();
     db.enablePersistence().catch(err => console.error("Firestore persistence failed", err));
     messaging = typeof firebase.messaging === 'function' ? firebase.messaging() : null;
@@ -4648,11 +4662,13 @@ async function saveToLeaderboard({ total, correct, wrong, timeout, pct, duration
   if(!currentTestDocId || !firebaseReady) return;
   const studentName = await getStudentName();
   if(!studentName) return; // they skipped entering a name — don't save
+  const authUser = auth ? (auth.currentUser || (authSessionPromise ? await authSessionPromise : null)) : null;
   const testType = window._activeTestMode === 'verb' ? 'verb' : 'vocab';
   try{
     await db.collection('testResults').doc(attemptId).set({
       studentName,
       studentId: ensureStudentId(),
+      ...(authUser && authUser.uid ? { authUid: authUser.uid } : {}),
       testDocId: currentTestDocId,
       testName: currentTestName || 'Untitled Test',
       testType,
