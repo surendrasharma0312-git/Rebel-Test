@@ -2839,21 +2839,24 @@ function loadLeaderboard(){
 
 function renderLeaderboardFilters(){
   const seen = new Map();
+  const testAliases = buildLeaderboardTestAliases(lastLeaderboardDocs);
   lastLeaderboardDocs.forEach(doc=>{
     const d = doc.data();
-    const isVerb = d.testType === 'verb' || (d.testType == null && d.testName && d.testName.toLowerCase().includes('verb'));
+    const isVerb = isVerbLeaderboardResult(d);
     const tType = isVerb ? 'verb' : 'vocab';
     if(leaderboardModuleFilter !== 'all' && tType !== leaderboardModuleFilter) return;
 
-    if(d.testDocId && !seen.has(d.testDocId)) seen.set(d.testDocId, d.testName || 'Untitled Test');
+    const testKey = getLeaderboardTestKey(d, testAliases);
+    if(testKey && !seen.has(testKey)) {
+      seen.set(testKey, String(d.testName || 'Untitled Test'));
+    }
   });
-  const select = $('leaderboardTestSelect');
-  // Preserve the current value if it's still available in the new options
-  const previousValue = leaderboardFilter;
 
-  let optionsHTML = `<option value="all">All Tests</option>`;
-  seen.forEach((name, id)=>{
-    optionsHTML += `<option value="${escapeHTML(id)}">${escapeHTML(name)}</option>`;
+  const select = $('leaderboardTestSelect');
+  const previousValue = leaderboardFilter;
+  let optionsHTML = '<option value="all">All Tests</option>';
+  seen.forEach((name, key)=>{
+    optionsHTML += '<option value="' + escapeHTML(key) + '">' + escapeHTML(name) + '</option>';
   });
   select.innerHTML = optionsHTML;
 
@@ -2888,29 +2891,132 @@ document.querySelectorAll('#leaderboardPeriodFilterRow .filter-btn').forEach(btn
 
 
 
+function getLeaderboardPercentage(data) {
+  const total = Number(data && data.total);
+  if (!Number.isFinite(total) || total <= 0) return null;
+
+  const rawPct = data && data.pct;
+  const parsedPct = rawPct !== null && rawPct !== undefined && rawPct !== ''
+    ? Number(rawPct)
+    : NaN;
+  if (Number.isFinite(parsedPct) && parsedPct >= 0 && parsedPct <= 100) {
+    return parsedPct;
+  }
+
+  const rawCorrect = data && data.correct;
+  const correct = rawCorrect !== null && rawCorrect !== undefined && rawCorrect !== ''
+    ? Number(rawCorrect)
+    : NaN;
+  if (!Number.isFinite(correct) || correct < 0 || correct > total) return null;
+  return Math.round((correct / total) * 100);
+}
+
+function getLeaderboardDate(value) {
+  if (!value) return null;
+  try {
+    let date;
+    if (typeof value.toDate === 'function') {
+      date = value.toDate();
+    } else if (value instanceof Date ||
+               (typeof value.getTime === 'function' && Number.isFinite(value.getTime()))) {
+      // Accept Date objects from other JS realms (for example, embedded test environments).
+      date = value;
+    } else if (typeof value === 'number') {
+      date = new Date(value);
+    } else if (typeof value === 'string') {
+      date = new Date(value);
+    } else if (typeof value === 'object' && Number.isFinite(Number(value.seconds))) {
+      date = new Date(Number(value.seconds) * 1000);
+    }
+    return date && typeof date.getTime === 'function' && Number.isFinite(date.getTime()) ? date : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function formatLeaderboardDate(value) {
+  const date = getLeaderboardDate(value);
+  return date ? date.toLocaleDateString() : '';
+}
+
+function getLeaderboardStudentKey(data, docId) {
+  const studentId = String(data && data.studentId || '').trim();
+  if (studentId) return 'id:' + studentId;
+
+  const studentName = String(data && data.studentName || '').trim().toLowerCase();
+  return studentName ? 'name:' + studentName : 'anonymous:' + String(docId || '');
+}
+
+function buildLeaderboardTestAliases(docs) {
+  // A legacy name-only result can be attached to a modern test ID only
+  // when that normalized name maps to exactly one ID in this dataset.
+  const idsByName = new Map();
+  docs.forEach(doc => {
+    const data = doc.data();
+    const name = String(data && data.testName || '').trim().toLowerCase();
+    const id = String(data && (data.testDocId || data.testId) || '').trim();
+    if (!name || !id) return;
+    if (!idsByName.has(name)) idsByName.set(name, new Set());
+    idsByName.get(name).add(id);
+  });
+
+  const aliases = new Map();
+  idsByName.forEach((ids, name) => {
+    if (ids.size === 1) aliases.set(name, ids.values().next().value);
+  });
+  return aliases;
+}
+
+function getLeaderboardTestKey(data, aliases) {
+  const testId = String(data && (data.testDocId || data.testId) || '').trim();
+  if (testId) return 'id:' + testId;
+
+  const testName = String(data && data.testName || '').trim().toLowerCase();
+  if (!testName) return null;
+  const matchingId = aliases && aliases.get(testName);
+  return matchingId ? 'id:' + matchingId : 'name:' + testName;
+}
+
+function isVerbLeaderboardResult(data) {
+  return data && (data.testType === 'verb' ||
+    (data.testType == null && String(data.testName || '').toLowerCase().includes('verb')));
+}
+
+function getLeaderboardDuration(data) {
+  const rawDuration = data && data.durationSeconds;
+  const duration = rawDuration !== null && rawDuration !== undefined && rawDuration !== ''
+    ? Number(rawDuration)
+    : NaN;
+  return Number.isFinite(duration) && duration >= 0 ? duration : Infinity;
+}
+
 function bestPerStudentPerTest(docs){
-  // Keeps only each student's best attempt on each test: highest score
-  // wins; if scores tie, the faster completion time wins.
+  // Keep one best attempt per stable student identity and test.
+  // Legacy records without studentId fall back to the normalized name.
   const best = new Map();
+  const testAliases = buildLeaderboardTestAliases(docs);
   docs.forEach(doc=>{
     const d = doc.data();
-    if (!d.total || Number(d.total) === 0 || Number.isNaN(Number(d.pct)) || d.pct === Infinity) return;
-    const testId = d.testDocId || d.testId || d.testName || doc.id;
-    const key = `${(d.studentName||'').trim().toLowerCase()}|${testId}`;
+    const total = Number(d && d.total);
+    const pct = getLeaderboardPercentage(d);
+    if (!Number.isFinite(total) || total <= 0 || pct === null) return;
 
+    const testKey = getLeaderboardTestKey(d, testAliases) || ('doc:' + doc.id);
+    const key = getLeaderboardStudentKey(d, doc.id) + '|' + testKey;
     const existing = best.get(key);
     if(!existing){
       best.set(key, doc);
       return;
     }
+
     const ed = existing.data();
-    const isBetter = (d.pct||0) > (ed.pct||0) ||
-      ((d.pct||0) === (ed.pct||0) && (d.durationSeconds ?? Infinity) < (ed.durationSeconds ?? Infinity));
+    const existingPct = getLeaderboardPercentage(ed);
+    const isBetter = pct > existingPct ||
+      (pct === existingPct && getLeaderboardDuration(d) < getLeaderboardDuration(ed));
     if(isBetter) best.set(key, doc);
   });
   return Array.from(best.values());
 }
-
 
 let globalProfileUnsub = null;
 let globalResultsUnsub = null;
@@ -3066,18 +3172,19 @@ function listenToStudentStats(studentId, profileData, onChange) {
     return query.onSnapshot(resultsSnap => {
         if (resultsSnap && !resultsSnap.empty) {
             let docs = resultsSnap.docs;
+            const testAliases = buildLeaderboardTestAliases(docs);
             if (leaderboardFilter !== 'all') {
-                docs = docs.filter(doc => doc.data().testDocId === leaderboardFilter);
+                docs = docs.filter(doc => getLeaderboardTestKey(doc.data(), testAliases) === leaderboardFilter);
             }
 
-            let validDocs = bestPerStudentPerTest(docs);
-            let totalScore = 0;
-            validDocs.forEach(doc => {
-                totalScore += (doc.data().pct || 0);
-            });
+            const validDocs = bestPerStudentPerTest(docs);
+            const scores = validDocs
+              .map(doc => getLeaderboardPercentage(doc.data()))
+              .filter(score => score !== null);
+            const totalScore = scores.reduce((sum, score) => sum + score, 0);
             profileData.stats = {
                 testsTaken: validDocs.length,
-                avgScore: validDocs.length > 0 ? Math.round(totalScore / validDocs.length) : 0
+                avgScore: scores.length > 0 ? Math.round(totalScore / scores.length) : 0
             };
         } else {
             profileData.stats = { testsTaken: 0, avgScore: 0 };
@@ -3131,50 +3238,58 @@ function renderLeaderboardList(){
   const listEl = $('leaderboardList');
   listEl.innerHTML = '';
   let docs = lastLeaderboardDocs;
+  const testAliases = buildLeaderboardTestAliases(lastLeaderboardDocs);
 
   if (leaderboardModuleFilter !== 'all') {
     docs = docs.filter(doc => {
-      const d = doc.data();
-      const isVerb = d.testType === 'verb' || (d.testType == null && d.testName && d.testName.toLowerCase().includes('verb'));
-      const tType = isVerb ? 'verb' : 'vocab';
+      const tType = isVerbLeaderboardResult(doc.data()) ? 'verb' : 'vocab';
       return tType === leaderboardModuleFilter;
     });
   }
 
   if(leaderboardFilter !== 'all'){
-    docs = docs.filter(doc=> doc.data().testDocId === leaderboardFilter);
+    docs = docs.filter(doc => getLeaderboardTestKey(doc.data(), testAliases) === leaderboardFilter);
   }
+
   docs = bestPerStudentPerTest(docs);
   if(docs.length === 0){
-    listEl.innerHTML = `<div class="empty-state"><span class="emoji">🏆</span>No results yet. Once students take a Rebel Test Series test (and enter their name), they'll show up here.</div>`;
+    listEl.innerHTML = '<div class="empty-state"><span class="emoji">🏆</span>No results yet. Once students take a Rebel Test Series test (and enter their name), they\'ll show up here.</div>';
     return;
   }
+
   const sorted = docs.slice().sort((a,b)=>{
     const da = a.data(), db = b.data();
-    if((db.pct||0) !== (da.pct||0)) return (db.pct||0) - (da.pct||0);
-    // same score — faster time ranks higher
-    return (da.durationSeconds ?? Infinity) - (db.durationSeconds ?? Infinity);
+    const pctA = getLeaderboardPercentage(da) ?? -1;
+    const pctB = getLeaderboardPercentage(db) ?? -1;
+    if(pctB !== pctA) return pctB - pctA;
+    return getLeaderboardDuration(da) - getLeaderboardDuration(db);
   });
 
   const fragment = document.createDocumentFragment();
-
   sorted.forEach((doc, idx)=>{
     const d = doc.data();
-    const dateStr = d.createdAt ? d.createdAt.toDate().toLocaleDateString() : '';
-    const timeStr = d.durationSeconds != null ? formatDuration(d.durationSeconds) : '';
-    const medal = idx===0 ? '🥇' : idx===1 ? '🥈' : idx===2 ? '🥉' : `#${idx+1}`;
+    const dateStr = formatLeaderboardDate(d.createdAt);
+    const duration = getLeaderboardDuration(d);
+    const timeStr = Number.isFinite(duration) ? formatDuration(duration) : '';
+    const pct = getLeaderboardPercentage(d);
+    const total = Number(d.total);
+    const rawCorrect = d.correct !== null && d.correct !== undefined && d.correct !== ''
+      ? Number(d.correct)
+      : NaN;
+    const correctText = Number.isFinite(rawCorrect) ? rawCorrect : '—';
+    const medal = idx===0 ? '🥇' : idx===1 ? '🥈' : idx===2 ? '🥉' : '#' + (idx+1);
     const row = document.createElement('div');
     row.className = 'hist-row';
     row.style.cursor = 'pointer';
     row.innerHTML = `
       <div class="left">
         <div class="date" style="font-weight:800;color:var(--text);">${medal} ${escapeHTML(d.studentName || 'Anonymous')}</div>
-        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${d.correct}/${d.total} correct${timeStr ? ' · ⏱️ '+escapeHTML(timeStr) : ''} · ${dateStr}</div>
+        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${correctText}/${total} correct${timeStr ? ' · ⏱️ '+escapeHTML(timeStr) : ''}${dateStr ? ' · '+escapeHTML(dateStr) : ''}</div>
       </div>
-      <div class="pctbadge">${d.pct}%</div>
+      <div class="pctbadge">${pct}%</div>
     `;
     row.addEventListener('click', () => {
-        showPublicProfile(d.studentId, d.studentName);
+      showPublicProfile(d.studentId, d.studentName);
     });
     fragment.appendChild(row);
   });
