@@ -11,7 +11,8 @@ const {
   getLeaderboardPercentage,
   getLeaderboardDate,
   getLeaderboardTestKey,
-  buildLeaderboardTestAliases
+  buildLeaderboardTestAliases,
+  filterLeaderboardDocsByModule
 } = window;
 
 function createDoc(id, data) {
@@ -149,6 +150,18 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(hasLeaderboardProfile({ studentId: '  student-a  ' }), true);
     assert.strictEqual(hasLeaderboardProfile({ studentName: 'Rahul' }), false);
     assert.strictEqual(hasLeaderboardProfile({ studentId: '  ' }), false);
+  });
+
+  await t.test('keeps profile module stats scoped to the selected leaderboard module', () => {
+    const docs = [
+      createDoc('vocab-attempt', { testType: 'vocab', total: 10, correct: 8, pct: 80 }),
+      createDoc('verb-attempt', { testType: 'verb', total: 10, correct: 7, pct: 70 }),
+      createDoc('legacy-verb-attempt', { testName: 'Verb Forms', total: 10, correct: 6, pct: 60 })
+    ];
+
+    assert.deepStrictEqual(filterLeaderboardDocsByModule(docs, 'vocab').map(doc => doc.id), ['vocab-attempt']);
+    assert.deepStrictEqual(filterLeaderboardDocsByModule(docs, 'verb').map(doc => doc.id), ['verb-attempt', 'legacy-verb-attempt']);
+    assert.strictEqual(filterLeaderboardDocsByModule(docs, 'all').length, 3);
   });
 
   await t.test('excludes invalid-only tests and disambiguates duplicate test names', () => {
