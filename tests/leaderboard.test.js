@@ -5,6 +5,8 @@ const { setupJSDOM } = require('./setupTest');
 const { window } = setupJSDOM();
 const {
   bestPerStudentPerTest,
+  rankLeaderboardEntries,
+  hasLeaderboardProfile,
   getLeaderboardPercentage,
   getLeaderboardDate,
   getLeaderboardTestKey,
@@ -109,4 +111,43 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(fromWindowDate.toISOString(), expected.toISOString());
     assert.strictEqual(getLeaderboardDate('not-a-date'), null);
   });
+  await t.test('assigns competition ranks when percentage and duration are tied', () => {
+    const docs = [
+      createDoc('z-attempt', { studentId: 'z', studentName: 'Zara', total: 10, correct: 9, pct: 90, durationSeconds: 30 }),
+      createDoc('b-attempt', { studentId: 'b', studentName: 'Aman', total: 10, correct: 9, pct: 90, durationSeconds: 30 }),
+      createDoc('c-attempt', { studentId: 'c', studentName: 'Chetan', total: 10, correct: 8, pct: 80, durationSeconds: 35 })
+    ];
+
+    const ranked = rankLeaderboardEntries(docs);
+    assert.deepStrictEqual(ranked.map(item => item.rank), [1, 1, 3]);
+    assert.deepStrictEqual(ranked.map(item => item.doc.id), ['b-attempt', 'z-attempt', 'c-attempt']);
+  });
+
+  await t.test('does not tie students when their durations differ', () => {
+    const docs = [
+      createDoc('slower', { studentName: 'A', total: 10, correct: 9, pct: 90, durationSeconds: 31 }),
+      createDoc('faster', { studentName: 'B', total: 10, correct: 9, pct: 90, durationSeconds: 30 })
+    ];
+
+    assert.deepStrictEqual(rankLeaderboardEntries(docs).map(item => item.rank), [1, 2]);
+  });
+
+  await t.test('treats two missing durations as a tie and keeps a stable name order', () => {
+    const docs = [
+      createDoc('z', { studentName: 'Zara', total: 10, correct: 9, pct: 90 }),
+      createDoc('a', { studentName: 'Aman', total: 10, correct: 9, pct: 90 })
+    ];
+
+    const ranked = rankLeaderboardEntries(docs);
+    assert.deepStrictEqual(ranked.map(item => item.rank), [1, 1]);
+    assert.deepStrictEqual(ranked.map(item => item.doc.id), ['a', 'z']);
+  });
+
+  await t.test('only modern records with a studentId can open a public profile', () => {
+    assert.strictEqual(hasLeaderboardProfile({ studentId: 'student-a' }), true);
+    assert.strictEqual(hasLeaderboardProfile({ studentId: '  student-a  ' }), true);
+    assert.strictEqual(hasLeaderboardProfile({ studentName: 'Rahul' }), false);
+    assert.strictEqual(hasLeaderboardProfile({ studentId: '  ' }), false);
+  });
+
 });
