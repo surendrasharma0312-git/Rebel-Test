@@ -2990,6 +2990,46 @@ function getLeaderboardDuration(data) {
   return Number.isFinite(duration) && duration >= 0 ? duration : Infinity;
 }
 
+function rankLeaderboardEntries(docs) {
+  const sorted = docs.slice().sort((a, b) => {
+    const da = a.data(), db = b.data();
+    const pctA = getLeaderboardPercentage(da) ?? -1;
+    const pctB = getLeaderboardPercentage(db) ?? -1;
+    if (pctB !== pctA) return pctB - pctA;
+
+    const durationA = getLeaderboardDuration(da);
+    const durationB = getLeaderboardDuration(db);
+    if (durationA !== durationB) return durationA - durationB;
+
+    // Stable display order for students who share the same competitive rank.
+    const nameA = String(da.studentName || '').trim().toLocaleLowerCase();
+    const nameB = String(db.studentName || '').trim().toLocaleLowerCase();
+    const nameOrder = nameA.localeCompare(nameB);
+    if (nameOrder !== 0) return nameOrder;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
+
+  let previousPct = null;
+  let previousDuration = null;
+  let currentRank = 0;
+
+  return sorted.map((doc, index) => {
+    const data = doc.data();
+    const pct = getLeaderboardPercentage(data) ?? -1;
+    const duration = getLeaderboardDuration(data);
+    if (index === 0 || pct !== previousPct || duration !== previousDuration) {
+      currentRank = index + 1;
+    }
+    previousPct = pct;
+    previousDuration = duration;
+    return { doc, rank: currentRank };
+  });
+}
+
+function hasLeaderboardProfile(data) {
+  return Boolean(String(data && data.studentId || '').trim());
+}
+
 function bestPerStudentPerTest(docs){
   // Keep one best attempt per stable student identity and test.
   // Legacy records without studentId fall back to the normalized name.
@@ -3257,16 +3297,10 @@ function renderLeaderboardList(){
     return;
   }
 
-  const sorted = docs.slice().sort((a,b)=>{
-    const da = a.data(), db = b.data();
-    const pctA = getLeaderboardPercentage(da) ?? -1;
-    const pctB = getLeaderboardPercentage(db) ?? -1;
-    if(pctB !== pctA) return pctB - pctA;
-    return getLeaderboardDuration(da) - getLeaderboardDuration(db);
-  });
+  const rankedEntries = rankLeaderboardEntries(docs);
 
   const fragment = document.createDocumentFragment();
-  sorted.forEach((doc, idx)=>{
+  rankedEntries.forEach(({ doc, rank })=>{
     const d = doc.data();
     const dateStr = formatLeaderboardDate(d.createdAt);
     const duration = getLeaderboardDuration(d);
@@ -3277,20 +3311,23 @@ function renderLeaderboardList(){
       ? Number(d.correct)
       : NaN;
     const correctText = Number.isFinite(rawCorrect) ? rawCorrect : '—';
-    const medal = idx===0 ? '🥇' : idx===1 ? '🥈' : idx===2 ? '🥉' : '#' + (idx+1);
+    const medal = rank===1 ? '🥇' : rank===2 ? '🥈' : rank===3 ? '🥉' : '#' + rank;
+    const canOpenProfile = hasLeaderboardProfile(d);
     const row = document.createElement('div');
     row.className = 'hist-row';
-    row.style.cursor = 'pointer';
+    row.style.cursor = canOpenProfile ? 'pointer' : 'default';
     row.innerHTML = `
       <div class="left">
         <div class="date" style="font-weight:800;color:var(--text);">${medal} ${escapeHTML(d.studentName || 'Anonymous')}</div>
-        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${correctText}/${total} correct${timeStr ? ' · ⏱️ '+escapeHTML(timeStr) : ''}${dateStr ? ' · '+escapeHTML(dateStr) : ''}</div>
+        <div class="meta">${leaderboardFilter==='all' ? escapeHTML((d.testName||'Untitled Test')+' · ') : ''}${correctText}/${total} correct${timeStr ? ' · ⏱️ '+escapeHTML(timeStr) : ''}${dateStr ? ' · '+escapeHTML(dateStr) : ''}${canOpenProfile ? '' : ' · Profile unavailable (older result)'}</div>
       </div>
       <div class="pctbadge">${pct}%</div>
     `;
-    row.addEventListener('click', () => {
-      showPublicProfile(d.studentId, d.studentName);
-    });
+    if (canOpenProfile) {
+      row.addEventListener('click', () => {
+        showPublicProfile(d.studentId, d.studentName);
+      });
+    }
     fragment.appendChild(row);
   });
 
