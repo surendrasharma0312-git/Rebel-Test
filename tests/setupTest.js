@@ -14,6 +14,8 @@ function setupJSDOM() {
             window.firebase = {
                 initializeApp: () => ({}),
                 firestore: () => ({
+                    // The app enables Firestore offline persistence during startup.
+                    enablePersistence: () => Promise.resolve(),
                     collection: () => ({
                         orderBy: () => ({
                             limit: () => ({
