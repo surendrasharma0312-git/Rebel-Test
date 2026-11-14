@@ -1582,12 +1582,26 @@ try{
     // students to create an email/password account. This is migration
     // groundwork: existing Firestore rules remain unchanged until a separate,
     // tested rules migration is ready.
-    authSessionPromise = auth.signInAnonymously()
-      .then(credential => credential.user)
-      .catch(err => {
-        console.warn('Anonymous Firebase sign-in unavailable; using legacy mode until Authentication is enabled.', err);
-        return null;
+    authSessionPromise = new Promise(resolve => {
+      let unsubscribeAuthState = () => {};
+      unsubscribeAuthState = auth.onAuthStateChanged(async user => {
+        unsubscribeAuthState();
+        if (user) {
+          resolve(user);
+          return;
+        }
+        try {
+          const credential = await auth.signInAnonymously();
+          resolve(credential.user);
+        } catch (err) {
+          console.warn('Anonymous Firebase sign-in unavailable; using legacy mode until Authentication is enabled.', err);
+          resolve(null);
+        }
+      }, err => {
+        console.warn('Firebase Authentication state unavailable; using legacy mode.', err);
+        resolve(null);
       });
+    });
     db = firebase.firestore();
     db.enablePersistence().catch(err => console.error("Firestore persistence failed", err));
     messaging = typeof firebase.messaging === 'function' ? firebase.messaging() : null;
