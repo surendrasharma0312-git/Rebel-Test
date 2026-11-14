@@ -7,6 +7,7 @@ const {
   bestPerStudentPerTest,
   rankLeaderboardEntries,
   hasLeaderboardProfile,
+  buildLeaderboardFilterOptions,
   getLeaderboardPercentage,
   getLeaderboardDate,
   getLeaderboardTestKey,
@@ -148,6 +149,24 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(hasLeaderboardProfile({ studentId: '  student-a  ' }), true);
     assert.strictEqual(hasLeaderboardProfile({ studentName: 'Rahul' }), false);
     assert.strictEqual(hasLeaderboardProfile({ studentId: '  ' }), false);
+  });
+
+  await t.test('excludes invalid-only tests and disambiguates duplicate test names', () => {
+    const docs = [
+      createDoc('modern-one', { testDocId: 'test-123456', testName: 'Vocabulary Set', testType: 'vocab', total: 10, correct: 8, pct: 80 }),
+      createDoc('modern-two', { testDocId: 'test-abcdef', testName: 'Vocabulary Set', testType: 'vocab', total: 10, correct: 9, pct: 90 }),
+      createDoc('invalid', { testDocId: 'test-invalid', testName: 'Broken Test', testType: 'vocab', total: 0, pct: 100 }),
+      createDoc('verb', { testDocId: 'verb-1', testName: 'Verb Forms', testType: 'verb', total: 10, correct: 7, pct: 70 })
+    ];
+
+    const allOptions = buildLeaderboardFilterOptions(docs, 'all');
+    assert.strictEqual(allOptions.length, 3);
+    assert.notStrictEqual(allOptions[0].label, allOptions[1].label);
+    assert.strictEqual(allOptions.some(option => option.label.includes('Broken Test')), false);
+
+    const vocabOptions = buildLeaderboardFilterOptions(docs, 'vocab');
+    assert.strictEqual(vocabOptions.length, 2);
+    assert.strictEqual(vocabOptions.every(option => option.key.startsWith('id:')), true);
   });
 
 });
