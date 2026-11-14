@@ -75,9 +75,13 @@ test('All-Time leaderboard data integrity', async (t) => {
     const timestamp = { toDate: () => expected };
     const fromTimestamp = getLeaderboardDate(timestamp);
     const fromString = getLeaderboardDate('2025-05-01T12:00:00.000Z');
+    const fromForeignRealmDate = getLeaderboardDate(expected);
+    const fromWindowDate = getLeaderboardDate(new window.Date(expected.getTime()));
 
     assert.strictEqual(fromTimestamp.toISOString(), expected.toISOString());
     assert.strictEqual(fromString.toISOString(), expected.toISOString());
+    assert.strictEqual(fromForeignRealmDate.toISOString(), expected.toISOString());
+    assert.strictEqual(fromWindowDate.toISOString(), expected.toISOString());
     assert.strictEqual(getLeaderboardDate('not-a-date'), null);
   });
 });
