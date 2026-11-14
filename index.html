@@ -1540,6 +1540,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script>
@@ -2713,38 +2714,43 @@ const AdminAuth = (function() {
   let _isAdmin = false;
   return Object.freeze({
     get isAdmin() { return _isAdmin; },
-    async login(hash) {
-      if (typeof db !== 'undefined' && db) {
-        try {
-          const configDoc = await db.collection('config').doc('admin').get();
-          if (configDoc.exists && configDoc.data().passwordHash === hash) {
-            _isAdmin = true;
-            sessionStorage.setItem('adminToken_rebeltest', hash);
-            return true;
-          }
-        } catch (e) {
-          console.error('Admin session verify failed', e);
-        }
+    async login(password) {
+      if (!auth || !firebaseReady) return false;
+      try {
+        const user = auth.currentUser || (authSessionPromise ? await authSessionPromise : null);
+        if (!user) return false;
+        const adminAccess = firebase.functions().httpsCallable('adminAccess');
+        await adminAccess({ action: 'login', password });
+        const token = await user.getIdTokenResult(true);
+        _isAdmin = token.claims.admin === true;
+        return _isAdmin;
+      } catch (e) {
+        console.error('Server-side admin login failed', e);
+        return false;
       }
-      return false;
     },
-    logout() {
-      _isAdmin = false;
-      sessionStorage.removeItem('adminToken_rebeltest');
-    },
-    async restore(db) {
-      const token = sessionStorage.getItem('adminToken_rebeltest');
-      if (token && db) {
-        try {
-          const configDoc = await db.collection('config').doc('admin').get();
-          if (configDoc.exists && configDoc.data().passwordHash === token) {
-            _isAdmin = true;
-          } else {
-            this.logout();
-          }
-        } catch (e) {
-          console.error('Admin session restore failed', e);
+    async logout() {
+      try {
+        const user = auth && auth.currentUser;
+        if (user && user.getIdTokenResult) {
+          const adminAccess = firebase.functions().httpsCallable('adminAccess');
+          await adminAccess({ action: 'logout' });
+          await user.getIdToken(true);
         }
+      } catch (e) {
+        console.error('Server-side admin logout failed', e);
+      }
+      _isAdmin = false;
+    },
+    async restore() {
+      _isAdmin = false;
+      try {
+        const user = auth && (auth.currentUser || (authSessionPromise ? await authSessionPromise : null));
+        if (!user) return;
+        const token = await user.getIdTokenResult();
+        _isAdmin = token.claims.admin === true;
+      } catch (e) {
+        console.error('Admin session restore failed', e);
       }
     }
   });
@@ -3562,34 +3568,14 @@ $('adminLoginForm').addEventListener('submit', async (e)=>{
   const entered = $('adminPasswordInput').value;
   if(!entered) return;
   $('adminLoginError').innerHTML = '';
-
   try{
-    const configDoc = await db.collection('config').doc('admin').get();
-    if(!configDoc.exists || !configDoc.data().passwordHash){
-      $('adminLoginError').innerHTML = `<div class="error-box">Admin password isn't set up in Firestore yet. See the setup instructions to create config/admin with a passwordHash field.</div>`;
-      return;
-    }
-    const enteredHash = await sha256Hex(entered);
-    const success = await AdminAuth.login(enteredHash);
+    const success = await AdminAuth.login(entered);
     if(success){
-      // Explicitly offer to save this password (Chrome/Edge support this API;
-      // other browsers may still offer their own save-password prompt on submit).
-      if(window.PasswordCredential){
-        try{
-          const cred = new PasswordCredential({
-            id: 'rebel-admin',
-            password: entered,
-            name: 'Rebel Test Series Admin'
-          });
-          await navigator.credentials.store(cred);
-        }catch(credErr){ console.warn('Credential save skipped', credErr); }
-      }
-
       $('adminPasswordInput').value = '';
       updateAdminUI();
       showScreen('screen-admin');
     } else {
-      $('adminLoginError').innerHTML = `<div class="error-box">Incorrect password.</div>`;
+      $('adminLoginError').innerHTML = '<div class="error-box">Admin sign-in failed. Check the password and server configuration.</div>';
     }
   }catch(err){
     console.error(err);
@@ -3597,8 +3583,8 @@ $('adminLoginForm').addEventListener('submit', async (e)=>{
   }
 });
 
-$('logoutAdminBtn').addEventListener('click', ()=>{
-  AdminAuth.logout();
+$('logoutAdminBtn').addEventListener('click', async ()=>{
+  await AdminAuth.logout();
   updateAdminUI();
   showScreen('screen-home');
 });
@@ -6179,7 +6165,7 @@ checkSavedVocabOnLoad();
 listenToCloudTests();
 
 if (firebaseReady) {
-  AdminAuth.restore(db).then(() => updateAdminUI());
+  AdminAuth.restore().then(() => updateAdminUI());
 }
 </script>
 
