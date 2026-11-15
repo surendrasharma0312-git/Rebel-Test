@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function hasLinkedStudentId(studentId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/studentAccountLinks/$(request.auth.uid))
+        && get(/databases/$(database)/documents/studentAccountLinks/$(request.auth.uid)).data.studentId == studentId;
+    }
+    function ownsStudentId(studentId) {
+      return signedIn() && (studentId == request.auth.uid || hasLinkedStudentId(studentId));
+    }
+
+    match /vocabTests/{testId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /testResults/{resultId} {
+      // Public reads currently power the existing class and all-time leaderboards.
+      allow read: if true;
+      // Student results are append-only; Admin SDK writes bypass these rules.
+      allow create: if signedIn()
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.studentId is string
+        && ownsStudentId(request.resource.data.studentId);
+      allow update, delete: if isAdmin();
+    }
+
+    match /studentProfiles/{studentId} {
+      // Profile documents contain contact fields and must not be public.
+      allow read: if ownsStudentId(studentId) || isAdmin();
+      allow create, update: if ownsStudentId(studentId)
+        && request.resource.data.keys().hasOnly([
+          'name', 'bio', 'photo', 'phone', 'email', 'address',
+          'showPublic', 'updatedAt'
+        ]);
+      allow delete: if ownsStudentId(studentId) || isAdmin();
+    }
+
+    match /fcmTokens/{tokenId} {
+      allow read: if false;
+      allow create, update: if signedIn()
+        && request.resource.data.token == tokenId
+        && request.resource.data.authUid == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'token', 'authUid', 'createdAt', 'updatedAt'
+        ]);
+      allow delete: if signedIn() && resource.data.authUid == request.auth.uid;
+    }
+
+    match /studentAccountLinks/{uid} { allow read, write: if false; }
+    match /adminLoginAttempts/{attemptId} { allow read, write: if false; }
+    match /config/{document=**} { allow read, write: if false; }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
