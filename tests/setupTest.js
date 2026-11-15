@@ -10,9 +10,34 @@ function setupJSDOM() {
         url: "http://localhost/", // Set a URL to avoid "opaque origins" error for sessionStorage and history.replaceState bugs
         runScripts: "dangerously",
         beforeParse(window) {
-            // Mock firebase to prevent errors during init in index.html
+            // Mock Firebase Authentication because the app starts an anonymous
+            // session during initialization. Keep this isolated from real Firebase.
+            const mockUser = {
+                uid: 'test-anonymous-user',
+                isAnonymous: true,
+                getIdTokenResult: async () => ({ claims: {} })
+            };
+            const mockAuth = {
+                currentUser: null,
+                onAuthStateChanged: callback => {
+                    // Defer the initial state callback until the unsubscribe
+                    // function has been assigned by the application.
+                    Promise.resolve().then(() => callback(null));
+                    return () => {};
+                },
+                signInAnonymously: async () => {
+                    mockAuth.currentUser = mockUser;
+                    return { user: mockUser };
+                },
+                signOut: async () => {
+                    mockAuth.currentUser = null;
+                }
+            };
+
+            // Mock firebase to prevent network calls during init in index.html.
             window.firebase = {
                 initializeApp: () => ({}),
+                auth: () => mockAuth,
                 firestore: () => ({
                     // The app enables Firestore offline persistence during startup.
                     enablePersistence: () => Promise.resolve(),
