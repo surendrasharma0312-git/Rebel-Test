@@ -63,6 +63,22 @@ test('All-Time leaderboard data integrity', async (t) => {
     );
   });
 
+  await t.test('renders untrusted history values as text instead of HTML', () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    const row = window.createHistoryRow({
+      date: '2026-11-15T10:00:00.000Z',
+      correct: payload,
+      total: 10,
+      wrong: 2,
+      timeout: 1,
+      pct: payload
+    }, 1);
+
+    assert.strictEqual(row.querySelector('img'), null);
+    assert.strictEqual(row.querySelector('.meta').textContent.includes(payload), true);
+    assert.strictEqual(row.querySelector('.pctbadge').textContent, payload + '%');
+  });
+
   await t.test('normalizes cloud history dates without failing on legacy date formats', () => {
     const now = new Date('2026-11-15T10:00:00.000Z');
     const records = [
