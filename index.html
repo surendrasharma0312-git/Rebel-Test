@@ -3133,8 +3133,16 @@ function bestPerStudentPerTest(docs){
 
     const ed = existing.data();
     const existingPct = getLeaderboardPercentage(ed);
+    const duration = getLeaderboardDuration(d);
+    const existingDuration = getLeaderboardDuration(ed);
+    const date = getLeaderboardDate(d.createdAt);
+    const existingDate = getLeaderboardDate(ed.createdAt);
     const isBetter = pct > existingPct ||
-      (pct === existingPct && getLeaderboardDuration(d) < getLeaderboardDuration(ed));
+      (pct === existingPct && duration < existingDuration) ||
+      (pct === existingPct && duration === existingDuration && date && (!existingDate || date.getTime() > existingDate.getTime())) ||
+      (pct === existingPct && duration === existingDuration &&
+        ((!date && !existingDate) || (date && existingDate && date.getTime() === existingDate.getTime())) &&
+        String(doc.id || '').localeCompare(String(existing.id || '')) < 0);
     if(isBetter) best.set(key, doc);
   });
   return Array.from(best.values());
