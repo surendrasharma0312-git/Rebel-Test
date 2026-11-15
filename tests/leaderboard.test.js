@@ -10,6 +10,7 @@ const {
   buildLeaderboardFilterOptions,
   getLeaderboardPercentage,
   getLeaderboardDate,
+  normalizeCloudHistoryRecord,
   getLeaderboardTestKey,
   buildLeaderboardTestAliases,
   filterLeaderboardDocsByModule,
@@ -48,6 +49,31 @@ test('All-Time leaderboard data integrity', async (t) => {
     const result = bestPerStudentPerTest(docs);
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0].id, 'attempt-2');
+  });
+
+  await t.test('normalizes cloud history dates without failing on legacy date formats', () => {
+    const now = new Date('2026-11-15T10:00:00.000Z');
+    const records = [
+      { id: 'timestamp', data: () => ({ createdAt: { toDate: () => new Date('2026-01-01T00:00:00.000Z') }, total: 10 }) },
+      { id: 'string', data: () => ({ createdAt: '2026-02-01T00:00:00.000Z', total: 10 }) },
+      { id: 'date', data: () => ({ createdAt: new Date('2026-03-01T00:00:00.000Z'), total: 10 }) },
+      { id: 'number', data: () => ({ createdAt: Date.parse('2026-04-01T00:00:00.000Z'), total: 10 }) },
+      { id: 'legacy-date', data: () => ({ createdAt: 'not-a-date', date: '2026-05-01T00:00:00.000Z', total: 10 }) },
+      { id: 'missing-date', data: () => ({ total: 10 }) },
+      { id: 'invalid-timestamp', data: () => ({ createdAt: { toDate: () => { throw new Error('invalid timestamp'); } }, total: 10 }) }
+    ];
+
+    const normalized = records.map(record => normalizeCloudHistoryRecord(record, now));
+    assert.deepStrictEqual(normalized.map(record => record.attemptId), records.map(record => record.id));
+    assert.deepStrictEqual(normalized.map(record => record.date), [
+      '2026-01-01T00:00:00.000Z',
+      '2026-02-01T00:00:00.000Z',
+      '2026-03-01T00:00:00.000Z',
+      '2026-04-01T00:00:00.000Z',
+      '2026-05-01T00:00:00.000Z',
+      '2026-11-15T10:00:00.000Z',
+      '2026-11-15T10:00:00.000Z'
+    ]);
   });
 
   await t.test('selects a deterministic best attempt when score and duration are tied', () => {
