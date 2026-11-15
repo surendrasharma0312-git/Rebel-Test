@@ -49,6 +49,29 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(result[0].id, 'attempt-2');
   });
 
+  await t.test('normalizes repeated whitespace in legacy student names', () => {
+    const docs = [
+      createDoc('attempt-1', { studentName: 'Rahul  Sharma', testDocId: 'test-1', total: 10, correct: 7, pct: 70 }),
+      createDoc('attempt-2', { studentName: '  rahul   sharma  ', testDocId: 'test-1', total: 10, correct: 8, pct: 80 })
+    ];
+
+    const result = bestPerStudentPerTest(docs);
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].id, 'attempt-2');
+  });
+
+  await t.test('normalizes repeated whitespace when matching legacy test names to IDs', () => {
+    const docs = [
+      createDoc('legacy-attempt', { studentId: 'student-a', testName: 'Vocabulary  Set 1', total: 10, correct: 7, pct: 70 }),
+      createDoc('modern-attempt', { studentId: 'student-a', testDocId: 'test-1', testName: ' vocabulary   set 1 ', total: 10, correct: 9, pct: 90 })
+    ];
+
+    const aliases = buildLeaderboardTestAliases(docs);
+    assert.strictEqual(getLeaderboardTestKey(docs[0].data(), aliases), 'id:test-1');
+    assert.strictEqual(bestPerStudentPerTest(docs).length, 1);
+    assert.strictEqual(bestPerStudentPerTest(docs)[0].id, 'modern-attempt');
+  });
+
   await t.test('matches legacy name-only attempts to one unambiguous modern test ID', () => {
     const docs = [
       createDoc('legacy-attempt', { studentId: 'student-a', studentName: 'Rahul', testName: 'Vocabulary Set 1', total: 10, correct: 7, pct: 70 }),
