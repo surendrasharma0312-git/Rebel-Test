@@ -11,6 +11,7 @@ const {
   getLeaderboardPercentage,
   getLeaderboardDate,
   normalizeCloudHistoryRecord,
+  normalizeCloudHistoryRecords,
   parseLocalHistory,
   getLeaderboardTestKey,
   buildLeaderboardTestAliases,
@@ -111,7 +112,7 @@ test('All-Time leaderboard data integrity', async (t) => {
       { id: 'invalid-date', data: () => ({ createdAt: 'not-a-date', total: 10 }) }
     ];
 
-    const normalized = records.map(doc => normalizeCloudHistoryRecord(doc, now));
+    const normalized = normalizeCloudHistoryRecords(records, now);
     assert.deepStrictEqual(normalized.map(record => record.date), [
       now.toISOString(),
       now.toISOString()
