@@ -3016,6 +3016,10 @@ function normalizeCloudHistoryRecord(doc, now = new Date()) {
   };
 }
 
+function normalizeCloudHistoryRecords(docs, now = new Date()) {
+  return docs.map(doc => normalizeCloudHistoryRecord(doc, now));
+}
+
 function formatLeaderboardDate(value) {
   const date = getLeaderboardDate(value);
   return date ? date.toLocaleDateString() : '';
@@ -4791,7 +4795,7 @@ async function renderHistory(){
       const snap = await db.collection('testResults')
         .where('studentId', '==', ensureStudentId())
         .get();
-      cloudHistory = snap.docs.map(normalizeCloudHistoryRecord);
+      cloudHistory = normalizeCloudHistoryRecords(snap.docs);
     } catch (e) {
       console.error("Failed to fetch cloud history", e);
     }

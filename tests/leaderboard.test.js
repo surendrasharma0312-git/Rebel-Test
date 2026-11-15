@@ -11,6 +11,7 @@ const {
   getLeaderboardPercentage,
   getLeaderboardDate,
   normalizeCloudHistoryRecord,
+  normalizeCloudHistoryRecords,
   parseLocalHistory,
   getLeaderboardTestKey,
   buildLeaderboardTestAliases,
@@ -101,6 +102,20 @@ test('All-Time leaderboard data integrity', async (t) => {
       '2026-05-01T00:00:00.000Z',
       '2026-11-15T10:00:00.000Z',
       '2026-11-15T10:00:00.000Z'
+    ]);
+  });
+
+  await t.test('uses the current date fallback when cloud records are normalized through Array.map', () => {
+    const now = new Date('2026-11-15T10:00:00.000Z');
+    const records = [
+      { id: 'missing-date', data: () => ({ total: 10 }) },
+      { id: 'invalid-date', data: () => ({ createdAt: 'not-a-date', total: 10 }) }
+    ];
+
+    const normalized = normalizeCloudHistoryRecords(records, now);
+    assert.deepStrictEqual(normalized.map(record => record.date), [
+      now.toISOString(),
+      now.toISOString()
     ]);
   });
 
