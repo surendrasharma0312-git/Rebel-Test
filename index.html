@@ -4753,6 +4753,32 @@ async function saveToLeaderboard({ total, correct, wrong, timeout, pct, duration
   }
 }
 
+function createHistoryRow(h, attemptNum) {
+  const row = document.createElement('div');
+  row.className = 'hist-row';
+
+  const left = document.createElement('div');
+  left.className = 'left';
+
+  const date = document.createElement('div');
+  date.className = 'date';
+  const d = new Date(h.date);
+  const dateStr = d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+  date.textContent = `Attempt ${attemptNum} — ${dateStr}`;
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.textContent = `${h.correct}/${h.total} correct · ❌ ${h.wrong} · ⏰ ${h.timeout}${h.durationSeconds != null ? ' · ⏱️ '+formatDuration(h.durationSeconds) : ''}`;
+
+  const percentage = document.createElement('div');
+  percentage.className = 'pctbadge';
+  percentage.textContent = `${h.pct}%`;
+
+  left.append(date, meta);
+  row.append(left, percentage);
+  return row;
+}
+
 async function renderHistory(){
   const listEl = $('historyList');
   listEl.innerHTML = '<div class="empty-state"><span class="emoji">⏳</span>Loading history...</div>';
@@ -4793,18 +4819,7 @@ async function renderHistory(){
 
   mergedHistory.slice().reverse().forEach((h, revIdx)=>{
     const attemptNum = mergedHistory.length - revIdx;
-    const d = new Date(h.date);
-    const dateStr = d.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
-    const row = document.createElement('div');
-    row.className = 'hist-row';
-    row.innerHTML = `
-      <div class="left">
-        <div class="date">Attempt ${attemptNum} — ${dateStr}</div>
-        <div class="meta">${h.correct}/${h.total} correct · ❌ ${h.wrong} · ⏰ ${h.timeout}${h.durationSeconds != null ? ' · ⏱️ '+formatDuration(h.durationSeconds) : ''}</div>
-      </div>
-      <div class="pctbadge">${h.pct}%</div>
-    `;
-    listEl.appendChild(row);
+    listEl.appendChild(createHistoryRow(h, attemptNum));
   });
 }
 
