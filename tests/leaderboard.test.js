@@ -50,6 +50,31 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(result[0].id, 'attempt-2');
   });
 
+  await t.test('selects a deterministic best attempt when score and duration are tied', () => {
+    const older = createDoc('attempt-b', {
+      studentId: 'student-a', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
+      durationSeconds: 30, createdAt: '2026-01-01T10:00:00.000Z'
+    });
+    const newer = createDoc('attempt-a', {
+      studentId: 'student-a', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
+      durationSeconds: 30, createdAt: '2026-01-02T10:00:00.000Z'
+    });
+
+    assert.strictEqual(bestPerStudentPerTest([older, newer])[0].id, 'attempt-a');
+    assert.strictEqual(bestPerStudentPerTest([newer, older])[0].id, 'attempt-a');
+
+    const sameDateFirst = createDoc('attempt-z', {
+      studentId: 'student-b', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
+      durationSeconds: 30, createdAt: '2026-01-02T10:00:00.000Z'
+    });
+    const sameDateSecond = createDoc('attempt-c', {
+      studentId: 'student-b', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
+      durationSeconds: 30, createdAt: '2026-01-02T10:00:00.000Z'
+    });
+    assert.strictEqual(bestPerStudentPerTest([sameDateFirst, sameDateSecond])[0].id, 'attempt-c');
+    assert.strictEqual(bestPerStudentPerTest([sameDateSecond, sameDateFirst])[0].id, 'attempt-c');
+  });
+
   await t.test('normalizes repeated whitespace in legacy student names', () => {
     const docs = [
       createDoc('attempt-1', { studentName: 'Rahul  Sharma', testDocId: 'test-1', total: 10, correct: 7, pct: 70 }),
