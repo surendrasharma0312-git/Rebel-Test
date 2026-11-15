@@ -30,6 +30,7 @@ async function backfillCollection({
     if (snapshot.empty) break;
 
     const batch = dryRun ? null : db.batch();
+    let pageWrites = 0;
     for (const doc of snapshot.docs) {
       summary.scanned += 1;
       const value = project(doc.data(), doc.id);
@@ -41,10 +42,11 @@ async function backfillCollection({
       if (batch) {
         batch.set(db.collection(targetName).doc(doc.id), value, { merge: false });
         summary.written += 1;
+        pageWrites += 1;
       }
     }
 
-    if (batch && summary.written > 0) await batch.commit();
+    if (batch && pageWrites > 0) await batch.commit();
     cursor = snapshot.docs[snapshot.docs.length - 1];
     if (snapshot.size < pageSize) break;
   }
