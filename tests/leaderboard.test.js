@@ -12,7 +12,9 @@ const {
   getLeaderboardDate,
   getLeaderboardTestKey,
   buildLeaderboardTestAliases,
-  filterLeaderboardDocsByModule
+  filterLeaderboardDocsByModule,
+  getLeaderboardVisibleEntries,
+  LEADERBOARD_PAGE_SIZE
 } = window;
 
 function createDoc(id, data) {
@@ -143,6 +145,37 @@ test('All-Time leaderboard data integrity', async (t) => {
     const ranked = rankLeaderboardEntries(docs);
     assert.deepStrictEqual(ranked.map(item => item.rank), [1, 1]);
     assert.deepStrictEqual(ranked.map(item => item.doc.id), ['a', 'z']);
+  });
+
+  await t.test('renders leaderboard entries in pages without changing their global order or ranks', () => {
+    const entries = Array.from({ length: 235 }, (_, index) => ({
+      doc: createDoc('attempt-' + index, { studentName: 'Student ' + index }),
+      rank: index + 1
+    }));
+
+    const firstPage = getLeaderboardVisibleEntries(entries, LEADERBOARD_PAGE_SIZE);
+    assert.strictEqual(firstPage.visibleEntries.length, 100);
+    assert.strictEqual(firstPage.visibleEntries[0].rank, 1);
+    assert.strictEqual(firstPage.visibleEntries[99].rank, 100);
+    assert.strictEqual(firstPage.hasMore, true);
+    assert.strictEqual(firstPage.remaining, 135);
+
+    const secondPage = getLeaderboardVisibleEntries(entries, 200);
+    assert.strictEqual(secondPage.visibleEntries.length, 200);
+    assert.strictEqual(secondPage.visibleEntries[100].rank, 101);
+    assert.strictEqual(secondPage.hasMore, true);
+    assert.strictEqual(secondPage.remaining, 35);
+
+    const finalPage = getLeaderboardVisibleEntries(entries, 300);
+    assert.strictEqual(finalPage.visibleEntries.length, 235);
+    assert.strictEqual(finalPage.hasMore, false);
+    assert.strictEqual(finalPage.remaining, 0);
+  });
+
+  await t.test('falls back to the default leaderboard page size for invalid limits', () => {
+    const entries = Array.from({ length: 120 }, (_, index) => index);
+    assert.strictEqual(getLeaderboardVisibleEntries(entries, 0).visibleEntries.length, LEADERBOARD_PAGE_SIZE);
+    assert.strictEqual(getLeaderboardVisibleEntries(entries, NaN).visibleEntries.length, LEADERBOARD_PAGE_SIZE);
   });
 
   await t.test('only modern records with a studentId can open a public profile', () => {
