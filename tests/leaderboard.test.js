@@ -11,6 +11,7 @@ const {
   getLeaderboardPercentage,
   getLeaderboardDate,
   normalizeCloudHistoryRecord,
+  parseLocalHistory,
   getLeaderboardTestKey,
   buildLeaderboardTestAliases,
   filterLeaderboardDocsByModule,
@@ -49,6 +50,17 @@ test('All-Time leaderboard data integrity', async (t) => {
     const result = bestPerStudentPerTest(docs);
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0].id, 'attempt-2');
+  });
+
+  await t.test('safely parses local history storage with malformed or unexpected shapes', () => {
+    assert.strictEqual(JSON.stringify(parseLocalHistory(null)), '[]');
+    assert.strictEqual(JSON.stringify(parseLocalHistory('')), '[]');
+    assert.strictEqual(JSON.stringify(parseLocalHistory('{broken json')), '[]');
+    assert.strictEqual(JSON.stringify(parseLocalHistory('{"attemptId":"not-an-array"}')), '[]');
+    assert.strictEqual(
+      JSON.stringify(parseLocalHistory('[null, 1, "bad", [], {"attemptId":"valid"}]')),
+      '[{"attemptId":"valid"}]'
+    );
   });
 
   await t.test('normalizes cloud history dates without failing on legacy date formats', () => {
