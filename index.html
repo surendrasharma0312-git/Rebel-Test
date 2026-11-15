@@ -2992,11 +2992,15 @@ function formatLeaderboardDate(value) {
   return date ? date.toLocaleDateString() : '';
 }
 
+function normalizeLeaderboardName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
 function getLeaderboardStudentKey(data, docId) {
   const studentId = String(data && data.studentId || '').trim();
   if (studentId) return 'id:' + studentId;
 
-  const studentName = String(data && data.studentName || '').trim().toLowerCase();
+  const studentName = normalizeLeaderboardName(data && data.studentName);
   return studentName ? 'name:' + studentName : 'anonymous:' + String(docId || '');
 }
 
@@ -3006,7 +3010,7 @@ function buildLeaderboardTestAliases(docs) {
   const idsByName = new Map();
   docs.forEach(doc => {
     const data = doc.data();
-    const name = String(data && data.testName || '').trim().toLowerCase();
+    const name = normalizeLeaderboardName(data && data.testName);
     const id = String(data && (data.testDocId || data.testId) || '').trim();
     if (!name || !id) return;
     if (!idsByName.has(name)) idsByName.set(name, new Set());
@@ -3024,7 +3028,7 @@ function getLeaderboardTestKey(data, aliases) {
   const testId = String(data && (data.testDocId || data.testId) || '').trim();
   if (testId) return 'id:' + testId;
 
-  const testName = String(data && data.testName || '').trim().toLowerCase();
+  const testName = normalizeLeaderboardName(data && data.testName);
   if (!testName) return null;
   const matchingId = aliases && aliases.get(testName);
   return matchingId ? 'id:' + matchingId : 'name:' + testName;
