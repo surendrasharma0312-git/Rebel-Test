@@ -53,13 +53,14 @@ test('All-Time leaderboard data integrity', async (t) => {
   });
 
   await t.test('safely parses local history storage with malformed or unexpected shapes', () => {
-    assert.deepStrictEqual(parseLocalHistory(null), []);
-    assert.deepStrictEqual(parseLocalHistory(''), []);
-    assert.deepStrictEqual(parseLocalHistory('{broken json'), []);
-    assert.deepStrictEqual(parseLocalHistory('{"attemptId":"not-an-array"}'), []);
-    assert.deepStrictEqual(parseLocalHistory('[null, 1, "bad", [], {"attemptId":"valid"}]'), [
-      { attemptId: 'valid' }
-    ]);
+    assert.strictEqual(JSON.stringify(parseLocalHistory(null)), '[]');
+    assert.strictEqual(JSON.stringify(parseLocalHistory('')), '[]');
+    assert.strictEqual(JSON.stringify(parseLocalHistory('{broken json')), '[]');
+    assert.strictEqual(JSON.stringify(parseLocalHistory('{"attemptId":"not-an-array"}')), '[]');
+    assert.strictEqual(
+      JSON.stringify(parseLocalHistory('[null, 1, "bad", [], {"attemptId":"valid"}]')),
+      '[{"attemptId":"valid"}]'
+    );
   });
 
   await t.test('normalizes cloud history dates without failing on legacy date formats', () => {
