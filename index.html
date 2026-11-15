@@ -4791,7 +4791,7 @@ async function renderHistory(){
       const snap = await db.collection('testResults')
         .where('studentId', '==', ensureStudentId())
         .get();
-      cloudHistory = snap.docs.map(normalizeCloudHistoryRecord);
+      cloudHistory = snap.docs.map(doc => normalizeCloudHistoryRecord(doc));
     } catch (e) {
       console.error("Failed to fetch cloud history", e);
     }
