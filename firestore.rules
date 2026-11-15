@@ -43,6 +43,16 @@ service cloud.firestore {
       allow delete: if ownsStudentId(studentId) || isAdmin();
     }
 
+    match /publicLeaderboard/{attemptId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /publicStudentProfiles/{studentId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /fcmTokens/{tokenId} {
       allow read: if false;
       allow create, update: if isGoogleStudent()
