@@ -249,3 +249,44 @@ exports.resolveStudentIdentity = onCall(async (request) => {
     throw new HttpsError('internal', 'Unable to resolve the student account right now.');
   }
 });
+
+
+const {
+  projectPublicLeaderboardResult,
+  projectPublicStudentProfile
+} = require('./public-projections');
+
+exports.syncPublicLeaderboardResult = functions.firestore
+  .document('testResults/{attemptId}')
+  .onWrite(async (change, context) => {
+    const publicRef = admin.firestore().collection('publicLeaderboard').doc(context.params.attemptId);
+    if (!change.after.exists) {
+      await publicRef.delete();
+      return null;
+    }
+    const projected = projectPublicLeaderboardResult(change.after.data());
+    if (!projected) {
+      await publicRef.delete();
+      return null;
+    }
+    await publicRef.set(projected);
+    return null;
+  });
+
+exports.syncPublicStudentProfile = functions.firestore
+  .document('studentProfiles/{studentId}')
+  .onWrite(async (change, context) => {
+    const publicRef = admin.firestore().collection('publicStudentProfiles').doc(context.params.studentId);
+    if (!change.after.exists) {
+      await publicRef.delete();
+      return null;
+    }
+    const projected = projectPublicStudentProfile(change.after.data(), context.params.studentId);
+    if (!projected) {
+      await publicRef.delete();
+      return null;
+    }
+    await publicRef.set(projected);
+    return null;
+  });
+
