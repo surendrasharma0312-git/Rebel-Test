@@ -2990,6 +2990,20 @@ function getLeaderboardDate(value) {
   }
 }
 
+function normalizeCloudHistoryRecord(doc, now = new Date()) {
+  const data = doc && typeof doc.data === 'function' ? (doc.data() || {}) : {};
+  const date = getLeaderboardDate(data.createdAt) ||
+    getLeaderboardDate(data.date) ||
+    getLeaderboardDate(now) ||
+    new Date();
+
+  return {
+    ...data,
+    attemptId: doc && doc.id ? doc.id : '',
+    date: date.toISOString()
+  };
+}
+
 function formatLeaderboardDate(value) {
   const date = getLeaderboardDate(value);
   return date ? date.toLocaleDateString() : '';
@@ -4743,11 +4757,7 @@ async function renderHistory(){
       const snap = await db.collection('testResults')
         .where('studentId', '==', ensureStudentId())
         .get();
-      cloudHistory = snap.docs.map(doc => ({
-         attemptId: doc.id,
-         date: doc.data().createdAt ? doc.data().createdAt.toDate().toISOString() : new Date().toISOString(),
-         ...doc.data()
-      }));
+      cloudHistory = snap.docs.map(normalizeCloudHistoryRecord);
     } catch (e) {
       console.error("Failed to fetch cloud history", e);
     }
