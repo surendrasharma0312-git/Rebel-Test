@@ -110,6 +110,28 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(bestPerStudentPerTest(docs)[0].id, 'modern-attempt');
   });
 
+  await t.test('ignores invalid result records when resolving legacy test-name aliases', () => {
+    const docs = [
+      createDoc('legacy-valid', {
+        studentId: 'student-a', testName: 'Vocabulary Set', total: 10, correct: 7, pct: 70
+      }),
+      createDoc('modern-valid', {
+        studentId: 'student-a', testDocId: 'test-1', testName: 'Vocabulary Set',
+        total: 10, correct: 9, pct: 90
+      }),
+      createDoc('modern-invalid', {
+        studentId: 'student-a', testDocId: 'test-2', testName: 'Vocabulary Set',
+        total: 0, correct: 0, pct: 0
+      })
+    ];
+
+    const aliases = buildLeaderboardTestAliases(docs);
+    assert.strictEqual(aliases.get('vocabulary set'), 'test-1');
+    const result = bestPerStudentPerTest(docs);
+    assert.strictEqual(result.length, 1);
+    assert.strictEqual(result[0].id, 'modern-valid');
+  });
+
   await t.test('does not guess when one test name maps to multiple IDs', () => {
     const docs = [
       createDoc('legacy-attempt', { studentId: 'student-a', testName: 'Vocabulary Set', total: 10, correct: 7, pct: 70 }),
