@@ -2990,6 +2990,18 @@ function getLeaderboardDate(value) {
   }
 }
 
+function parseLocalHistory(raw) {
+  if (typeof raw !== 'string' || !raw.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter(record => record && typeof record === 'object' && !Array.isArray(record))
+      : [];
+  } catch (error) {
+    return [];
+  }
+}
+
 function normalizeCloudHistoryRecord(doc, now = new Date()) {
   const data = doc && typeof doc.data === 'function' ? (doc.data() || {}) : {};
   const date = getLeaderboardDate(data.createdAt) ||
@@ -4745,11 +4757,7 @@ async function renderHistory(){
   const listEl = $('historyList');
   listEl.innerHTML = '<div class="empty-state"><span class="emoji">⏳</span>Loading history...</div>';
 
-  let localHistory = [];
-  try{
-    const raw = localStorage.getItem(STORAGE_HISTORY);
-    if(raw) localHistory = JSON.parse(raw);
-  }catch(e){}
+  const localHistory = parseLocalHistory(localStorage.getItem(STORAGE_HISTORY));
 
   let cloudHistory = [];
   if (firebaseReady) {
