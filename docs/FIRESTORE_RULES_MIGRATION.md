@@ -7,9 +7,9 @@ The rules in `firestore.rules` are a **draft for emulator validation only**. The
 ## Current policy
 
 - `vocabTests`: public reads; create/update/delete require the existing server-issued `admin: true` custom claim.
-- `testResults`: public reads remain enabled because the current class and all-time leaderboards query the collection. Student creates require `authUid == request.auth.uid` and a student ID equal to the UID or authorized by the server-managed `studentAccountLinks/{uid}` mapping. Student updates/deletes are denied; Admin SDK writes bypass rules.
-- `studentProfiles`: private to the owning Google-authenticated student (including a verified legacy ID mapping) and admins. Only the known profile fields are accepted.
-- `fcmTokens`: private; writes require an `authUid` matching the caller and a document ID matching the token.
+- `testResults`: public reads remain enabled because the current class and all-time leaderboards query the collection. Student creates require a Google-authenticated session, `authUid == request.auth.uid`, and a student ID equal to the UID or authorized by the server-managed `studentAccountLinks/{uid}` mapping. Student updates/deletes are denied; Admin SDK writes bypass rules.
+- `studentProfiles`: private to the owning Google-authenticated student (including a verified legacy ID mapping) and admins; student writes require Google authentication. Only the known profile fields are accepted.
+- `fcmTokens`: private; writes require Google authentication, an `authUid` matching the caller, and a document ID matching the token.
 - `studentAccountLinks`, `adminLoginAttempts`, and legacy `config`: client access denied.
 - All unlisted collections are denied by default.
 
@@ -32,7 +32,7 @@ npm install --no-save --package-lock=false @firebase/rules-unit-testing firebase
 npm run test:firestore
 ```
 
-The command starts the Firestore emulator and tests public/admin test access, student ownership, verified legacy mappings, profile privacy, FCM token ownership, and server-only collections.
+The command starts the Firestore emulator and tests public/admin test access, Google-only student writes (anonymous sessions denied), student ownership, verified legacy mappings, profile privacy, FCM token ownership, and server-only collections.
 
 ## Deployment gate
 
