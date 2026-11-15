@@ -2993,7 +2993,7 @@ function formatLeaderboardDate(value) {
 }
 
 function normalizeLeaderboardName(value) {
-  return String(value || '').trim().replace(/\\s+/g, ' ').toLocaleLowerCase();
+  return String(value || '').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
 function getLeaderboardStudentKey(data, docId) {
