@@ -98,6 +98,30 @@ test('anonymous Firebase sessions cannot create student results, profiles, or FC
   }));
 });
 
+
+test('sanitized public projections are readable by everyone but never client-writable', async () => {
+  const anonymous = env.unauthenticatedContext().firestore();
+  const student = env.authenticatedContext('student-a', {
+    firebase: { sign_in_provider: 'google.com' }
+  }).firestore();
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'publicLeaderboard/attempt-1'), {
+      studentId: 'student-a', studentName: 'Student A', pct: 90
+    });
+    await setDoc(doc(context.firestore(), 'publicStudentProfiles/student-a'), {
+      studentId: 'student-a', name: 'Student A'
+    });
+  });
+  await assertSucceeds(getDoc(doc(anonymous, 'publicLeaderboard/attempt-1')));
+  await assertSucceeds(getDoc(doc(anonymous, 'publicStudentProfiles/student-a')));
+  await assertFails(setDoc(doc(student, 'publicLeaderboard/forged'), {
+    studentId: 'student-a', studentName: 'Forged', pct: 100
+  }));
+  await assertFails(setDoc(doc(student, 'publicStudentProfiles/student-a'), {
+    studentId: 'student-a', name: 'Forged'
+  }));
+});
+
 test('identity links, admin attempts and legacy config are inaccessible to clients', async () => {
   const admin = env.authenticatedContext('admin-a', { admin: true }).firestore();
   const anonymous = env.unauthenticatedContext().firestore();
