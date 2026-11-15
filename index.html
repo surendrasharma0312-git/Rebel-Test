@@ -3013,6 +3013,9 @@ function buildLeaderboardTestAliases(docs) {
   const idsByName = new Map();
   docs.forEach(doc => {
     const data = doc.data();
+    const total = Number(data && data.total);
+    if (!Number.isFinite(total) || total <= 0 || getLeaderboardPercentage(data) === null) return;
+
     const name = normalizeLeaderboardName(data && data.testName);
     const id = String(data && (data.testDocId || data.testId) || '').trim();
     if (!name || !id) return;
