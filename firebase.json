@@ -1,15 +1,9 @@
 {
-  "functions": [
-    {
-      "source": "firebase-functions",
-      "codebase": "default",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ]
-    }
-  ]
+  "functions": [{
+    "source": "firebase-functions",
+    "codebase": "default",
+    "ignore": ["node_modules", ".git", "firebase-debug.log", "firebase-debug.*.log", "*.local"]
+  }],
+  "firestore": { "rules": "firestore.rules" },
+  "emulators": { "firestore": { "port": 8080 }, "ui": { "enabled": false } }
 }
