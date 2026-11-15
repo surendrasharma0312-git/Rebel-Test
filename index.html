@@ -3002,6 +3002,37 @@ function parseLocalHistory(raw) {
   }
 }
 
+function normalizeHistoryRecord(record) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return null;
+
+  const total = Number(record.total);
+  const pct = getLeaderboardPercentage(record);
+  const date = getLeaderboardDate(record.date) || getLeaderboardDate(record.createdAt);
+  if (!Number.isFinite(total) || total <= 0 || pct === null || pct < 0 || pct > 100 || !date) {
+    return null;
+  }
+
+  const normalizeCount = value => {
+    const count = Number(value);
+    return Number.isFinite(count) && count >= 0 ? count : 0;
+  };
+  const rawDuration = record.durationSeconds;
+  const duration = rawDuration !== null && rawDuration !== undefined && rawDuration !== ''
+    ? Number(rawDuration)
+    : null;
+
+  return {
+    ...record,
+    total,
+    correct: normalizeCount(record.correct),
+    wrong: normalizeCount(record.wrong),
+    timeout: normalizeCount(record.timeout),
+    pct,
+    durationSeconds: duration !== null && Number.isFinite(duration) && duration >= 0 ? duration : null,
+    date: date.toISOString()
+  };
+}
+
 function normalizeCloudHistoryRecord(doc, now = new Date()) {
   const data = doc && typeof doc.data === 'function' ? (doc.data() || {}) : {};
   const date = getLeaderboardDate(data.createdAt) ||
@@ -4783,7 +4814,7 @@ async function renderHistory(){
   const listEl = $('historyList');
   listEl.innerHTML = '<div class="empty-state"><span class="emoji">⏳</span>Loading history...</div>';
 
-  const localHistory = parseLocalHistory(localStorage.getItem(STORAGE_HISTORY));
+  const localHistory = parseLocalHistory(localStorage.getItem(STORAGE_HISTORY))\n    .map(normalizeHistoryRecord)\n    .filter(Boolean);
 
   let cloudHistory = [];
   if (firebaseReady) {
@@ -4791,7 +4822,7 @@ async function renderHistory(){
       const snap = await db.collection('testResults')
         .where('studentId', '==', ensureStudentId())
         .get();
-      cloudHistory = snap.docs.map(normalizeCloudHistoryRecord);
+      cloudHistory = snap.docs.map(normalizeCloudHistoryRecord)\n        .map(normalizeHistoryRecord)\n        .filter(Boolean);
     } catch (e) {
       console.error("Failed to fetch cloud history", e);
     }
