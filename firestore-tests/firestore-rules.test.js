@@ -35,8 +35,8 @@ test('vocab tests are public-read and admin-write only', async () => {
 });
 
 test('students can create results only for their authenticated identity; results are immutable', async () => {
-  const owner = env.authenticatedContext('student-a').firestore();
-  const other = env.authenticatedContext('student-b').firestore();
+  const owner = env.authenticatedContext('student-a', { firebase: { sign_in_provider: 'google.com' } }).firestore();
+  const other = env.authenticatedContext('student-b', { firebase: { sign_in_provider: 'google.com' } }).firestore();
   const result = { authUid: 'student-a', studentId: 'student-a', studentName: 'Student A', total: 10, correct: 8, pct: 80 };
   await assertSucceeds(setDoc(doc(owner, 'testResults/attempt-1'), result));
   await assertFails(setDoc(doc(other, 'testResults/attempt-2'), result));
@@ -45,7 +45,7 @@ test('students can create results only for their authenticated identity; results
 });
 
 test('verified legacy identity mapping permits its owner to create results for that legacy ID', async () => {
-  const owner = env.authenticatedContext('student-a').firestore();
+  const owner = env.authenticatedContext('student-a', { firebase: { sign_in_provider: 'google.com' } }).firestore();
   await assertSucceeds(setDoc(doc(owner, 'testResults/legacy-attempt'), {
     authUid: 'student-a', studentId: 'legacy-student-a', studentName: 'Student A',
     total: 10, correct: 9, pct: 90
@@ -53,8 +53,8 @@ test('verified legacy identity mapping permits its owner to create results for t
 });
 
 test('profiles are private and only the owner or admin can read or write them', async () => {
-  const owner = env.authenticatedContext('student-a').firestore();
-  const other = env.authenticatedContext('student-b').firestore();
+  const owner = env.authenticatedContext('student-a', { firebase: { sign_in_provider: 'google.com' } }).firestore();
+  const other = env.authenticatedContext('student-b', { firebase: { sign_in_provider: 'google.com' } }).firestore();
   const admin = env.authenticatedContext('admin-a', { admin: true }).firestore();
   const anonymous = env.unauthenticatedContext().firestore();
   const profile = {
@@ -70,14 +70,32 @@ test('profiles are private and only the owner or admin can read or write them', 
 });
 
 test('FCM tokens are private and writable only by their owner', async () => {
-  const owner = env.authenticatedContext('student-a').firestore();
-  const other = env.authenticatedContext('student-b').firestore();
+  const owner = env.authenticatedContext('student-a', { firebase: { sign_in_provider: 'google.com' } }).firestore();
+  const other = env.authenticatedContext('student-b', { firebase: { sign_in_provider: 'google.com' } }).firestore();
   const token = 'fcm-token-a';
   const data = { token, authUid: 'student-a', createdAt: new Date(), updatedAt: new Date() };
   await assertSucceeds(setDoc(doc(owner, 'fcmTokens/' + token), data));
   await assertFails(getDoc(doc(other, 'fcmTokens/' + token)));
   await assertFails(deleteDoc(doc(other, 'fcmTokens/' + token)));
   await assertSucceeds(deleteDoc(doc(owner, 'fcmTokens/' + token)));
+});
+
+
+test('anonymous Firebase sessions cannot create student results, profiles, or FCM tokens', async () => {
+  const anonymous = env.authenticatedContext('anonymous-a', {
+    firebase: { sign_in_provider: 'anonymous' }
+  }).firestore();
+  await assertFails(setDoc(doc(anonymous, 'testResults/anonymous-attempt'), {
+    authUid: 'anonymous-a', studentId: 'anonymous-a', studentName: 'Anonymous',
+    total: 10, correct: 8, pct: 80
+  }));
+  await assertFails(setDoc(doc(anonymous, 'studentProfiles/anonymous-a'), {
+    name: 'Anonymous', bio: '', photo: null, phone: '', email: '', address: '',
+    showPublic: false
+  }));
+  await assertFails(setDoc(doc(anonymous, 'fcmTokens/anonymous-token'), {
+    token: 'anonymous-token', authUid: 'anonymous-a'
+  }));
 });
 
 test('identity links, admin attempts and legacy config are inaccessible to clients', async () => {
