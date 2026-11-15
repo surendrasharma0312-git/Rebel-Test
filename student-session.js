@@ -42,8 +42,17 @@
       return resolveGoogleIdentity(user);
     }
 
+    function assertCurrentSession() {
+      if (!currentSession || !auth.currentUser ||
+          auth.currentUser.uid !== currentSession.uid ||
+          !studentAuth.isGoogleUser(auth.currentUser)) {
+        currentSession = null;
+        throw new Error('A current, verified Google student session is required.');
+      }
+    }
+
     async function saveRequiredProfile(profile) {
-      if (!currentSession) throw new Error('Sign in with Google before saving a student profile.');
+      assertCurrentSession();
       const name = typeof profile?.name === 'string' ? profile.name.trim() : '';
       if (!name) throw new Error('Student name is required to complete the profile.');
 
@@ -63,7 +72,7 @@
     }
 
     async function loadRequiredProfile() {
-      if (!currentSession) throw new Error('A verified Google student session is required.');
+      assertCurrentSession();
       const snapshot = await db.collection('studentProfiles').doc(currentSession.studentId).get();
       if (!snapshot.exists || !snapshot.data()?.name) return null;
       return snapshot.data();
