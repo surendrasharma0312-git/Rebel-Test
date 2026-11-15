@@ -13,8 +13,7 @@ const {
   getLeaderboardTestKey,
   buildLeaderboardTestAliases,
   filterLeaderboardDocsByModule,
-  getLeaderboardVisibleEntries,
-  LEADERBOARD_PAGE_SIZE
+  getLeaderboardVisibleEntries
 } = window;
 
 function createDoc(id, data) {
@@ -153,7 +152,7 @@ test('All-Time leaderboard data integrity', async (t) => {
       rank: index + 1
     }));
 
-    const firstPage = getLeaderboardVisibleEntries(entries, LEADERBOARD_PAGE_SIZE);
+    const firstPage = getLeaderboardVisibleEntries(entries, 100);
     assert.strictEqual(firstPage.visibleEntries.length, 100);
     assert.strictEqual(firstPage.visibleEntries[0].rank, 1);
     assert.strictEqual(firstPage.visibleEntries[99].rank, 100);
@@ -174,8 +173,8 @@ test('All-Time leaderboard data integrity', async (t) => {
 
   await t.test('falls back to the default leaderboard page size for invalid limits', () => {
     const entries = Array.from({ length: 120 }, (_, index) => index);
-    assert.strictEqual(getLeaderboardVisibleEntries(entries, 0).visibleEntries.length, LEADERBOARD_PAGE_SIZE);
-    assert.strictEqual(getLeaderboardVisibleEntries(entries, NaN).visibleEntries.length, LEADERBOARD_PAGE_SIZE);
+    assert.strictEqual(getLeaderboardVisibleEntries(entries, 0).visibleEntries.length, 100);
+    assert.strictEqual(getLeaderboardVisibleEntries(entries, NaN).visibleEntries.length, 100);
   });
 
   await t.test('only modern records with a studentId can open a public profile', () => {
