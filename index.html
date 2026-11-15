@@ -2819,6 +2819,7 @@ function getWeeklyBoundaries(now = new Date()) {
 
 function loadLeaderboard(){
   const listEl = $('leaderboardList');
+  leaderboardVisibleCount = LEADERBOARD_PAGE_SIZE;
   listEl.innerHTML = `<div class="empty-state"><span class="emoji">⏳</span>Loading...</div>`;
   if(!firebaseReady){
     listEl.innerHTML = `<div class="error-box">Firebase isn't configured yet — see comments near the top of the code.</div>`;
@@ -2924,12 +2925,14 @@ function renderLeaderboardFilters(){
 $('leaderboardModuleSelect').addEventListener('change', (e) => {
   leaderboardModuleFilter = e.target.value;
   leaderboardFilter = 'all'; // reset test filter when module changes
+  leaderboardVisibleCount = LEADERBOARD_PAGE_SIZE;
   renderLeaderboardFilters();
   renderLeaderboardList();
 });
 
 $('leaderboardTestSelect').addEventListener('change', (e) => {
   leaderboardFilter = e.target.value;
+  leaderboardVisibleCount = LEADERBOARD_PAGE_SIZE;
   renderLeaderboardList();
 });
 
@@ -3093,6 +3096,20 @@ function rankLeaderboardEntries(docs) {
 
 function hasLeaderboardProfile(data) {
   return Boolean(String(data && data.studentId || '').trim());
+}
+
+const LEADERBOARD_PAGE_SIZE = 100;
+let leaderboardVisibleCount = LEADERBOARD_PAGE_SIZE;
+
+function getLeaderboardVisibleEntries(entries, visibleCount) {
+  const count = Number.isFinite(Number(visibleCount)) && Number(visibleCount) > 0
+    ? Math.floor(Number(visibleCount))
+    : LEADERBOARD_PAGE_SIZE;
+  return {
+    visibleEntries: entries.slice(0, count),
+    hasMore: entries.length > count,
+    remaining: Math.max(0, entries.length - count)
+  };
 }
 
 function bestPerStudentPerTest(docs){
@@ -3356,9 +3373,10 @@ function renderLeaderboardList(){
   }
 
   const rankedEntries = rankLeaderboardEntries(docs);
+  const page = getLeaderboardVisibleEntries(rankedEntries, leaderboardVisibleCount);
 
   const fragment = document.createDocumentFragment();
-  rankedEntries.forEach(({ doc, rank })=>{
+  page.visibleEntries.forEach(({ doc, rank })=>{
     const d = doc.data();
     const dateStr = formatLeaderboardDate(d.createdAt);
     const duration = getLeaderboardDuration(d);
@@ -3390,6 +3408,19 @@ function renderLeaderboardList(){
   });
 
   listEl.appendChild(fragment);
+
+  if (page.hasMore) {
+    const loadMoreBtn = document.createElement('button');
+    loadMoreBtn.type = 'button';
+    loadMoreBtn.className = 'btn btn-ghost';
+    loadMoreBtn.style.cssText = 'width:100%; margin:12px 0;';
+    loadMoreBtn.textContent = `Show next ${Math.min(LEADERBOARD_PAGE_SIZE, page.remaining)} (${page.remaining} remaining)`;
+    loadMoreBtn.addEventListener('click', () => {
+      leaderboardVisibleCount += LEADERBOARD_PAGE_SIZE;
+      renderLeaderboardList();
+    });
+    listEl.appendChild(loadMoreBtn);
+  }
 }
 let leaderboardReturnScreen = 'screen-home';
 
