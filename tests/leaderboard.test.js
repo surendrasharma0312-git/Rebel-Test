@@ -63,6 +63,29 @@ test('All-Time leaderboard data integrity', async (t) => {
     );
   });
 
+  await t.test('normalizes history records and excludes invalid scores or dates', () => {
+    const valid = window.normalizeHistoryRecord({
+      attemptId: 'valid',
+      date: '2026-11-15T10:00:00.000Z',
+      total: '10',
+      correct: '8',
+      wrong: 1,
+      timeout: 1,
+      pct: '80',
+      durationSeconds: '42'
+    });
+    assert.strictEqual(valid.total, 10);
+    assert.strictEqual(valid.correct, 8);
+    assert.strictEqual(valid.pct, 80);
+    assert.strictEqual(valid.durationSeconds, 42);
+    assert.strictEqual(valid.date, '2026-11-15T10:00:00.000Z');
+
+    assert.strictEqual(window.normalizeHistoryRecord({ total: 0, pct: 0, date: '2026-11-15' }), null);
+    assert.strictEqual(window.normalizeHistoryRecord({ total: 10, pct: 'NaN', date: '2026-11-15' }), null);
+    assert.strictEqual(window.normalizeHistoryRecord({ total: 10, pct: 80, date: 'not-a-date' }), null);
+    assert.strictEqual(window.normalizeHistoryRecord(null), null);
+  });
+
   await t.test('renders untrusted history values as text instead of HTML', () => {
     const payload = '<img src=x onerror=alert(1)>';
     const row = window.createHistoryRow({
