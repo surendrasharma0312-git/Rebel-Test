@@ -217,3 +217,35 @@ exports.adminAccess = onCall(
     return { ok: true, admin: true };
   }
 );
+
+
+const { resolveStudentIdentity } = require('./student-identity');
+
+exports.resolveStudentIdentity = onCall(async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError('unauthenticated', 'Sign in is required.');
+  }
+
+  const signInProvider = request.auth.token &&
+    request.auth.token.firebase &&
+    request.auth.token.firebase.sign_in_provider;
+  if (signInProvider !== 'google.com') {
+    throw new HttpsError('permission-denied', 'Google sign-in is required.');
+  }
+
+  try {
+    return await resolveStudentIdentity({
+      uid: request.auth.uid,
+      legacyStudentId: request.data && request.data.legacyStudentId,
+      db: admin.firestore(),
+      FieldValue: admin.firestore.FieldValue
+    });
+  } catch (error) {
+    const allowedCodes = ['invalid-argument', 'failed-precondition', 'unauthenticated'];
+    if (allowedCodes.includes(error.code)) {
+      throw new HttpsError(error.code, error.message);
+    }
+    console.error('Failed to resolve student identity:', error);
+    throw new HttpsError('internal', 'Unable to resolve the student account right now.');
+  }
+});
