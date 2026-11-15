@@ -16,7 +16,7 @@ The rules in `firestore.rules` are a **draft for emulator validation only**. The
 ## Required compatibility work before deployment
 
 1. Complete the Google sign-in flow and call `resolveStudentIdentity` before any student profile, history, result, or token operation. The app must use the returned canonical `studentId`.
-2. Update FCM token writes to include `authUid` and ensure the current user owns the token before deleting it. The current client payload does not yet include `authUid`.
+2. FCM token writes now include the current authenticated `authUid`; token deletion is owner-checked by the rules. Validate this behavior after the Google login flow is integrated, including tokens created by older anonymous sessions.
 3. Profile documents contain phone, email, and address. Firestore Rules cannot redact individual fields from a document. These draft rules therefore keep the whole profile private even when `showPublic` is true. Before restoring public profile views, publish a separate allowlisted public profile document/collection containing only safe fields; never expose the private profile document.
 4. The current leaderboard reads the full `testResults` collection. That collection contains `authUid` ownership proof and is still publicly readable for compatibility. Before production, move public leaderboard data to a sanitized projection and keep ownership proof in a private server-managed record. Do not treat a Firebase UID as public profile data.
 5. Existing anonymous/local-only profile IDs and results without a matching `authUid` cannot be safely migrated automatically. Leave them unresolved for an explicit recovery path; do not claim ownership based only on a client-supplied student ID.
