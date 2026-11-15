@@ -37,3 +37,11 @@ The command starts the Firestore emulator and tests public/admin test access, Go
 ## Deployment gate
 
 Do not deploy these rules until the login/profile/token compatibility work is complete, the public profile and leaderboard projections are addressed, and the emulator suite passes. The rules are not a substitute for production backup, staging verification, or a reviewed rollout plan.
+
+
+## Sanitized public projection rollout
+- Cloud Functions now mirror each new/updated `testResults/{attemptId}` into `publicLeaderboard/{attemptId}` using an explicit allowlist. The projection excludes `authUid` and any unlisted/private fields.
+- Cloud Functions mirror `studentProfiles/{studentId}` into `publicStudentProfiles/{studentId}`. Name, bio and photo are public; phone, email and address are included only when `showPublic` is true.
+- Clients may read these projection collections but cannot write them; only trusted Cloud Functions/Admin SDK maintain them.
+- Existing historical results and profiles are not automatically backfilled by these triggers. Before switching leaderboard/profile UI reads or making `testResults` private, run and verify a one-time Admin SDK backfill, compare counts and rankings, and retain a rollback path.
+- Do not deploy these rules or functions to production until the backfill, staging verification, and full UI migration are reviewed.
