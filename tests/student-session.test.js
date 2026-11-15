@@ -49,7 +49,7 @@ function fixture({ profileExists = false, profileWriteFails = false } = {}) {
     signOut: async () => auth.signOut()
   };
   const session = StudentSession.create({ auth, firebaseAuth, functions, db, storage, studentAuth });
-  return { session, storage, user, getCallableArgs: () => callableArgs, getSavedProfile: () => savedProfile };
+  return { session, storage, user, setCurrentUser: value => { auth.currentUser = value; }, getCallableArgs: () => callableArgs, getSavedProfile: () => savedProfile };
 }
 
 test('resolves canonical identity through the callable and supplies legacy ID for proof', async () => {
@@ -102,5 +102,13 @@ test('sign-out clears only the canonical identity cache', async () => {
   await f.session.signOut();
   assert.equal(f.storage.getItem(StudentSession.CANONICAL_ID_KEY), null);
   assert.equal(f.storage.getItem(StudentSession.LEGACY_ID_KEY), 'legacy-id');
+  assert.equal(f.session.getSession(), null);
+});
+
+test('refuses profile access if the Firebase user changes after identity resolution', async () => {
+  const f = fixture();
+  await f.session.resolveGoogleIdentity(f.user);
+  f.setCurrentUser({ uid: 'different-user', providerData: [] });
+  await assert.rejects(f.session.loadRequiredProfile(), /current, verified Google student session/);
   assert.equal(f.session.getSession(), null);
 });
