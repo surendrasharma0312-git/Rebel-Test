@@ -4814,7 +4814,9 @@ async function renderHistory(){
   const listEl = $('historyList');
   listEl.innerHTML = '<div class="empty-state"><span class="emoji">⏳</span>Loading history...</div>';
 
-  const localHistory = parseLocalHistory(localStorage.getItem(STORAGE_HISTORY))\n    .map(normalizeHistoryRecord)\n    .filter(Boolean);
+  const localHistory = parseLocalHistory(localStorage.getItem(STORAGE_HISTORY))
+    .map(normalizeHistoryRecord)
+    .filter(Boolean);
 
   let cloudHistory = [];
   if (firebaseReady) {
@@ -4822,7 +4824,9 @@ async function renderHistory(){
       const snap = await db.collection('testResults')
         .where('studentId', '==', ensureStudentId())
         .get();
-      cloudHistory = snap.docs.map(normalizeCloudHistoryRecord)\n        .map(normalizeHistoryRecord)\n        .filter(Boolean);
+      cloudHistory = snap.docs.map(normalizeCloudHistoryRecord)
+        .map(normalizeHistoryRecord)
+        .filter(Boolean);
     } catch (e) {
       console.error("Failed to fetch cloud history", e);
     }
