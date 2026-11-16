@@ -18,11 +18,16 @@ async function backfillCollection({
   dryRun = true
 }) {
   let cursor = null;
+  // Use the Admin SDK document-id sentinel in production. The string fallback
+  // keeps this helper testable with lightweight Firestore fakes.
+  const documentIdField = admin.firestore && admin.firestore.FieldPath
+    ? admin.firestore.FieldPath.documentId()
+    : '__name__';
   const summary = { source: sourceName, target: targetName, scanned: 0, projected: 0, skipped: 0, written: 0 };
 
   while (true) {
     let query = db.collection(sourceName)
-      .orderBy(admin.firestore.FieldPath.documentId())
+      .orderBy(documentIdField)
       .limit(pageSize);
     if (cursor) query = query.startAfter(cursor);
 
