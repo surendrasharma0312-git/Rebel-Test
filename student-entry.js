@@ -48,6 +48,9 @@
 
     function setSignedInProfile(profile) {
       if (!profile) return;
+      root.localStorage.removeItem('vocabTestApp_studentName');
+      root.localStorage.removeItem('vocabTestApp_studentBio');
+      root.localStorage.removeItem('vocabTestApp_studentPhoto');
       if (profile.name) root.localStorage.setItem('vocabTestApp_studentName', profile.name);
       if (profile.bio) root.localStorage.setItem('vocabTestApp_studentBio', profile.bio);
       if (profile.photo) root.localStorage.setItem('vocabTestApp_studentPhoto', profile.photo);
@@ -78,7 +81,10 @@
       try {
         await studentAuth.signInWithGoogle();
       } catch (error) {
-        showError(errorBox, error);
+        const message = error && error.code === 'auth/credential-already-in-use'
+          ? 'This Google account is already linked to a different Rebel Test account. We have not switched accounts or merged history automatically. Please contact the administrator for account recovery.'
+          : (error && error.message) || 'Google sign-in failed. Please try again.';
+        showError(errorBox, { message });
         signInButton.disabled = false;
         signInButton.textContent = 'Continue with Google';
       }
