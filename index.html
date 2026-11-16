@@ -730,8 +730,54 @@
     </div>
   </div>
 
+  <!-- ============ SCREEN: STUDENT WELCOME / LOGIN ============ -->
+  <section class="screen active" id="screen-welcome">
+    <div class="hero">
+      <div class="bubble b1"></div><div class="bubble b2"></div><div class="bubble b3"></div>
+      <h1>Welcome to Rebel Test</h1>
+      <p>Sign in with Google to access your tests, results, progress and student profile.</p>
+    </div>
+    <div class="card">
+      <div class="section-title">Student Login</div>
+      <p class="muted">Use your Google account. Your profile will be set up before you enter the app.</p>
+      <button class="btn btn-primary" id="googleStudentSignInBtn" type="button">Continue with Google</button>
+      <div id="studentEntryError" class="error-box" role="alert" style="display:none;"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Administrator</div>
+      <p class="muted">Admin access is separate from student Google login.</p>
+      <button class="btn btn-ghost" id="welcomeAdminBtn" type="button">Admin Login</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN: REQUIRED STUDENT PROFILE ============ -->
+  <section class="screen" id="screen-student-profile">
+    <div class="hero">
+      <h1>Complete Your Profile</h1>
+      <p>Your profile is required before you can use the student dashboard.</p>
+    </div>
+    <form class="card" id="studentProfileSetupForm">
+      <label class="muted" for="studentProfileNameInput" style="display:block;font-weight:700;margin-bottom:6px;">Full name (required)</label>
+      <input class="modal-input" id="studentProfileNameInput" maxlength="100" required autocomplete="name" placeholder="Enter your full name">
+      <label class="muted" for="studentProfileEmailInput" style="display:block;font-weight:700;margin:12px 0 6px;">Google email</label>
+      <input class="modal-input" id="studentProfileEmailInput" type="email" readonly>
+      <label class="muted" for="studentProfileBioInput" style="display:block;font-weight:700;margin:12px 0 6px;">Bio (optional)</label>
+      <input class="modal-input" id="studentProfileBioInput" maxlength="500" placeholder="A short introduction">
+      <label class="muted" for="studentProfilePhoneInput" style="display:block;font-weight:700;margin:12px 0 6px;">Phone (optional)</label>
+      <input class="modal-input" id="studentProfilePhoneInput" type="tel" autocomplete="tel">
+      <label class="muted" for="studentProfileAddressInput" style="display:block;font-weight:700;margin:12px 0 6px;">Address (optional)</label>
+      <input class="modal-input" id="studentProfileAddressInput" autocomplete="street-address">
+      <input id="studentProfilePhotoInput" type="hidden">
+      <label style="display:flex;align-items:center;gap:8px;margin:16px 0;font-size:13px;">
+        <input id="studentProfilePublicInput" type="checkbox"> Show optional contact details on my public profile
+      </label>
+      <button class="btn btn-primary" id="studentProfileSaveBtn" type="submit">Save and continue</button>
+      <div id="studentProfileSetupError" class="error-box" role="alert" style="display:none;"></div>
+    </form>
+  </section>
+
   <!-- ============ SCREEN 1: HOME / UPLOAD ============ -->
-  <section class="screen active" id="screen-home">
+  <section class="screen" id="screen-home">
     <div class="hero">
       <div class="bubble b1"></div><div class="bubble b2"></div><div class="bubble b3"></div>
       <h1>Remember Your Words</h1>
@@ -1540,6 +1586,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="./student-auth.js"></script>
+<script src="./student-session.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
@@ -1652,6 +1699,16 @@ function escapeHTML(str) {
 function $(id){ return document.getElementById(id); }
 function showScreen(id, opts){
   opts = opts || {};
+  if (window.RebelStudentRuntime && window.StudentSessionManager &&
+      !window.StudentSessionManager.getSession() &&
+      !window.RebelStudentRuntime.AdminAuth.isAdmin &&
+      !['screen-welcome', 'screen-admin-login'].includes(id)) {
+    id = 'screen-welcome';
+  }
+  if (id === 'screen-admin' && window.RebelStudentRuntime &&
+      !window.RebelStudentRuntime.AdminAuth.isAdmin) {
+    id = 'screen-admin-login';
+  }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $(id).classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
@@ -3644,7 +3701,7 @@ $('adminBtn').addEventListener('click', ()=>{
   setTimeout(()=> $('adminPasswordInput').focus(), 300);
 });
 
-$('backFromAdminLoginBtn').addEventListener('click', ()=> showScreen('screen-home'));
+$('backFromAdminLoginBtn').addEventListener('click', ()=> showScreen('screen-welcome'));
 
 $('adminLoginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -3669,9 +3726,9 @@ $('adminLoginForm').addEventListener('submit', async (e)=>{
 $('logoutAdminBtn').addEventListener('click', async ()=>{
   await AdminAuth.logout();
   updateAdminUI();
-  showScreen('screen-home');
+  showScreen('screen-welcome');
 });
-$('backFromAdminBtn').addEventListener('click', ()=> showScreen('screen-home'));
+$('backFromAdminBtn').addEventListener('click', ()=> showScreen('screen-welcome'));
 
 updateAdminUI();
 
@@ -4400,6 +4457,8 @@ function generateUUID() {
 }
 
 function ensureStudentId() {
+    const canonicalId = localStorage.getItem('vocabTestApp_canonicalStudentId');
+    if (canonicalId) return canonicalId;
     let studentId = localStorage.getItem('vocabTestApp_studentId');
     if (!studentId) {
         studentId = generateUUID();
@@ -4572,6 +4631,11 @@ const STORAGE_STUDENT_PHOTO = 'vocabTestApp_studentPhoto';
 
 async function getStudentName(forcePrompt = false) {
   let studentId = ensureStudentId();
+  const activeSession = window.StudentSessionManager && window.StudentSessionManager.getSession();
+  if (activeSession && activeSession.profile && activeSession.profile.name && !forcePrompt) {
+    localStorage.setItem(STORAGE_STUDENT_NAME, activeSession.profile.name);
+    return activeSession.profile.name;
+  }
 
   let name = localStorage.getItem(STORAGE_STUDENT_NAME);
   if (name && !forcePrompt) return name;
@@ -4705,22 +4769,24 @@ async function getStudentName(forcePrompt = false) {
         localStorage.setItem(STORAGE_STUDENT_PHOTO, currentPhoto);
       }
 
-      if (firebaseReady) {
-          try {
-              const payload = {
-                  name: enteredName,
-                  bio: bioInput.value.trim(),
-                  photo: currentPhoto || null,
-                  phone: phoneInput.value.trim(),
-                  email: emailInput.value.trim(),
-                  address: addressInput.value.trim(),
-                  showPublic: showPublicCheckbox.checked,
-                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-              };
-              await db.collection('studentProfiles').doc(studentId).set(payload, { merge: true });
-          } catch(err) {
-              console.error('Failed to sync profile', err);
-          }
+      if (window.StudentSessionManager) {
+        try {
+          await window.StudentSessionManager.saveRequiredProfile({
+            name: enteredName,
+            bio: bioInput.value.trim(),
+            photo: currentPhoto || null,
+            phone: phoneInput.value.trim(),
+            address: addressInput.value.trim(),
+            showPublic: showPublicCheckbox.checked
+          });
+        } catch (err) {
+          console.error('Failed to save required student profile', err);
+          appAlert('Your profile could not be saved. Please check your connection and try again.');
+          return;
+        }
+      } else {
+        appAlert('Please sign in with Google before saving your profile.');
+        return;
       }
 
       if (typeof updateSettingsUI === 'function') {
@@ -6257,6 +6323,14 @@ listenToCloudTests();
 if (firebaseReady) {
   AdminAuth.restore().then(() => updateAdminUI());
 }
+window.RebelStudentRuntime = {
+  get firebaseReady() { return firebaseReady; },
+  get auth() { return auth; },
+  get db() { return db; },
+  get authSessionPromise() { return authSessionPromise; },
+  AdminAuth,
+  updateAdminUI
+};
 </script>
 
   <!-- Review Later Modal -->
@@ -6321,6 +6395,7 @@ if (typeof module !== 'undefined' && module.exports) {
   };
 }
 </script>
+<script src="./student-entry.js"></script>
 </body>
 
 </html>
