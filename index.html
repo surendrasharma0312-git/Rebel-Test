@@ -2782,7 +2782,15 @@ const AdminAuth = (function() {
     async login(password) {
       if (!auth || !firebaseReady) return false;
       try {
-        const user = auth.currentUser || (authSessionPromise ? await authSessionPromise : null);
+        let user = auth.currentUser;
+        if (!user && authSessionPromise) {
+          await authSessionPromise;
+          user = auth.currentUser;
+        }
+        if (!user) {
+          const credential = await auth.signInAnonymously();
+          user = credential.user;
+        }
         if (!user) return false;
         const adminAccess = firebase.functions().httpsCallable('adminAccess');
         await adminAccess({ action: 'login', password });
@@ -2810,7 +2818,11 @@ const AdminAuth = (function() {
     async restore() {
       _isAdmin = false;
       try {
-        const user = auth && (auth.currentUser || (authSessionPromise ? await authSessionPromise : null));
+        let user = auth && auth.currentUser;
+        if (!user && authSessionPromise) {
+          await authSessionPromise;
+          user = auth && auth.currentUser;
+        }
         if (!user) return;
         const token = await user.getIdTokenResult();
         _isAdmin = token.claims.admin === true;
@@ -4807,7 +4819,7 @@ async function saveToLeaderboard({ total, correct, wrong, timeout, pct, duration
   if(!currentTestDocId || !firebaseReady) return;
   const studentName = await getStudentName();
   if(!studentName) return; // they skipped entering a name — don't save
-  const authUser = auth ? (auth.currentUser || (authSessionPromise ? await authSessionPromise : null)) : null;
+  const authUser = auth ? auth.currentUser : null;
   const testType = window._activeTestMode === 'verb' ? 'verb' : 'vocab';
   try{
     await db.collection('testResults').doc(attemptId).set({
