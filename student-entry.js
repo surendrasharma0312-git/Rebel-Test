@@ -9,18 +9,19 @@
     const profileForm = byId('studentProfileSetupForm');
     const profileError = byId('studentProfileSetupError');
 
-    if (!root.firebaseReady || !root.auth || !root.db || !root.StudentAuth || !root.StudentSession) {
+    const runtime = root.RebelStudentRuntime;
+    if (!runtime || !runtime.firebaseReady || !runtime.auth || !runtime.db || !root.StudentAuth || !root.StudentSession) {
       errorBox.textContent = 'Student sign-in is temporarily unavailable. Please try again later.';
       signInButton.disabled = true;
       return;
     }
 
-    const studentAuth = root.StudentAuth.create(root.auth, root.firebase);
+    const studentAuth = root.StudentAuth.create(runtime.auth, root.firebase);
     const studentSession = root.StudentSession.create({
-      auth: root.auth,
+      auth: runtime.auth,
       firebaseAuth: root.firebase,
       functions: root.firebase.functions(),
-      db: root.db,
+      db: runtime.db,
       storage: root.localStorage,
       studentAuth
     });
@@ -118,7 +119,7 @@
     });
 
     try {
-      await root.authSessionPromise;
+      await runtime.authSessionPromise;
       const entered = await completeStudentEntry();
       if (!entered) root.showScreen('screen-welcome');
     } catch (error) {
@@ -126,9 +127,9 @@
       root.showScreen('screen-welcome');
     }
 
-    if (root.AdminAuth && typeof root.AdminAuth.restore === 'function') {
-      await root.AdminAuth.restore();
-      root.updateAdminUI();
+    if (runtime.AdminAuth && typeof runtime.AdminAuth.restore === 'function') {
+      await runtime.AdminAuth.restore();
+      runtime.updateAdminUI();
     }
   }
 
