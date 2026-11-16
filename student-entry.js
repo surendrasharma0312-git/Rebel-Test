@@ -34,26 +34,23 @@
       target.style.display = 'block';
     }
 
+    root.handleStudentSignOut = async function () {
+      try {
+        await studentSession.signOut();
+        root.localStorage.removeItem('vocabTestApp_studentName');
+        root.localStorage.removeItem('vocabTestApp_studentBio');
+        root.localStorage.removeItem('vocabTestApp_studentPhoto');
+        root.showScreen('screen-welcome');
+      } catch (error) {
+        showError(errorBox, error);
+      }
+    };
+
     function setSignedInProfile(profile) {
       if (!profile) return;
       if (profile.name) root.localStorage.setItem('vocabTestApp_studentName', profile.name);
       if (profile.bio) root.localStorage.setItem('vocabTestApp_studentBio', profile.bio);
       if (profile.photo) root.localStorage.setItem('vocabTestApp_studentPhoto', profile.photo);
-      const action = byId('studentLoginActionContainer');
-      if (action) {
-        action.innerHTML = '<button type="button" class="btn btn-ghost btn-sm" id="studentSignOutBtn">Sign out</button>';
-        byId('studentSignOutBtn').addEventListener('click', async () => {
-          try {
-            await studentSession.signOut();
-            root.localStorage.removeItem('vocabTestApp_studentName');
-            root.localStorage.removeItem('vocabTestApp_studentBio');
-            root.localStorage.removeItem('vocabTestApp_studentPhoto');
-            root.showScreen('screen-welcome');
-          } catch (error) {
-            showError(errorBox, error);
-          }
-        });
-      }
       if (typeof root.updateSettingsUI === 'function') root.updateSettingsUI();
     }
 
