@@ -5020,7 +5020,9 @@ function updateSettingsUI() {
     }
 
     if (studentName) {
-      actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); margin-top: 8px;" onclick="handleEditProfileClick(event)">Edit Details</button>';
+      const hasGoogleSession = Boolean(window.StudentSessionManager && window.StudentSessionManager.getSession());
+      actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); margin-top: 8px;" onclick="handleEditProfileClick(event)">Edit Details</button>' +
+        (hasGoogleSession ? '<button id="studentSignOutBtn" class="btn btn-sm btn-ghost" style="margin-top:8px;" onclick="window.handleStudentSignOut()">Sign out</button>' : '');
     } else {
       actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm btn-primary" style="margin-top: 8px;" onclick="handleEditProfileClick(event)">Student Login</button>';
     }
