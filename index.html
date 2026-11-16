@@ -2455,8 +2455,9 @@ async function saveTokenToFirestore(token) {
   if (!db) return;
   try {
     const authUser = firebase.auth().currentUser;
-    if (!authUser || !authUser.uid) {
-      console.warn('Skipping FCM token save: authenticated session is not ready.');
+    const studentSession = window.StudentSessionManager && window.StudentSessionManager.getSession();
+    if (!authUser || !authUser.uid || !studentSession || studentSession.uid !== authUser.uid) {
+      console.warn('Skipping FCM token save: a verified Google student session is required.');
       return;
     }
     const tokensRef = db.collection('fcmTokens');
@@ -4756,19 +4757,6 @@ async function getStudentName(forcePrompt = false) {
 
       studentId = ensureStudentId();
 
-      localStorage.setItem(STORAGE_STUDENT_NAME, enteredName);
-      localStorage.setItem('vocabTestApp_studentBio', bioInput.value.trim());
-
-      // Clean up legacy local storage keys
-      localStorage.removeItem('vocabTestApp_studentPhone');
-      localStorage.removeItem('vocabTestApp_studentEmail');
-      localStorage.removeItem('vocabTestApp_studentAddress');
-      localStorage.removeItem('vocabTestApp_studentShowPublic');
-
-      if (currentPhoto) {
-        localStorage.setItem(STORAGE_STUDENT_PHOTO, currentPhoto);
-      }
-
       if (window.StudentSessionManager) {
         try {
           await window.StudentSessionManager.saveRequiredProfile({
@@ -4788,6 +4776,14 @@ async function getStudentName(forcePrompt = false) {
         appAlert('Please sign in with Google before saving your profile.');
         return;
       }
+
+      localStorage.setItem(STORAGE_STUDENT_NAME, enteredName);
+      localStorage.setItem('vocabTestApp_studentBio', bioInput.value.trim());
+      localStorage.removeItem('vocabTestApp_studentPhone');
+      localStorage.removeItem('vocabTestApp_studentEmail');
+      localStorage.removeItem('vocabTestApp_studentAddress');
+      localStorage.removeItem('vocabTestApp_studentShowPublic');
+      if (currentPhoto) localStorage.setItem(STORAGE_STUDENT_PHOTO, currentPhoto);
 
       if (typeof updateSettingsUI === 'function') {
         updateSettingsUI();
