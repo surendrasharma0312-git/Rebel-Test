@@ -19,6 +19,12 @@
       if (!studentAuth.isGoogleUser(user)) {
         throw new Error('Google sign-in is required for a student account.');
       }
+      // Linking Google to an existing anonymous account changes its provider
+      // identities. Force-refresh the ID token before the callable and the
+      // subsequent Firestore rules checks inspect those claims.
+      if (typeof user.getIdToken === 'function') {
+        await user.getIdToken(true);
+      }
       const callable = functions.httpsCallable('resolveStudentIdentity');
       const legacyStudentId = storage.getItem(LEGACY_ID_KEY) || null;
       const response = await callable({ legacyStudentId });
