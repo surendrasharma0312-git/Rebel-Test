@@ -19,6 +19,14 @@ jobs:
         run: npm ci
       - name: Run unit tests
         run: npm test
+      - name: Install Cloud Functions dependencies
+        run: npm ci --prefix firebase-functions
+      - name: Run Cloud Functions package tests
+        run: npm test --prefix firebase-functions
+      - name: Audit Cloud Functions production dependencies
+        run: npm audit --prefix firebase-functions --omit=dev --audit-level=high
+      - name: Load Cloud Functions entrypoint
+        run: node -e "require('./firebase-functions/index.js')"
       - name: Install Firestore rules test dependencies
         run: npm install --no-save --package-lock=false @firebase/rules-unit-testing firebase
       - name: Run Firestore emulator rules tests
