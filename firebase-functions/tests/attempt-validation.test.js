@@ -89,6 +89,31 @@ test('validates verb-form answers against the selected authoritative form', () =
   assert.deepEqual(result, { total: 4, correct: 2, wrong: 1, timeout: 1, pct: 50 });
 });
 
+test('supports mixed verb tests with multiple modes per source verb', () => {
+  const testData = {
+    isVerbTest: true,
+    questionCount: 6,
+    verbs: [
+      { v1: 'go', v2: 'went', v3: 'gone', v4: 'going', v5: 'goes', hi: 'जाना' },
+      { v1: 'eat', v2: 'ate', v3: 'eaten', v4: 'eating', v5: 'eats', hi: 'खाना' },
+      { v1: 'write', v2: 'wrote', v3: 'written', v4: 'writing', v5: 'writes', hi: 'लिखना' },
+      { v1: 'see', v2: 'saw', v3: 'seen', v4: 'seeing', v5: 'sees', hi: 'देखना' }
+    ]
+  };
+  const result = validateAttempt({
+    testData,
+    answers: [
+      { sourceIndex: 0, mode: 'v2', answer: 'went' },
+      { sourceIndex: 1, mode: 'v2', answer: 'ate' },
+      { sourceIndex: 2, mode: 'v2', answer: 'written' },
+      { sourceIndex: 3, mode: 'v2', answer: 'saw' },
+      { sourceIndex: 0, mode: 'v3', answer: 'gone' },
+      { sourceIndex: 1, mode: 'v3', answer: 'eaten' }
+    ]
+  });
+  assert.deepEqual(result, { total: 6, correct: 5, wrong: 1, timeout: 0, pct: 83 });
+});
+
 test('rejects unknown verb modes, malformed answers, and unscorable tests', () => {
   const testData = {
     isVerbTest: true,
