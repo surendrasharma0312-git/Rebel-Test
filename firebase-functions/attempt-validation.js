@@ -12,16 +12,18 @@ function normalizeAnswer(value) {
   return typeof value === 'string' ? value.trim().toLocaleLowerCase() : '';
 }
 
-function getQuestionLimit(testData, sourceLength) {
+function getQuestionLimit(testData, sourceLength, isVerbTest) {
   if (testData.questionCount === undefined || testData.questionCount === null ||
       testData.questionCount === '') {
-    return sourceLength;
+    return isVerbTest ? 20 : sourceLength;
   }
   const configured = Number(testData.questionCount);
   if (!Number.isSafeInteger(configured) || configured < 1) {
     throw createError('failed-precondition', 'The published test question count is invalid.');
   }
-  return Math.min(configured, sourceLength);
+  // Verb tests can generate multiple distinct questions from each source verb
+  // (V2, V3, V4, V5, and Hindi-to-V1), so their count can exceed verbs.length.
+  return isVerbTest ? configured : Math.min(configured, sourceLength);
 }
 
 function validateAttempt({ testData, answers }) {
@@ -38,7 +40,7 @@ function validateAttempt({ testData, answers }) {
     throw createError('failed-precondition', 'This test has no valid question source.');
   }
 
-  const questionLimit = getQuestionLimit(testData, source.length);
+  const questionLimit = getQuestionLimit(testData, source.length, isVerbTest);
   let expectedTotal = questionLimit;
   let selectedModes = [];
 
