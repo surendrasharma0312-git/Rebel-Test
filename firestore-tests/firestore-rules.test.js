@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc } = require('firebase/firestore');
+const { collection, doc, getDoc, getDocs, query, where, setDoc, updateDoc, deleteDoc } = require('firebase/firestore');
 
 let env;
 test.before(async () => {
@@ -34,12 +34,21 @@ test('vocab tests are public-read and admin-write only', async () => {
   await assertSucceeds(setDoc(doc(admin, 'vocabTests/test-2'), { name: 'Admin write' }));
 });
 
-test('students can create results only for their authenticated identity; results are immutable', async () => {
+test('student results are private, append-only and tied to the authenticated identity', async () => {
   const owner = env.authenticatedContext('student-a', { firebase: { sign_in_provider: 'google.com' } }).firestore();
   const other = env.authenticatedContext('student-b', { firebase: { sign_in_provider: 'google.com' } }).firestore();
+  const anonymous = env.unauthenticatedContext().firestore();
+  const admin = env.authenticatedContext('admin-a', { admin: true }).firestore();
   const result = { authUid: 'student-a', studentId: 'student-a', studentName: 'Student A', total: 10, correct: 8, pct: 80 };
   await assertSucceeds(setDoc(doc(owner, 'testResults/attempt-1'), result));
   await assertFails(setDoc(doc(other, 'testResults/attempt-2'), result));
+  await assertSucceeds(getDoc(doc(owner, 'testResults/attempt-1')));
+  await assertFails(getDoc(doc(other, 'testResults/attempt-1')));
+  await assertFails(getDoc(doc(anonymous, 'testResults/attempt-1')));
+  await assertSucceeds(getDoc(doc(admin, 'testResults/attempt-1')));
+  const ownerHistory = await getDocs(query(collection(owner, 'testResults'), where('studentId', '==', 'student-a')));
+  assert.equal(ownerHistory.size, 1);
+  await assertFails(getDocs(collection(other, 'testResults')));
   await assertFails(updateDoc(doc(owner, 'testResults/attempt-1'), { pct: 100 }));
   await assertFails(deleteDoc(doc(owner, 'testResults/attempt-1')));
 });
@@ -108,16 +117,16 @@ test('sanitized public projections are readable by everyone but never client-wri
     await setDoc(doc(context.firestore(), 'publicLeaderboard/attempt-1'), {
       publicStudentId: 'opaque-public-id-a', studentName: 'Student A', pct: 90
     });
-    await setDoc(doc(context.firestore(), 'publicStudentProfiles/student-a'), {
+    await setDoc(doc(context.firestore(), 'publicStudentProfiles/opaque-public-id-a'), {
       publicStudentId: 'opaque-public-id-a', name: 'Student A'
     });
   });
   await assertSucceeds(getDoc(doc(anonymous, 'publicLeaderboard/attempt-1')));
-  await assertSucceeds(getDoc(doc(anonymous, 'publicStudentProfiles/student-a')));
+  await assertSucceeds(getDoc(doc(anonymous, 'publicStudentProfiles/opaque-public-id-a')));
   await assertFails(setDoc(doc(student, 'publicLeaderboard/forged'), {
     publicStudentId: 'opaque-public-id-a', studentName: 'Forged', pct: 100
   }));
-  await assertFails(setDoc(doc(student, 'publicStudentProfiles/student-a'), {
+  await assertFails(setDoc(doc(student, 'publicStudentProfiles/opaque-public-id-a'), {
     publicStudentId: 'opaque-public-id-a', name: 'Forged'
   }));
 });
