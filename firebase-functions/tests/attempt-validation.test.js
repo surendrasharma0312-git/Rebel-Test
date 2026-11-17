@@ -114,4 +114,13 @@ test('rejects unknown verb modes, malformed answers, and unscorable tests', () =
     testData: { words: [{ en: 'one', hi: 'एक' }] },
     answers: [{ sourceIndex: 0, mode: 'vocab', answer: 'एक' }]
   }), error => error.code === 'failed-precondition');
+  assert.throws(() => validateAttempt({
+    testData: { ...testData, questionCount: -3 },
+    answers: [
+      { sourceIndex: 0, mode: 'v2', answer: 'went' },
+      { sourceIndex: 1, mode: 'v2', answer: 'ate' },
+      { sourceIndex: 2, mode: 'v2', answer: 'wrote' },
+      { sourceIndex: 3, mode: 'v2', answer: 'saw' }
+    ]
+  }), error => error.code === 'failed-precondition');
 });
