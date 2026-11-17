@@ -34,6 +34,8 @@ function projectPublicLeaderboardResult(data, secret) {
 
 function projectPublicStudentProfile(data, studentId, secret) {
   if (!data || typeof data !== 'object') return null;
+  const showPublic = data.showPublic === true || String(data.showPublic).toLowerCase() === 'true';
+  if (!showPublic) return null;
   const publicStudentId = createPublicStudentId(studentId, secret);
   if (!publicStudentId) return null;
 
