@@ -53,6 +53,24 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(result[0].id, 'attempt-2');
   });
 
+  await t.test('isolates local history storage by verified student identity', () => {
+    const originalSession = window.StudentSessionManager;
+    const originalRuntime = window.RebelStudentRuntime;
+    try {
+      window.StudentSessionManager = { getSession: () => ({ studentId: 'student-a' }) };
+      assert.strictEqual(window.getLocalHistoryStorageKey(), 'vocabTestApp_history:student:student-a');
+      window.StudentSessionManager = { getSession: () => ({ studentId: 'student-b' }) };
+      assert.strictEqual(window.getLocalHistoryStorageKey(), 'vocabTestApp_history:student:student-b');
+      window.StudentSessionManager = { getSession: () => null };
+      assert.strictEqual(window.getLocalHistoryStorageKey(), 'vocabTestApp_history:guest');
+      window.RebelStudentRuntime = { AdminAuth: { isAdmin: true } };
+      assert.strictEqual(window.getLocalHistoryStorageKey(), 'vocabTestApp_history:admin');
+    } finally {
+      window.StudentSessionManager = originalSession;
+      window.RebelStudentRuntime = originalRuntime;
+    }
+  });
+
   await t.test('safely parses local history storage with malformed or unexpected shapes', () => {
     assert.strictEqual(JSON.stringify(parseLocalHistory(null)), '[]');
     assert.strictEqual(JSON.stringify(parseLocalHistory('')), '[]');
