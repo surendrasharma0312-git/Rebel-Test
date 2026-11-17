@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { resolveStudentIdentity } = require('../student-identity');
+const { resolveStudentIdentity, hasGoogleIdentity } = require('../student-identity');
 
 function createDb({ existingLink = null, proofExists = false } = {}) {
   const writes = [];
@@ -45,6 +45,19 @@ function createDb({ existingLink = null, proofExists = false } = {}) {
 }
 
 const FieldValue = { serverTimestamp: () => 'SERVER_TIMESTAMP' };
+
+test('recognizes Google-linked anonymous accounts without trusting sign-in provider alone', () => {
+  assert.equal(hasGoogleIdentity({ sign_in_provider: 'google.com' }), true);
+  assert.equal(hasGoogleIdentity({
+    sign_in_provider: 'anonymous',
+    identities: { 'google.com': ['google-user-id'] }
+  }), true);
+  assert.equal(hasGoogleIdentity({
+    sign_in_provider: 'anonymous',
+    identities: {}
+  }), false);
+  assert.equal(hasGoogleIdentity(null), false);
+});
 
 test('adopts a legacy student ID only when a historical result proves the same auth UID', async () => {
   const { db, writes } = createDb({ proofExists: true });
