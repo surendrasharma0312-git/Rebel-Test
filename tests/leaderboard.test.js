@@ -332,7 +332,7 @@ test('All-Time leaderboard data integrity', async (t) => {
     ];
     const best = bestPerStudentPerTest(sameStudent);
     assert.strictEqual(best.length, 2);
-    assert.deepStrictEqual(best.map(doc => doc.id).sort(), ['attempt-2', 'attempt-3']);
+    assert.strictEqual(best.map(doc => doc.id).sort().join(','), 'attempt-2,attempt-3');
   });
 
   await t.test('keeps profile module stats scoped to the selected leaderboard module', () => {
