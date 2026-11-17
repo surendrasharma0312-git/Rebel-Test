@@ -3,55 +3,69 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
+  createPublicStudentId,
   projectPublicLeaderboardResult,
   projectPublicStudentProfile
 } = require('../public-projections');
 
-test('leaderboard projection allowlists ranking fields and never copies authUid or arbitrary fields', () => {
+const secret = 'test-only-public-id-secret-with-32-bytes-minimum';
+
+test('public student IDs are stable, opaque, and secret-scoped', () => {
+  const first = createPublicStudentId('firebase-auth-uid-private', secret);
+  assert.equal(first, createPublicStudentId('firebase-auth-uid-private', secret));
+  assert.notEqual(first, 'firebase-auth-uid-private');
+  assert.notEqual(first, createPublicStudentId('firebase-auth-uid-private', 'different-test-secret-with-32-bytes'));
+  assert.equal(first.length, 32);
+  assert.equal(createPublicStudentId('firebase-auth-uid-private', 'short'), null);
+});
+
+test('leaderboard projection uses opaque public ID and excludes auth identifiers and arbitrary fields', () => {
   const projected = projectPublicLeaderboardResult({
-    studentId: 'student-1', studentName: 'Student One', authUid: 'private-auth-uid',
-    testDocId: 'test-1', testName: 'Vocabulary', testType: 'vocab',
+    studentId: 'firebase-auth-uid-private', studentName: 'Student One',
+    authUid: 'firebase-auth-uid-private', testDocId: 'test-1',
+    testName: 'Vocabulary', testType: 'vocab',
     total: 20, correct: 18, wrong: 2, timeout: 0, pct: 90,
     durationSeconds: 120, createdAt: 'timestamp', privateNote: 'do not expose'
-  });
+  }, secret);
 
   assert.deepEqual(projected, {
-    studentId: 'student-1', studentName: 'Student One',
-    testDocId: 'test-1', testName: 'Vocabulary', testType: 'vocab',
+    publicStudentId: createPublicStudentId('firebase-auth-uid-private', secret),
+    studentName: 'Student One', testDocId: 'test-1',
+    testName: 'Vocabulary', testType: 'vocab',
     total: 20, correct: 18, wrong: 2, timeout: 0, pct: 90,
     durationSeconds: 120, createdAt: 'timestamp'
   });
+  assert.equal(JSON.stringify(projected).includes('firebase-auth-uid-private'), false);
+  assert.equal('studentId' in projected, false);
   assert.equal('authUid' in projected, false);
   assert.equal('privateNote' in projected, false);
 });
 
 test('invalid leaderboard records are not projected', () => {
-  assert.equal(projectPublicLeaderboardResult({ authUid: 'private' }), null);
-  assert.equal(projectPublicLeaderboardResult(null), null);
+  assert.equal(projectPublicLeaderboardResult({ authUid: 'private' }, secret), null);
+  assert.equal(projectPublicLeaderboardResult({ studentId: 's1', studentName: 'One' }), null);
+  assert.equal(projectPublicLeaderboardResult(null, secret), null);
 });
 
-test('public profile projection hides contact fields unless the student opts in', () => {
-  const privateProfile = projectPublicStudentProfile({
+test('public profile projection never exposes auth IDs or contact fields, even after broad opt-in', () => {
+  const projected = projectPublicStudentProfile({
     name: 'Student One', bio: 'Learner', photo: 'photo-data',
     phone: '9999999999', email: 'student@example.test',
-    address: 'Private address', showPublic: false, authUid: 'private'
-  }, 'student-1');
-  assert.deepEqual(privateProfile, {
-    studentId: 'student-1', name: 'Student One', bio: 'Learner', photo: 'photo-data'
-  });
+    address: 'Private address', showPublic: true, authUid: 'private-auth-uid'
+  }, 'private-auth-uid', secret);
 
-  const publicProfile = projectPublicStudentProfile({
-    name: 'Student One', phone: '9999999999',
-    email: 'student@example.test', address: 'Public address', showPublic: true
-  }, 'student-1');
-  assert.deepEqual(publicProfile, {
-    studentId: 'student-1', name: 'Student One', bio: '', photo: null,
-    phone: '9999999999', email: 'student@example.test', address: 'Public address'
+  assert.deepEqual(projected, {
+    publicStudentId: createPublicStudentId('private-auth-uid', secret),
+    name: 'Student One', bio: 'Learner', photo: 'photo-data'
   });
-  assert.equal('authUid' in publicProfile, false);
+  assert.equal(JSON.stringify(projected).includes('private-auth-uid'), false);
+  assert.equal(JSON.stringify(projected).includes('9999999999'), false);
+  assert.equal(JSON.stringify(projected).includes('student@example.test'), false);
+  assert.equal(JSON.stringify(projected).includes('Private address'), false);
 });
 
-test('invalid profile projection input is rejected', () => {
-  assert.equal(projectPublicStudentProfile(null, 'student-1'), null);
-  assert.equal(projectPublicStudentProfile({ name: 'Student' }, ''), null);
+test('invalid profile projection input or missing secret is rejected', () => {
+  assert.equal(projectPublicStudentProfile(null, 'student-1', secret), null);
+  assert.equal(projectPublicStudentProfile({ name: 'Student' }, '', secret), null);
+  assert.equal(projectPublicStudentProfile({ name: 'Student' }, 'student-1'), null);
 });
