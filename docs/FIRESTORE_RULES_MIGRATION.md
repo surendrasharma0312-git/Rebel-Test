@@ -40,8 +40,9 @@ Do not deploy these rules until the login/profile/token compatibility work is co
 
 
 ## Sanitized public projection rollout
-- Cloud Functions now mirror each new/updated `testResults/{attemptId}` into `publicLeaderboard/{attemptId}` using an explicit allowlist. The projection excludes `authUid` and any unlisted/private fields.
-- Cloud Functions mirror `studentProfiles/{studentId}` into `publicStudentProfiles/{studentId}`. Name, bio and photo are public; phone, email and address are included only when `showPublic` is true.
+- Cloud Functions mirror each new/updated `testResults/{attemptId}` into `publicLeaderboard/{attemptId}` using an explicit allowlist. The public projection uses `publicStudentId`, never the Firebase UID or source `studentId`.
+- Public student IDs are deterministic HMAC-SHA256 pseudonyms generated with the Secret Manager secret `REBEL_PUBLIC_ID_SECRET` (minimum 32 characters). Keep this secret stable and private; rotating it changes public IDs and requires a coordinated rebuild of projections.
+- Cloud Functions mirror `studentProfiles/{studentId}` into `publicStudentProfiles/{publicStudentId}`. Only name, bio and photo are copied. Phone, email and address are never copied, even when the broad `showPublic` checkbox is enabled.
 - Clients may read these projection collections but cannot write them; only trusted Cloud Functions/Admin SDK maintain them.
 - Existing historical results and profiles are not automatically backfilled by these triggers. Before switching leaderboard/profile UI reads or making `testResults` private, run and verify a one-time Admin SDK backfill, compare counts and rankings, and retain a rollback path.
 - Do not deploy these rules or functions to production until the backfill, staging verification, and full UI migration are reviewed.
@@ -52,9 +53,10 @@ Do not deploy these rules until the login/profile/token compatibility work is co
 The trigger only mirrors writes made after it is deployed; it does not populate existing records. A one-time Admin SDK backfill script is provided at `firebase-functions/scripts/backfill-public-projections.js`.
 
 1. Configure Application Default Credentials for the intended Firebase project and verify the active project before running anything.
-2. Run `npm run backfill:public-projections` first. This is read-only and reports scanned, eligible and skipped documents for both source collections.
-3. Review the counts and investigate skipped records. Confirm the intended Firebase project and take a backup/export.
-4. Only after an explicit production change approval, run `npm run backfill:public-projections -- --apply`. The script overwrites matching projection documents with the current allowlisted projection and does not delete unrelated/orphaned projection documents.
-5. Compare source/projection counts and leaderboard ranking in staging, then verify the UI against the projection collections before changing any client reads or restricting `testResults`.
+2. Configure the same stable `REBEL_PUBLIC_ID_SECRET` used by the deployed projection triggers in the shell environment (at least 32 characters). Do not commit or share the secret.
+3. Run `npm run backfill:public-projections` first. This is read-only and reports scanned, eligible and skipped documents for both source collections.
+4. Review the counts and investigate skipped records. Confirm the intended Firebase project and take a backup/export.
+5. Only after an explicit production change approval, run `npm run backfill:public-projections -- --apply`. The script overwrites matching projection documents with the current allowlisted projection and does not delete unrelated/orphaned projection documents.
+6. Compare source/projection counts and leaderboard ranking in staging, then migrate UI reads before restricting `testResults`.
 
 The backfill is intentionally not run by CI or automatically against production. A dry run is the default; writes require the explicit `--apply` flag.
