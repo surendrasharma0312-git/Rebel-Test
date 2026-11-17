@@ -319,7 +319,7 @@ test('All-Time leaderboard data integrity', async (t) => {
   await t.test('only records with an opaque publicStudentId can open a public profile', () => {
     assert.strictEqual(hasLeaderboardProfile({ publicStudentId: 'opaque-student-a' }), true);
     assert.strictEqual(hasLeaderboardProfile({ publicStudentId: '  opaque-student-a  ' }), true);
-    assert.strictEqual(hasLeaderboardProfile({ publicStudentId: 'raw-firebase-uid' }), false);
+    assert.strictEqual(hasLeaderboardProfile({ studentId: 'raw-firebase-uid' }), false);
     assert.strictEqual(hasLeaderboardProfile({ studentName: 'Rahul' }), false);
     assert.strictEqual(hasLeaderboardProfile({ publicStudentId: '  ' }), false);
   });
