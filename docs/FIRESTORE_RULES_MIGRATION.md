@@ -40,10 +40,10 @@ Do not deploy these rules until the login/profile/token compatibility work is co
 
 
 ## Sanitized public projection rollout
-- Cloud Functions now mirror each new/updated `testResults/{attemptId}` into `publicLeaderboard/{attemptId}` using an explicit allowlist. The projection excludes `authUid` and any unlisted/private fields.
-- Cloud Functions mirror `studentProfiles/{studentId}` into `publicStudentProfiles/{studentId}`. Name, bio and photo are public; phone, email and address are included only when `showPublic` is true.
+- Cloud Functions now mirror each new/updated `testResults/{attemptId}` into `publicLeaderboard/{attemptId}` using an explicit allowlist. The projection excludes raw `studentId`, `authUid`, and any unlisted/private fields; it uses a stable pseudonymous `publicStudentId` for ranking joins.
+- Cloud Functions mirror `studentProfiles/{studentId}` into `publicStudentProfiles/{publicStudentId}`. The public document ID and `publicStudentId` field use a namespaced SHA-256 digest of the source student ID, so the raw Firebase UID/legacy ID is not published. Name, bio and photo are public; phone, email and address are included only when `showPublic` is true. The pseudonymous key is for joining public result/profile records only; it is not an authentication credential.
 - Clients may read these projection collections but cannot write them; only trusted Cloud Functions/Admin SDK maintain them.
-- Existing historical results and profiles are not automatically backfilled by these triggers. Before switching leaderboard/profile UI reads or making `testResults` private, run and verify a one-time Admin SDK backfill, compare counts and rankings, and retain a rollback path.
+- Existing historical results and profiles are not automatically backfilled by these triggers. The backfill writes public profile documents under the same pseudonymous `publicStudentId` used by result projections. Before switching leaderboard/profile UI reads or making `testResults` private, run and verify a one-time Admin SDK backfill, compare counts and rankings, and retain a rollback path.
 - Do not deploy these rules or functions to production until the backfill, staging verification, and full UI migration are reviewed.
 
 
