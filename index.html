@@ -3990,7 +3990,7 @@ function buildVerbQuestionBank(verbList, mode) {
   const bank = [];
   if (verbList.length < 4) return bank;
 
-  verbList.forEach(v => {
+  verbList.forEach((v, sourceIndex) => {
     let questionText = "";
     let correct = "";
     let distractors = [];
@@ -4029,6 +4029,8 @@ function buildVerbQuestionBank(verbList, mode) {
 
     bank.push({
       en: (mode === 'hi') ? v.hi : v.v1,
+      sourceIndex,
+      mode,
       correct: correct,
       options: shuffle([correct, ...distractors]),
       question: questionText
@@ -4049,7 +4051,7 @@ function buildQuestionBank(vocabList){
   let pool = shuffle([...uniqueMeanings]);
   let poolIdx = 0;
 
-  vocabList.forEach(v=>{
+  vocabList.forEach((v, sourceIndex)=>{
     // gather distractor pool: other meanings that are not equal to this word's meaning
     const vHiLower = v.hi.toLowerCase();
     const distractors = [];
@@ -4076,6 +4078,8 @@ function buildQuestionBank(vocabList){
     const options = shuffle([v.hi, ...distractors]);
     bank.push({
       en: v.en,
+      sourceIndex: Number.isSafeInteger(v._sourceIndex) ? v._sourceIndex : sourceIndex,
+      mode: 'vocab',
       correct: v.hi,
       options: options,
       question: `What is the Hindi meaning of "${v.en}"?`
@@ -4094,7 +4098,7 @@ $('startTestBtn').addEventListener('click', async ()=>{
   }
   let vocabForTest = vocabulary;
   if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
-    vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
+    vocabForTest = shuffle(vocabulary.map((word, sourceIndex) => ({ ...word, _sourceIndex: sourceIndex }))).slice(0, currentTestQuestionCount);
   }
   startTest(vocabForTest);
 });
@@ -4111,7 +4115,7 @@ $('retakeTestBtn').addEventListener('click', async ()=>{
     // Normal vocabulary test
     let vocabForTest = vocabulary;
     if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
-      vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
+      vocabForTest = shuffle(vocabulary.map((word, sourceIndex) => ({ ...word, _sourceIndex: sourceIndex }))).slice(0, currentTestQuestionCount);
     }
     startTest(vocabForTest);
   }
@@ -4820,26 +4824,39 @@ async function getStudentName(forcePrompt = false) {
   });
 }
 
-async function saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds, attemptId }){
+async function saveToLeaderboard({ durationSeconds, attemptId }){
   if(!currentTestDocId || !firebaseReady) return;
-  const studentName = await getStudentName();
-  if(!studentName) return; // they skipped entering a name — don't save
   const authUser = auth ? auth.currentUser : null;
-  const testType = window._activeTestMode === 'verb' ? 'verb' : 'vocab';
+  const studentSession = window.StudentSessionManager && window.StudentSessionManager.getSession();
+  if(!authUser || !studentSession || studentSession.uid !== authUser.uid){
+    appAlert("Your score was saved locally, but Google student sign-in is required to sync it to the leaderboard.");
+    return;
+  }
+
+  const answers = currentTest.map(question => ({
+    sourceIndex: question.sourceIndex,
+    mode: window._activeTestMode === 'verb' ? question.mode : 'vocab',
+    answer: typeof question.userAnswer === 'string' ? question.userAnswer : null
+  }));
+  if(answers.some(answer => !Number.isSafeInteger(answer.sourceIndex))){
+    appAlert("Your score was saved locally, but this attempt could not be verified for the leaderboard.");
+    return;
+  }
+
   try{
-    await db.collection('testResults').doc(attemptId).set({
-      studentName,
-      studentId: ensureStudentId(),
-      ...(authUser && authUser.uid ? { authUid: authUser.uid } : {}),
+    const submitAttempt = firebase.functions().httpsCallable('submitStudentAttempt');
+    const response = await submitAttempt({
+      attemptId,
       testDocId: currentTestDocId,
-      testName: currentTestName || 'Untitled Test',
-      testType,
-      total, correct, wrong, timeout, pct, durationSeconds,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      answers,
+      durationSeconds
     });
+    if(!response || !response.data || response.data.saved !== true){
+      throw new Error('The server did not confirm the result.');
+    }
   }catch(err){
-    console.error('Leaderboard save failed', err);
-    appAlert("Your score was saved locally, but there was an issue syncing it to the leaderboard.");
+    console.error('Verified leaderboard save failed', err);
+    appAlert("Your score was saved locally, but the server could not verify it for the leaderboard. Please try again later.");
   }
 }
 
