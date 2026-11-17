@@ -10,12 +10,14 @@ function fixture({ profileExists = false, profileWriteFails = false } = {}) {
     setItem: (key, value) => values.set(key, value),
     removeItem: key => values.delete(key)
   };
+  const tokenRefreshes = [];
   const user = {
     uid: 'google-uid',
     providerData: [{ providerId: 'google.com' }],
     displayName: 'Google Student',
     email: 'student@example.test',
-    photoURL: 'https://example.test/photo.png'
+    photoURL: 'https://example.test/photo.png',
+    getIdToken: async forceRefresh => { tokenRefreshes.push(forceRefresh); return 'fresh-id-token'; }
   };
   const auth = { currentUser: user, signOut: async () => {} };
   const firebaseAuth = { firestore: { FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' } } };
@@ -49,7 +51,7 @@ function fixture({ profileExists = false, profileWriteFails = false } = {}) {
     signOut: async () => auth.signOut()
   };
   const session = StudentSession.create({ auth, firebaseAuth, functions, db, storage, studentAuth });
-  return { session, storage, user, setCurrentUser: value => { auth.currentUser = value; }, getCallableArgs: () => callableArgs, getSavedProfile: () => savedProfile };
+  return { session, storage, user, setCurrentUser: value => { auth.currentUser = value; }, getCallableArgs: () => callableArgs, getSavedProfile: () => savedProfile, getTokenRefreshes: () => tokenRefreshes };
 }
 
 test('resolves canonical identity through the callable and supplies legacy ID for proof', async () => {
@@ -59,6 +61,7 @@ test('resolves canonical identity through the callable and supplies legacy ID fo
   assert.equal(result.studentId, 'canonical-student-id');
   assert.deepEqual(f.getCallableArgs(), { legacyStudentId: 'legacy-id' });
   assert.equal(f.storage.getItem(StudentSession.CANONICAL_ID_KEY), 'canonical-student-id');
+  assert.deepEqual(f.getTokenRefreshes(), [true]);
 });
 
 test('rejects non-Google identities before calling the server', async () => {
