@@ -4615,14 +4615,26 @@ $('practiceMistakesBtn').addEventListener('click', ()=>{
 /* =========================================================
    HISTORY
 ========================================================= */
+function getLocalHistoryStorageKey() {
+  const session = window.StudentSessionManager && window.StudentSessionManager.getSession();
+  if (session && typeof session.studentId === 'string' && session.studentId) {
+    return STORAGE_HISTORY + ':student:' + encodeURIComponent(session.studentId);
+  }
+  const isAdmin = Boolean(window.RebelStudentRuntime &&
+    window.RebelStudentRuntime.AdminAuth &&
+    window.RebelStudentRuntime.AdminAuth.isAdmin);
+  return STORAGE_HISTORY + (isAdmin ? ':admin' : ':guest');
+}
+
 function saveHistoryEntry(entry){
+  const storageKey = getLocalHistoryStorageKey();
   let history = [];
   try{
-    const raw = localStorage.getItem(STORAGE_HISTORY);
+    const raw = localStorage.getItem(storageKey);
     if(raw) history = JSON.parse(raw);
   }catch(e){}
   history.push(entry);
-  try{ localStorage.setItem(STORAGE_HISTORY, JSON.stringify(history)); }catch(e){}
+  try{ localStorage.setItem(storageKey, JSON.stringify(history)); }catch(e){}
 }
 
 /* =========================================================
@@ -4861,7 +4873,9 @@ async function renderHistory(){
   const listEl = $('historyList');
   listEl.innerHTML = '<div class="empty-state"><span class="emoji">⏳</span>Loading history...</div>';
 
-  const localHistory = parseLocalHistory(localStorage.getItem(STORAGE_HISTORY));
+  // The pre-auth global history key has no verified owner. Never merge it into
+  // a signed-in account's history because this phone may have changed hands.
+  const localHistory = parseLocalHistory(localStorage.getItem(getLocalHistoryStorageKey()));
 
   let cloudHistory = [];
   if (firebaseReady) {
