@@ -252,11 +252,15 @@ exports.resolveStudentIdentity = onCall(async (request) => {
 
 
 const {
+  createPublicStudentId,
   projectPublicLeaderboardResult,
   projectPublicStudentProfile
 } = require('./public-projections');
+const publicStudentIdSecret = defineSecret('REBEL_PUBLIC_ID_SECRET');
 
-exports.syncPublicLeaderboardResult = functions.firestore
+exports.syncPublicLeaderboardResult = functions.runWith({
+  secrets: [publicStudentIdSecret]
+}).firestore
   .document('testResults/{attemptId}')
   .onWrite(async (change, context) => {
     const publicRef = admin.firestore().collection('publicLeaderboard').doc(context.params.attemptId);
@@ -264,7 +268,9 @@ exports.syncPublicLeaderboardResult = functions.firestore
       await publicRef.delete();
       return null;
     }
-    const projected = projectPublicLeaderboardResult(change.after.data());
+    const projected = projectPublicLeaderboardResult(
+      change.after.data(), publicStudentIdSecret.value()
+    );
     if (!projected) {
       await publicRef.delete();
       return null;
@@ -273,15 +279,23 @@ exports.syncPublicLeaderboardResult = functions.firestore
     return null;
   });
 
-exports.syncPublicStudentProfile = functions.firestore
+exports.syncPublicStudentProfile = functions.runWith({
+  secrets: [publicStudentIdSecret]
+}).firestore
   .document('studentProfiles/{studentId}')
   .onWrite(async (change, context) => {
-    const publicRef = admin.firestore().collection('publicStudentProfiles').doc(context.params.studentId);
+    const publicStudentId = createPublicStudentId(
+      context.params.studentId, publicStudentIdSecret.value()
+    );
+    if (!publicStudentId) return null;
+    const publicRef = admin.firestore().collection('publicStudentProfiles').doc(publicStudentId);
     if (!change.after.exists) {
       await publicRef.delete();
       return null;
     }
-    const projected = projectPublicStudentProfile(change.after.data(), context.params.studentId);
+    const projected = projectPublicStudentProfile(
+      change.after.data(), context.params.studentId, publicStudentIdSecret.value()
+    );
     if (!projected) {
       await publicRef.delete();
       return null;
