@@ -72,3 +72,20 @@ test('backfill apply writes eligible documents in paginated batches', async () =
   assert.deepEqual(writes.map(write => write.ref.id), ['a', 'b']);
   assert.ok(writes.every(write => write.options.merge === false));
 });
+
+test('profile backfill writes to the pseudonymous public student ID', async () => {
+  const rows = [
+    { id: 'private-student-id', data: () => ({ name: 'Student One' }) }
+  ];
+  const { db, writes } = fakeDb(rows);
+  const result = await backfillCollection({
+    db, sourceName: 'studentProfiles', targetName: 'publicStudentProfiles',
+    project: (_data, id) => ({ publicStudentId: `public-${id}`, name: 'Student One' }),
+    targetId: (_doc, value) => value.publicStudentId,
+    pageSize: 1, dryRun: false
+  });
+
+  assert.equal(result.written, 1);
+  assert.equal(writes[0].ref.id, 'public-private-student-id');
+  assert.equal(writes[0].value.publicStudentId, 'public-private-student-id');
+});

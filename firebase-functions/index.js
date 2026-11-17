@@ -252,6 +252,7 @@ exports.resolveStudentIdentity = onCall(async (request) => {
 
 
 const {
+  createPublicStudentId,
   projectPublicLeaderboardResult,
   projectPublicStudentProfile
 } = require('./public-projections');
@@ -276,7 +277,8 @@ exports.syncPublicLeaderboardResult = functions.firestore
 exports.syncPublicStudentProfile = functions.firestore
   .document('studentProfiles/{studentId}')
   .onWrite(async (change, context) => {
-    const publicRef = admin.firestore().collection('publicStudentProfiles').doc(context.params.studentId);
+    const publicStudentId = createPublicStudentId(context.params.studentId);
+    const publicRef = admin.firestore().collection('publicStudentProfiles').doc(publicStudentId);
     if (!change.after.exists) {
       await publicRef.delete();
       return null;
