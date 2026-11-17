@@ -78,4 +78,12 @@ async function resolveStudentIdentity({ uid, legacyStudentId, db, FieldValue }) 
   });
 }
 
-module.exports = Object.freeze({ resolveStudentIdentity });
+function hasGoogleIdentity(firebaseToken) {
+  if (!firebaseToken || typeof firebaseToken !== 'object') return false;
+  if (firebaseToken.sign_in_provider === 'google.com') return true;
+  const identities = firebaseToken.identities;
+  return Boolean(identities && typeof identities === 'object' &&
+    Array.isArray(identities['google.com']) && identities['google.com'].length > 0);
+}
+
+module.exports = Object.freeze({ resolveStudentIdentity, hasGoogleIdentity });
