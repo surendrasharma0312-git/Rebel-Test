@@ -1,4 +1,4 @@
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 admin.initializeApp();
 
@@ -217,3 +217,191 @@ exports.adminAccess = onCall(
     return { ok: true, admin: true };
   }
 );
+
+
+const { resolveStudentIdentity, hasGoogleIdentity } = require('./student-identity');
+const { validateAttempt } = require('./attempt-validation');
+
+exports.resolveStudentIdentity = onCall(async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError('unauthenticated', 'Sign in is required.');
+  }
+
+  const firebaseIdentity = request.auth.token && request.auth.token.firebase;
+  if (!hasGoogleIdentity(firebaseIdentity)) {
+    throw new HttpsError('permission-denied', 'Google sign-in is required.');
+  }
+
+  try {
+    return await resolveStudentIdentity({
+      uid: request.auth.uid,
+      legacyStudentId: request.data && request.data.legacyStudentId,
+      db: admin.firestore(),
+      FieldValue: admin.firestore.FieldValue
+    });
+  } catch (error) {
+    const allowedCodes = ['invalid-argument', 'failed-precondition', 'unauthenticated'];
+    if (allowedCodes.includes(error.code)) {
+      throw new HttpsError(error.code, error.message);
+    }
+    console.error('Failed to resolve student identity:', error);
+    throw new HttpsError('internal', 'Unable to resolve the student account right now.');
+  }
+});
+
+
+exports.submitStudentAttempt = onCall(async (request) => {
+  if (!request.auth || !request.auth.uid) {
+    throw new HttpsError('unauthenticated', 'Sign in is required.');
+  }
+
+  const uid = request.auth.uid;
+  const firebaseIdentity = request.auth.token && request.auth.token.firebase;
+  if (!hasGoogleIdentity(firebaseIdentity)) {
+    throw new HttpsError('permission-denied', 'Google sign-in is required.');
+  }
+
+  const data = request.data && typeof request.data === 'object' ? request.data : {};
+  const attemptId = data.attemptId;
+  const testDocId = data.testDocId;
+  if (typeof attemptId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(attemptId) ||
+      typeof testDocId !== 'string' || !testDocId.trim() || testDocId.trim() !== testDocId ||
+      testDocId.includes('/') || testDocId.length > 150) {
+    throw new HttpsError('invalid-argument', 'The attempt or test identifier is invalid.');
+  }
+
+  if (data.durationSeconds !== null && data.durationSeconds !== undefined &&
+      (typeof data.durationSeconds !== 'number' || !Number.isFinite(data.durationSeconds) ||
+       data.durationSeconds < 0 || data.durationSeconds > 86400)) {
+    throw new HttpsError('invalid-argument', 'The test duration is invalid.');
+  }
+
+  try {
+    const db = admin.firestore();
+    const linkSnapshot = await db.collection('studentAccountLinks').doc(uid).get();
+    const studentId = linkSnapshot.exists && linkSnapshot.data()
+      ? linkSnapshot.data().studentId
+      : null;
+    if (typeof studentId !== 'string' || !studentId) {
+      throw new HttpsError('failed-precondition', 'Complete Google student sign-in before submitting a test.');
+    }
+
+    const [profileSnapshot, testSnapshot] = await Promise.all([
+      db.collection('studentProfiles').doc(studentId).get(),
+      db.collection('vocabTests').doc(testDocId).get()
+    ]);
+    const profile = profileSnapshot.exists ? profileSnapshot.data() : null;
+    const testData = testSnapshot.exists ? testSnapshot.data() : null;
+    if (!profile || typeof profile.name !== 'string' || !profile.name.trim()) {
+      throw new HttpsError('failed-precondition', 'Complete your student profile before submitting a test.');
+    }
+    if (!testData || (testData.isVerbTest === true && testData.isPublished !== true)) {
+      throw new HttpsError('not-found', 'The published test could not be found.');
+    }
+
+    const score = validateAttempt({ testData, answers: data.answers });
+    const resultData = {
+      studentId,
+      authUid: uid,
+      studentName: profile.name.trim().slice(0, 100),
+      testDocId,
+      testName: typeof testData.name === 'string' && testData.name.trim()
+        ? testData.name.trim().slice(0, 160)
+        : 'Untitled Test',
+      testType: testData.isVerbTest === true ? 'verb' : 'vocab',
+      ...score,
+      durationSeconds: data.durationSeconds == null ? null : Math.round(data.durationSeconds),
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    const resultRef = db.collection('testResults').doc(attemptId);
+    let savedScore = score;
+    let alreadySubmitted = false;
+    await db.runTransaction(async transaction => {
+      const existing = await transaction.get(resultRef);
+      if (existing.exists) {
+        const previous = existing.data() || {};
+        if (previous.authUid === uid && previous.studentId === studentId &&
+            previous.testDocId === testDocId) {
+          // A retry after a lost network response is idempotent and cannot
+          // replace the original server-calculated result.
+          savedScore = {
+            total: previous.total,
+            correct: previous.correct,
+            wrong: previous.wrong,
+            timeout: previous.timeout,
+            pct: previous.pct
+          };
+          alreadySubmitted = true;
+          return;
+        }
+        throw new HttpsError('already-exists', 'This attempt identifier is already in use.');
+      }
+      transaction.create(resultRef, resultData);
+    });
+
+    return { saved: true, alreadySubmitted, attemptId, score: savedScore };
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    if (error && ['invalid-argument', 'failed-precondition'].includes(error.code)) {
+      throw new HttpsError(error.code, error.message);
+    }
+    console.error('Failed to validate and save student attempt:', error);
+    throw new HttpsError('internal', 'Unable to save this test result right now.');
+  }
+});
+
+
+const {
+  createPublicStudentId,
+  projectPublicLeaderboardResult,
+  projectPublicStudentProfile
+} = require('./public-projections');
+const publicStudentIdSecret = defineSecret('REBEL_PUBLIC_ID_SECRET');
+
+exports.syncPublicLeaderboardResult = functions.runWith({
+  secrets: [publicStudentIdSecret]
+}).firestore
+  .document('testResults/{attemptId}')
+  .onWrite(async (change, context) => {
+    const publicRef = admin.firestore().collection('publicLeaderboard').doc(context.params.attemptId);
+    if (!change.after.exists) {
+      await publicRef.delete();
+      return null;
+    }
+    const projected = projectPublicLeaderboardResult(
+      change.after.data(), publicStudentIdSecret.value()
+    );
+    if (!projected) {
+      await publicRef.delete();
+      return null;
+    }
+    await publicRef.set(projected);
+    return null;
+  });
+
+exports.syncPublicStudentProfile = functions.runWith({
+  secrets: [publicStudentIdSecret]
+}).firestore
+  .document('studentProfiles/{studentId}')
+  .onWrite(async (change, context) => {
+    const publicStudentId = createPublicStudentId(
+      context.params.studentId, publicStudentIdSecret.value()
+    );
+    if (!publicStudentId) return null;
+    const publicRef = admin.firestore().collection('publicStudentProfiles').doc(publicStudentId);
+    if (!change.after.exists) {
+      await publicRef.delete();
+      return null;
+    }
+    const projected = projectPublicStudentProfile(
+      change.after.data(), context.params.studentId, publicStudentIdSecret.value()
+    );
+    if (!projected) {
+      await publicRef.delete();
+      return null;
+    }
+    await publicRef.set(projected);
+    return null;
+  });
+

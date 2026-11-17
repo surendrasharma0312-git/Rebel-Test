@@ -730,8 +730,54 @@
     </div>
   </div>
 
+  <!-- ============ SCREEN: STUDENT WELCOME / LOGIN ============ -->
+  <section class="screen active" id="screen-welcome">
+    <div class="hero">
+      <div class="bubble b1"></div><div class="bubble b2"></div><div class="bubble b3"></div>
+      <h1>Welcome to Rebel Test</h1>
+      <p>Sign in with Google to access your tests, results, progress and student profile.</p>
+    </div>
+    <div class="card">
+      <div class="section-title">Student Login</div>
+      <p class="muted">Use your Google account. Your profile will be set up before you enter the app.</p>
+      <button class="btn btn-primary" id="googleStudentSignInBtn" type="button">Continue with Google</button>
+      <div id="studentEntryError" class="error-box" role="alert" style="display:none;"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Administrator</div>
+      <p class="muted">Admin access is separate from student Google login.</p>
+      <button class="btn btn-ghost" id="welcomeAdminBtn" type="button">Admin Login</button>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN: REQUIRED STUDENT PROFILE ============ -->
+  <section class="screen" id="screen-student-profile">
+    <div class="hero">
+      <h1>Complete Your Profile</h1>
+      <p>Your profile is required before you can use the student dashboard.</p>
+    </div>
+    <form class="card" id="studentProfileSetupForm">
+      <label class="muted" for="studentProfileNameInput" style="display:block;font-weight:700;margin-bottom:6px;">Full name (required)</label>
+      <input class="modal-input" id="studentProfileNameInput" maxlength="100" required autocomplete="name" placeholder="Enter your full name">
+      <label class="muted" for="studentProfileEmailInput" style="display:block;font-weight:700;margin:12px 0 6px;">Google email</label>
+      <input class="modal-input" id="studentProfileEmailInput" type="email" readonly>
+      <label class="muted" for="studentProfileBioInput" style="display:block;font-weight:700;margin:12px 0 6px;">Bio (optional)</label>
+      <input class="modal-input" id="studentProfileBioInput" maxlength="500" placeholder="A short introduction">
+      <label class="muted" for="studentProfilePhoneInput" style="display:block;font-weight:700;margin:12px 0 6px;">Phone (optional)</label>
+      <input class="modal-input" id="studentProfilePhoneInput" type="tel" autocomplete="tel">
+      <label class="muted" for="studentProfileAddressInput" style="display:block;font-weight:700;margin:12px 0 6px;">Address (optional)</label>
+      <input class="modal-input" id="studentProfileAddressInput" autocomplete="street-address">
+      <input id="studentProfilePhotoInput" type="hidden">
+      <label style="display:flex;align-items:center;gap:8px;margin:16px 0;font-size:13px;">
+        <input id="studentProfilePublicInput" type="checkbox"> Show my name, bio and photo on my public profile
+      </label>
+      <button class="btn btn-primary" id="studentProfileSaveBtn" type="submit">Save and continue</button>
+      <div id="studentProfileSetupError" class="error-box" role="alert" style="display:none;"></div>
+    </form>
+  </section>
+
   <!-- ============ SCREEN 1: HOME / UPLOAD ============ -->
-  <section class="screen active" id="screen-home">
+  <section class="screen" id="screen-home">
     <div class="hero">
       <div class="bubble b1"></div><div class="bubble b2"></div><div class="bubble b3"></div>
       <h1>Remember Your Words</h1>
@@ -1539,6 +1585,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="./student-auth.js"></script>
+<script src="./student-session.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
@@ -1651,6 +1699,16 @@ function escapeHTML(str) {
 function $(id){ return document.getElementById(id); }
 function showScreen(id, opts){
   opts = opts || {};
+  if (window.RebelStudentRuntime && window.StudentSessionManager &&
+      !window.StudentSessionManager.getSession() &&
+      !window.RebelStudentRuntime.AdminAuth.isAdmin &&
+      !['screen-welcome', 'screen-admin-login'].includes(id)) {
+    id = 'screen-welcome';
+  }
+  if (id === 'screen-admin' && window.RebelStudentRuntime &&
+      !window.RebelStudentRuntime.AdminAuth.isAdmin) {
+    id = 'screen-admin-login';
+  }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   $(id).classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
@@ -2396,9 +2454,16 @@ async function unsubscribeFromPush() {
 async function saveTokenToFirestore(token) {
   if (!db) return;
   try {
+    const authUser = firebase.auth().currentUser;
+    const studentSession = window.StudentSessionManager && window.StudentSessionManager.getSession();
+    if (!authUser || !authUser.uid || !studentSession || studentSession.uid !== authUser.uid) {
+      console.warn('Skipping FCM token save: a verified Google student session is required.');
+      return;
+    }
     const tokensRef = db.collection('fcmTokens');
     await tokensRef.doc(token).set({
       token: token,
+      authUid: authUser.uid,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
@@ -2717,7 +2782,15 @@ const AdminAuth = (function() {
     async login(password) {
       if (!auth || !firebaseReady) return false;
       try {
-        const user = auth.currentUser || (authSessionPromise ? await authSessionPromise : null);
+        let user = auth.currentUser;
+        if (!user && authSessionPromise) {
+          await authSessionPromise;
+          user = auth.currentUser;
+        }
+        if (!user) {
+          const credential = await auth.signInAnonymously();
+          user = credential.user;
+        }
         if (!user) return false;
         const adminAccess = firebase.functions().httpsCallable('adminAccess');
         await adminAccess({ action: 'login', password });
@@ -2745,7 +2818,11 @@ const AdminAuth = (function() {
     async restore() {
       _isAdmin = false;
       try {
-        const user = auth && (auth.currentUser || (authSessionPromise ? await authSessionPromise : null));
+        let user = auth && auth.currentUser;
+        if (!user && authSessionPromise) {
+          await authSessionPromise;
+          user = auth && auth.currentUser;
+        }
         if (!user) return;
         const token = await user.getIdTokenResult();
         _isAdmin = token.claims.admin === true;
@@ -2836,7 +2913,8 @@ function loadLeaderboard(){
   }
 
   const weekLabelEl = $('leaderboardWeekLabel');
-  let query = db.collection('testResults');
+  // Public projection is allowlisted and contains opaque student IDs only.
+  let query = db.collection('publicLeaderboard');
 
   if (leaderboardPeriod === 'weekly') {
     const { startUTC, endUTC, label } = getWeeklyBoundaries();
@@ -3030,8 +3108,9 @@ function normalizeLeaderboardName(value) {
 }
 
 function getLeaderboardStudentKey(data, docId) {
-  const studentId = String(data && data.studentId || '').trim();
-  if (studentId) return 'id:' + studentId;
+  // Only the opaque public ID may be used for public leaderboard identity.
+  const publicStudentId = String(data && data.publicStudentId || '').trim();
+  if (publicStudentId) return 'id:' + publicStudentId;
 
   const studentName = normalizeLeaderboardName(data && data.studentName);
   return studentName ? 'name:' + studentName : 'anonymous:' + String(docId || '');
@@ -3128,7 +3207,7 @@ function rankLeaderboardEntries(docs) {
 }
 
 function hasLeaderboardProfile(data) {
-  return Boolean(String(data && data.studentId || '').trim());
+  return Boolean(String(data && data.publicStudentId || '').trim());
 }
 
 const LEADERBOARD_PAGE_SIZE = 100;
@@ -3297,34 +3376,25 @@ function updatePublicProfileUI(overlay, profileData) {
     }
 }
 
-function listenToStudentProfile(studentId, profileData, onChange) {
-    return db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
+function listenToStudentProfile(publicStudentId, profileData, onChange) {
+    return db.collection('publicStudentProfiles').doc(publicStudentId).onSnapshot(docSnap => {
         if (docSnap && docSnap.exists) {
             const data = docSnap.data();
             if (data.name) profileData.name = data.name;
-
             if (data.photo !== undefined) profileData.photo = data.photo;
             if (data.bio !== undefined) profileData.bio = data.bio;
 
-            const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true' || AdminAuth.isAdmin);
-
-            if (canViewContact) {
-                profileData.phone = data.phone !== undefined ? data.phone : null;
-                profileData.email = data.email !== undefined ? data.email : null;
-                profileData.address = data.address !== undefined ? data.address : null;
-            } else {
-                profileData.phone = null;
-                profileData.email = null;
-                profileData.address = null;
-            }
-
+            // Public projections intentionally never contain contact details.
+            profileData.phone = null;
+            profileData.email = null;
+            profileData.address = null;
             onChange();
         }
     }, err => console.error(err));
 }
 
-function listenToStudentStats(studentId, profileData, onChange) {
-    let query = db.collection('testResults').where('studentId', '==', studentId);
+function listenToStudentStats(publicStudentId, profileData, onChange) {
+    let query = db.collection('publicLeaderboard').where('publicStudentId', '==', publicStudentId);
 
     if (leaderboardPeriod === 'weekly') {
         const { startUTC, endUTC } = getWeeklyBoundaries();
@@ -3442,7 +3512,7 @@ function renderLeaderboardList(){
     `;
     if (canOpenProfile) {
       row.addEventListener('click', () => {
-        showPublicProfile(d.studentId, d.studentName);
+        showPublicProfile(d.publicStudentId, d.studentName);
       });
     }
     fragment.appendChild(row);
@@ -3637,7 +3707,7 @@ $('adminBtn').addEventListener('click', ()=>{
   setTimeout(()=> $('adminPasswordInput').focus(), 300);
 });
 
-$('backFromAdminLoginBtn').addEventListener('click', ()=> showScreen('screen-home'));
+$('backFromAdminLoginBtn').addEventListener('click', ()=> showScreen('screen-welcome'));
 
 $('adminLoginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -3662,9 +3732,9 @@ $('adminLoginForm').addEventListener('submit', async (e)=>{
 $('logoutAdminBtn').addEventListener('click', async ()=>{
   await AdminAuth.logout();
   updateAdminUI();
-  showScreen('screen-home');
+  showScreen('screen-welcome');
 });
-$('backFromAdminBtn').addEventListener('click', ()=> showScreen('screen-home'));
+$('backFromAdminBtn').addEventListener('click', ()=> showScreen('screen-welcome'));
 
 updateAdminUI();
 
@@ -3920,7 +3990,7 @@ function buildVerbQuestionBank(verbList, mode) {
   const bank = [];
   if (verbList.length < 4) return bank;
 
-  verbList.forEach(v => {
+  verbList.forEach((v, sourceIndex) => {
     let questionText = "";
     let correct = "";
     let distractors = [];
@@ -3959,6 +4029,8 @@ function buildVerbQuestionBank(verbList, mode) {
 
     bank.push({
       en: (mode === 'hi') ? v.hi : v.v1,
+      sourceIndex,
+      mode,
       correct: correct,
       options: shuffle([correct, ...distractors]),
       question: questionText
@@ -3979,7 +4051,7 @@ function buildQuestionBank(vocabList){
   let pool = shuffle([...uniqueMeanings]);
   let poolIdx = 0;
 
-  vocabList.forEach(v=>{
+  vocabList.forEach((v, sourceIndex)=>{
     // gather distractor pool: other meanings that are not equal to this word's meaning
     const vHiLower = v.hi.toLowerCase();
     const distractors = [];
@@ -4006,6 +4078,8 @@ function buildQuestionBank(vocabList){
     const options = shuffle([v.hi, ...distractors]);
     bank.push({
       en: v.en,
+      sourceIndex: Number.isSafeInteger(v._sourceIndex) ? v._sourceIndex : sourceIndex,
+      mode: 'vocab',
       correct: v.hi,
       options: options,
       question: `What is the Hindi meaning of "${v.en}"?`
@@ -4024,7 +4098,7 @@ $('startTestBtn').addEventListener('click', async ()=>{
   }
   let vocabForTest = vocabulary;
   if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
-    vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
+    vocabForTest = shuffle(vocabulary.map((word, sourceIndex) => ({ ...word, _sourceIndex: sourceIndex }))).slice(0, currentTestQuestionCount);
   }
   startTest(vocabForTest);
 });
@@ -4041,7 +4115,7 @@ $('retakeTestBtn').addEventListener('click', async ()=>{
     // Normal vocabulary test
     let vocabForTest = vocabulary;
     if(currentTestQuestionCount && currentTestQuestionCount < vocabulary.length){
-      vocabForTest = shuffle(vocabulary).slice(0, currentTestQuestionCount);
+      vocabForTest = shuffle(vocabulary.map((word, sourceIndex) => ({ ...word, _sourceIndex: sourceIndex }))).slice(0, currentTestQuestionCount);
     }
     startTest(vocabForTest);
   }
@@ -4393,6 +4467,8 @@ function generateUUID() {
 }
 
 function ensureStudentId() {
+    const canonicalId = localStorage.getItem('vocabTestApp_canonicalStudentId');
+    if (canonicalId) return canonicalId;
     let studentId = localStorage.getItem('vocabTestApp_studentId');
     if (!studentId) {
         studentId = generateUUID();
@@ -4543,14 +4619,26 @@ $('practiceMistakesBtn').addEventListener('click', ()=>{
 /* =========================================================
    HISTORY
 ========================================================= */
+function getLocalHistoryStorageKey() {
+  const session = window.StudentSessionManager && window.StudentSessionManager.getSession();
+  if (session && typeof session.studentId === 'string' && session.studentId) {
+    return STORAGE_HISTORY + ':student:' + encodeURIComponent(session.studentId);
+  }
+  const isAdmin = Boolean(window.RebelStudentRuntime &&
+    window.RebelStudentRuntime.AdminAuth &&
+    window.RebelStudentRuntime.AdminAuth.isAdmin);
+  return STORAGE_HISTORY + (isAdmin ? ':admin' : ':guest');
+}
+
 function saveHistoryEntry(entry){
+  const storageKey = getLocalHistoryStorageKey();
   let history = [];
   try{
-    const raw = localStorage.getItem(STORAGE_HISTORY);
+    const raw = localStorage.getItem(storageKey);
     if(raw) history = JSON.parse(raw);
   }catch(e){}
   history.push(entry);
-  try{ localStorage.setItem(STORAGE_HISTORY, JSON.stringify(history)); }catch(e){}
+  try{ localStorage.setItem(storageKey, JSON.stringify(history)); }catch(e){}
 }
 
 /* =========================================================
@@ -4565,6 +4653,11 @@ const STORAGE_STUDENT_PHOTO = 'vocabTestApp_studentPhoto';
 
 async function getStudentName(forcePrompt = false) {
   let studentId = ensureStudentId();
+  const activeSession = window.StudentSessionManager && window.StudentSessionManager.getSession();
+  if (activeSession && activeSession.profile && activeSession.profile.name && !forcePrompt) {
+    localStorage.setItem(STORAGE_STUDENT_NAME, activeSession.profile.name);
+    return activeSession.profile.name;
+  }
 
   let name = localStorage.getItem(STORAGE_STUDENT_NAME);
   if (name && !forcePrompt) return name;
@@ -4685,36 +4778,33 @@ async function getStudentName(forcePrompt = false) {
 
       studentId = ensureStudentId();
 
+      if (window.StudentSessionManager) {
+        try {
+          await window.StudentSessionManager.saveRequiredProfile({
+            name: enteredName,
+            bio: bioInput.value.trim(),
+            photo: currentPhoto || null,
+            phone: phoneInput.value.trim(),
+            address: addressInput.value.trim(),
+            showPublic: showPublicCheckbox.checked
+          });
+        } catch (err) {
+          console.error('Failed to save required student profile', err);
+          appAlert('Your profile could not be saved. Please check your connection and try again.');
+          return;
+        }
+      } else {
+        appAlert('Please sign in with Google before saving your profile.');
+        return;
+      }
+
       localStorage.setItem(STORAGE_STUDENT_NAME, enteredName);
       localStorage.setItem('vocabTestApp_studentBio', bioInput.value.trim());
-
-      // Clean up legacy local storage keys
       localStorage.removeItem('vocabTestApp_studentPhone');
       localStorage.removeItem('vocabTestApp_studentEmail');
       localStorage.removeItem('vocabTestApp_studentAddress');
       localStorage.removeItem('vocabTestApp_studentShowPublic');
-
-      if (currentPhoto) {
-        localStorage.setItem(STORAGE_STUDENT_PHOTO, currentPhoto);
-      }
-
-      if (firebaseReady) {
-          try {
-              const payload = {
-                  name: enteredName,
-                  bio: bioInput.value.trim(),
-                  photo: currentPhoto || null,
-                  phone: phoneInput.value.trim(),
-                  email: emailInput.value.trim(),
-                  address: addressInput.value.trim(),
-                  showPublic: showPublicCheckbox.checked,
-                  updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-              };
-              await db.collection('studentProfiles').doc(studentId).set(payload, { merge: true });
-          } catch(err) {
-              console.error('Failed to sync profile', err);
-          }
-      }
+      if (currentPhoto) localStorage.setItem(STORAGE_STUDENT_PHOTO, currentPhoto);
 
       if (typeof updateSettingsUI === 'function') {
         updateSettingsUI();
@@ -4734,26 +4824,39 @@ async function getStudentName(forcePrompt = false) {
   });
 }
 
-async function saveToLeaderboard({ total, correct, wrong, timeout, pct, durationSeconds, attemptId }){
+async function saveToLeaderboard({ durationSeconds, attemptId }){
   if(!currentTestDocId || !firebaseReady) return;
-  const studentName = await getStudentName();
-  if(!studentName) return; // they skipped entering a name — don't save
-  const authUser = auth ? (auth.currentUser || (authSessionPromise ? await authSessionPromise : null)) : null;
-  const testType = window._activeTestMode === 'verb' ? 'verb' : 'vocab';
+  const authUser = auth ? auth.currentUser : null;
+  const studentSession = window.StudentSessionManager && window.StudentSessionManager.getSession();
+  if(!authUser || !studentSession || studentSession.uid !== authUser.uid){
+    appAlert("Your score was saved locally, but Google student sign-in is required to sync it to the leaderboard.");
+    return;
+  }
+
+  const answers = currentTest.map(question => ({
+    sourceIndex: question.sourceIndex,
+    mode: window._activeTestMode === 'verb' ? question.mode : 'vocab',
+    answer: typeof question.userAnswer === 'string' ? question.userAnswer : null
+  }));
+  if(answers.some(answer => !Number.isSafeInteger(answer.sourceIndex))){
+    appAlert("Your score was saved locally, but this attempt could not be verified for the leaderboard.");
+    return;
+  }
+
   try{
-    await db.collection('testResults').doc(attemptId).set({
-      studentName,
-      studentId: ensureStudentId(),
-      ...(authUser && authUser.uid ? { authUid: authUser.uid } : {}),
+    const submitAttempt = firebase.functions().httpsCallable('submitStudentAttempt');
+    const response = await submitAttempt({
+      attemptId,
       testDocId: currentTestDocId,
-      testName: currentTestName || 'Untitled Test',
-      testType,
-      total, correct, wrong, timeout, pct, durationSeconds,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      answers,
+      durationSeconds
     });
+    if(!response || !response.data || response.data.saved !== true){
+      throw new Error('The server did not confirm the result.');
+    }
   }catch(err){
-    console.error('Leaderboard save failed', err);
-    appAlert("Your score was saved locally, but there was an issue syncing it to the leaderboard.");
+    console.error('Verified leaderboard save failed', err);
+    appAlert("Your score was saved locally, but the server could not verify it for the leaderboard. Please try again later.");
   }
 }
 
@@ -4787,7 +4890,9 @@ async function renderHistory(){
   const listEl = $('historyList');
   listEl.innerHTML = '<div class="empty-state"><span class="emoji">⏳</span>Loading history...</div>';
 
-  const localHistory = parseLocalHistory(localStorage.getItem(STORAGE_HISTORY));
+  // The pre-auth global history key has no verified owner. Never merge it into
+  // a signed-in account's history because this phone may have changed hands.
+  const localHistory = parseLocalHistory(localStorage.getItem(getLocalHistoryStorageKey()));
 
   let cloudHistory = [];
   if (firebaseReady) {
@@ -4947,7 +5052,9 @@ function updateSettingsUI() {
     }
 
     if (studentName) {
-      actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); margin-top: 8px;" onclick="handleEditProfileClick(event)">Edit Details</button>';
+      const hasGoogleSession = Boolean(window.StudentSessionManager && window.StudentSessionManager.getSession());
+      actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm" style="background:var(--surface-2); border:1px solid var(--border); color:var(--text); margin-top: 8px;" onclick="handleEditProfileClick(event)">Edit Details</button>' +
+        (hasGoogleSession ? '<button id="studentSignOutBtn" class="btn btn-sm btn-ghost" style="margin-top:8px;" onclick="window.handleStudentSignOut()">Sign out</button>' : '');
     } else {
       actionContainer.innerHTML = '<button id="editProfileBtn" class="btn btn-sm btn-primary" style="margin-top: 8px;" onclick="handleEditProfileClick(event)">Student Login</button>';
     }
@@ -6250,6 +6357,14 @@ listenToCloudTests();
 if (firebaseReady) {
   AdminAuth.restore().then(() => updateAdminUI());
 }
+window.RebelStudentRuntime = {
+  get firebaseReady() { return firebaseReady; },
+  get auth() { return auth; },
+  get db() { return db; },
+  get authSessionPromise() { return authSessionPromise; },
+  AdminAuth,
+  updateAdminUI
+};
 </script>
 
   <!-- Review Later Modal -->
@@ -6314,6 +6429,7 @@ if (typeof module !== 'undefined' && module.exports) {
   };
 }
 </script>
+<script src="./student-entry.js"></script>
 </body>
 
 </html>

@@ -1,6 +1,8 @@
 {
   "scripts": {
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js firebase-functions/tests/*.test.js",
+    "test:firestore": "firebase emulators:exec --project demo-rebel-test --only firestore \"node --test firestore-tests/*.test.js\"",
+    "backfill:public-projections": "node firebase-functions/scripts/backfill-public-projections.js"
   },
   "devDependencies": {
     "firebase-admin": "^14.5.0",

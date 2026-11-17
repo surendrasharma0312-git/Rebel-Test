@@ -26,16 +26,16 @@ function createDoc(id, data) {
 test('All-Time leaderboard data integrity', async (t) => {
   await t.test('keeps two different students with the same display name separate', () => {
     const docs = [
-      createDoc('attempt-1', { studentId: 'student-a', studentName: 'Rahul', testDocId: 'test-1', total: 10, correct: 8, pct: 80 }),
-      createDoc('attempt-2', { studentId: 'student-b', studentName: 'Rahul', testDocId: 'test-1', total: 10, correct: 9, pct: 90 })
+      createDoc('attempt-1', { publicStudentId: 'student-a', studentName: 'Rahul', testDocId: 'test-1', total: 10, correct: 8, pct: 80 }),
+      createDoc('attempt-2', { publicStudentId: 'student-b', studentName: 'Rahul', testDocId: 'test-1', total: 10, correct: 9, pct: 90 })
     ];
 
     assert.strictEqual(bestPerStudentPerTest(docs).length, 2);
   });
 
-  await t.test('groups renamed attempts by stable studentId and keeps the best result', () => {
-    const slower = createDoc('attempt-1', { studentId: 'student-a', studentName: 'Rahul Sharma', testDocId: 'test-1', total: 10, correct: 8, pct: 80, durationSeconds: 40 });
-    const faster = createDoc('attempt-2', { studentId: 'student-a', studentName: 'Rahul S.', testDocId: 'test-1', total: 10, correct: 9, pct: 90, durationSeconds: 35 });
+  await t.test('groups renamed attempts by opaque publicStudentId and keeps the best result', () => {
+    const slower = createDoc('attempt-1', { publicStudentId: 'student-a', studentName: 'Rahul Sharma', testDocId: 'test-1', total: 10, correct: 8, pct: 80, durationSeconds: 40 });
+    const faster = createDoc('attempt-2', { publicStudentId: 'student-a', studentName: 'Rahul S.', testDocId: 'test-1', total: 10, correct: 9, pct: 90, durationSeconds: 35 });
 
     const result = bestPerStudentPerTest([slower, faster]);
     assert.strictEqual(result.length, 1);
@@ -51,6 +51,24 @@ test('All-Time leaderboard data integrity', async (t) => {
     const result = bestPerStudentPerTest(docs);
     assert.strictEqual(result.length, 1);
     assert.strictEqual(result[0].id, 'attempt-2');
+  });
+
+  await t.test('isolates local history storage by verified student identity', () => {
+    const originalSession = window.StudentSessionManager;
+    const originalRuntime = window.RebelStudentRuntime;
+    try {
+      window.StudentSessionManager = { getSession: () => ({ studentId: 'student-a' }) };
+      assert.strictEqual(window.getLocalHistoryStorageKey(), 'vocabTestApp_history:student:student-a');
+      window.StudentSessionManager = { getSession: () => ({ studentId: 'student-b' }) };
+      assert.strictEqual(window.getLocalHistoryStorageKey(), 'vocabTestApp_history:student:student-b');
+      window.StudentSessionManager = { getSession: () => null };
+      assert.strictEqual(window.getLocalHistoryStorageKey(), 'vocabTestApp_history:guest');
+      window.RebelStudentRuntime = { AdminAuth: { isAdmin: true } };
+      assert.strictEqual(window.getLocalHistoryStorageKey(), 'vocabTestApp_history:admin');
+    } finally {
+      window.StudentSessionManager = originalSession;
+      window.RebelStudentRuntime = originalRuntime;
+    }
   });
 
   await t.test('safely parses local history storage with malformed or unexpected shapes', () => {
@@ -121,11 +139,11 @@ test('All-Time leaderboard data integrity', async (t) => {
 
   await t.test('selects a deterministic best attempt when score and duration are tied', () => {
     const older = createDoc('attempt-b', {
-      studentId: 'student-a', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
+      publicStudentId: 'student-a', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
       durationSeconds: 30, createdAt: '2026-01-01T10:00:00.000Z'
     });
     const newer = createDoc('attempt-a', {
-      studentId: 'student-a', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
+      publicStudentId: 'student-a', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
       durationSeconds: 30, createdAt: '2026-01-02T10:00:00.000Z'
     });
 
@@ -133,11 +151,11 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(bestPerStudentPerTest([newer, older])[0].id, 'attempt-a');
 
     const sameDateFirst = createDoc('attempt-z', {
-      studentId: 'student-b', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
+      publicStudentId: 'student-b', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
       durationSeconds: 30, createdAt: '2026-01-02T10:00:00.000Z'
     });
     const sameDateSecond = createDoc('attempt-c', {
-      studentId: 'student-b', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
+      publicStudentId: 'student-b', testDocId: 'test-1', total: 10, correct: 8, pct: 80,
       durationSeconds: 30, createdAt: '2026-01-02T10:00:00.000Z'
     });
     assert.strictEqual(bestPerStudentPerTest([sameDateFirst, sameDateSecond])[0].id, 'attempt-c');
@@ -157,8 +175,8 @@ test('All-Time leaderboard data integrity', async (t) => {
 
   await t.test('normalizes repeated whitespace when matching legacy test names to IDs', () => {
     const docs = [
-      createDoc('legacy-attempt', { studentId: 'student-a', testName: 'Vocabulary  Set 1', total: 10, correct: 7, pct: 70 }),
-      createDoc('modern-attempt', { studentId: 'student-a', testDocId: 'test-1', testName: ' vocabulary   set 1 ', total: 10, correct: 9, pct: 90 })
+      createDoc('legacy-attempt', { publicStudentId: 'student-a', testName: 'Vocabulary  Set 1', total: 10, correct: 7, pct: 70 }),
+      createDoc('modern-attempt', { publicStudentId: 'student-a', testDocId: 'test-1', testName: ' vocabulary   set 1 ', total: 10, correct: 9, pct: 90 })
     ];
 
     const aliases = buildLeaderboardTestAliases(docs);
@@ -169,8 +187,8 @@ test('All-Time leaderboard data integrity', async (t) => {
 
   await t.test('matches legacy name-only attempts to one unambiguous modern test ID', () => {
     const docs = [
-      createDoc('legacy-attempt', { studentId: 'student-a', studentName: 'Rahul', testName: 'Vocabulary Set 1', total: 10, correct: 7, pct: 70 }),
-      createDoc('modern-attempt', { studentId: 'student-a', studentName: 'Rahul', testDocId: 'test-1', testName: ' vocabulary set 1 ', total: 10, correct: 9, pct: 90 })
+      createDoc('legacy-attempt', { publicStudentId: 'student-a', studentName: 'Rahul', testName: 'Vocabulary Set 1', total: 10, correct: 7, pct: 70 }),
+      createDoc('modern-attempt', { publicStudentId: 'student-a', studentName: 'Rahul', testDocId: 'test-1', testName: ' vocabulary set 1 ', total: 10, correct: 9, pct: 90 })
     ];
 
     const aliases = buildLeaderboardTestAliases(docs);
@@ -182,14 +200,14 @@ test('All-Time leaderboard data integrity', async (t) => {
   await t.test('ignores invalid result records when resolving legacy test-name aliases', () => {
     const docs = [
       createDoc('legacy-valid', {
-        studentId: 'student-a', testName: 'Vocabulary Set', total: 10, correct: 7, pct: 70
+        publicStudentId: 'student-a', testName: 'Vocabulary Set', total: 10, correct: 7, pct: 70
       }),
       createDoc('modern-valid', {
-        studentId: 'student-a', testDocId: 'test-1', testName: 'Vocabulary Set',
+        publicStudentId: 'student-a', testDocId: 'test-1', testName: 'Vocabulary Set',
         total: 10, correct: 9, pct: 90
       }),
       createDoc('modern-invalid', {
-        studentId: 'student-a', testDocId: 'test-2', testName: 'Vocabulary Set',
+        publicStudentId: 'student-a', testDocId: 'test-2', testName: 'Vocabulary Set',
         total: 0, correct: 0, pct: 0
       })
     ];
@@ -203,9 +221,9 @@ test('All-Time leaderboard data integrity', async (t) => {
 
   await t.test('does not guess when one test name maps to multiple IDs', () => {
     const docs = [
-      createDoc('legacy-attempt', { studentId: 'student-a', testName: 'Vocabulary Set', total: 10, correct: 7, pct: 70 }),
-      createDoc('modern-one', { studentId: 'student-a', testDocId: 'test-1', testName: 'Vocabulary Set', total: 10, correct: 8, pct: 80 }),
-      createDoc('modern-two', { studentId: 'student-a', testDocId: 'test-2', testName: 'Vocabulary Set', total: 10, correct: 9, pct: 90 })
+      createDoc('legacy-attempt', { publicStudentId: 'student-a', testName: 'Vocabulary Set', total: 10, correct: 7, pct: 70 }),
+      createDoc('modern-one', { publicStudentId: 'student-a', testDocId: 'test-1', testName: 'Vocabulary Set', total: 10, correct: 8, pct: 80 }),
+      createDoc('modern-two', { publicStudentId: 'student-a', testDocId: 'test-2', testName: 'Vocabulary Set', total: 10, correct: 9, pct: 90 })
     ];
 
     const aliases = buildLeaderboardTestAliases(docs);
@@ -215,9 +233,9 @@ test('All-Time leaderboard data integrity', async (t) => {
 
   await t.test('rejects zero-total and non-recoverable invalid score records', () => {
     const docs = [
-      createDoc('zero-total', { studentId: 'a', testDocId: 't', total: 0, pct: 100 }),
-      createDoc('nan-score', { studentId: 'b', testDocId: 't', total: 10, pct: 'NaN' }),
-      createDoc('infinite-score', { studentId: 'c', testDocId: 't', total: 10, pct: 'Infinity' })
+      createDoc('zero-total', { publicStudentId: 'a', testDocId: 't', total: 0, pct: 100 }),
+      createDoc('nan-score', { publicStudentId: 'b', testDocId: 't', total: 10, pct: 'NaN' }),
+      createDoc('infinite-score', { publicStudentId: 'c', testDocId: 't', total: 10, pct: 'Infinity' })
     ];
 
     assert.strictEqual(bestPerStudentPerTest(docs).length, 0);
@@ -255,9 +273,9 @@ test('All-Time leaderboard data integrity', async (t) => {
   });
   await t.test('assigns competition ranks when percentage and duration are tied', () => {
     const docs = [
-      createDoc('z-attempt', { studentId: 'z', studentName: 'Zara', total: 10, correct: 9, pct: 90, durationSeconds: 30 }),
-      createDoc('b-attempt', { studentId: 'b', studentName: 'Aman', total: 10, correct: 9, pct: 90, durationSeconds: 30 }),
-      createDoc('c-attempt', { studentId: 'c', studentName: 'Chetan', total: 10, correct: 8, pct: 80, durationSeconds: 35 })
+      createDoc('z-attempt', { publicStudentId: 'z', studentName: 'Zara', total: 10, correct: 9, pct: 90, durationSeconds: 30 }),
+      createDoc('b-attempt', { publicStudentId: 'b', studentName: 'Aman', total: 10, correct: 9, pct: 90, durationSeconds: 30 }),
+      createDoc('c-attempt', { publicStudentId: 'c', studentName: 'Chetan', total: 10, correct: 8, pct: 80, durationSeconds: 35 })
     ];
 
     const ranked = rankLeaderboardEntries(docs);
@@ -316,11 +334,23 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(getLeaderboardVisibleEntries(entries, NaN).visibleEntries.length, 100);
   });
 
-  await t.test('only modern records with a studentId can open a public profile', () => {
-    assert.strictEqual(hasLeaderboardProfile({ studentId: 'student-a' }), true);
-    assert.strictEqual(hasLeaderboardProfile({ studentId: '  student-a  ' }), true);
+  await t.test('only records with an opaque publicStudentId can open a public profile', () => {
+    assert.strictEqual(hasLeaderboardProfile({ publicStudentId: 'opaque-student-a' }), true);
+    assert.strictEqual(hasLeaderboardProfile({ publicStudentId: '  opaque-student-a  ' }), true);
+    assert.strictEqual(hasLeaderboardProfile({ studentId: 'raw-firebase-uid' }), false);
     assert.strictEqual(hasLeaderboardProfile({ studentName: 'Rahul' }), false);
-    assert.strictEqual(hasLeaderboardProfile({ studentId: '  ' }), false);
+    assert.strictEqual(hasLeaderboardProfile({ publicStudentId: '  ' }), false);
+  });
+
+  await t.test('groups leaderboard rows by opaque public ID', () => {
+    const sameStudent = [
+      createDoc('attempt-1', { publicStudentId: 'opaque-a', studentName: 'Rahul', testDocId: 'test-1', total: 10, pct: 80 }),
+      createDoc('attempt-2', { publicStudentId: 'opaque-a', studentName: 'Rahul S.', testDocId: 'test-1', total: 10, pct: 90 }),
+      createDoc('attempt-3', { publicStudentId: 'opaque-b', studentName: 'Rahul', testDocId: 'test-1', total: 10, pct: 85 })
+    ];
+    const best = bestPerStudentPerTest(sameStudent);
+    assert.strictEqual(best.length, 2);
+    assert.strictEqual(best.map(doc => doc.id).sort().join(','), 'attempt-2,attempt-3');
   });
 
   await t.test('keeps profile module stats scoped to the selected leaderboard module', () => {
