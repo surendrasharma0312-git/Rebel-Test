@@ -22,8 +22,9 @@ service cloud.firestore {
     }
 
     match /testResults/{resultId} {
-      // Public reads currently power the existing class and all-time leaderboards.
-      allow read: if true;
+      // Raw result records contain authUid and are private. Public ranking reads
+      // must use the sanitized publicLeaderboard projection instead.
+      allow read: if isAdmin() || (isGoogleStudent() && ownsStudentId(resource.data.studentId));
       // Student results are append-only; Admin SDK writes bypass these rules.
       allow create: if isGoogleStudent()
         && request.resource.data.authUid == request.auth.uid
