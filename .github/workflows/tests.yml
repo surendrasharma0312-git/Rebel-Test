@@ -2,7 +2,7 @@ name: Node.js tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, "auth-followup/**" ]
   pull_request:
     branches: [ main ]
 
