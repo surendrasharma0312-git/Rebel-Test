@@ -315,15 +315,32 @@ exports.submitStudentAttempt = onCall(async (request) => {
     };
 
     const resultRef = db.collection('testResults').doc(attemptId);
+    let savedScore = score;
+    let alreadySubmitted = false;
     await db.runTransaction(async transaction => {
       const existing = await transaction.get(resultRef);
       if (existing.exists) {
-        throw new HttpsError('already-exists', 'This test attempt has already been submitted.');
+        const previous = existing.data() || {};
+        if (previous.authUid === uid && previous.studentId === studentId &&
+            previous.testDocId === testDocId) {
+          // A retry after a lost network response is idempotent and cannot
+          // replace the original server-calculated result.
+          savedScore = {
+            total: previous.total,
+            correct: previous.correct,
+            wrong: previous.wrong,
+            timeout: previous.timeout,
+            pct: previous.pct
+          };
+          alreadySubmitted = true;
+          return;
+        }
+        throw new HttpsError('already-exists', 'This attempt identifier is already in use.');
       }
       transaction.create(resultRef, resultData);
     });
 
-    return { saved: true, attemptId, score };
+    return { saved: true, alreadySubmitted, attemptId, score: savedScore };
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     if (error && ['invalid-argument', 'failed-precondition'].includes(error.code)) {
