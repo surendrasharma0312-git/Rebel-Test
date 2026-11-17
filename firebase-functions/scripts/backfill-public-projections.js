@@ -5,7 +5,6 @@
 // Without --apply this performs a read-only dry run.
 const admin = require('firebase-admin');
 const {
-  createPublicStudentId,
   projectPublicLeaderboardResult,
   projectPublicStudentProfile
 } = require('../public-projections');
