@@ -5,6 +5,7 @@
 // Without --apply this performs a read-only dry run.
 const admin = require('firebase-admin');
 const {
+  createPublicStudentId,
   projectPublicLeaderboardResult,
   projectPublicStudentProfile
 } = require('../public-projections');
@@ -14,6 +15,7 @@ async function backfillCollection({
   sourceName,
   targetName,
   project,
+  targetId,
   pageSize = 400,
   dryRun = true
 }) {
@@ -43,9 +45,16 @@ async function backfillCollection({
         summary.skipped += 1;
         continue;
       }
+      const destinationId = typeof targetId === 'function'
+        ? targetId(doc, value)
+        : doc.id;
+      if (typeof destinationId !== 'string' || !destinationId) {
+        summary.skipped += 1;
+        continue;
+      }
       summary.projected += 1;
       if (batch) {
-        batch.set(db.collection(targetName).doc(doc.id), value, { merge: false });
+        batch.set(db.collection(targetName).doc(destinationId), value, { merge: false });
         summary.written += 1;
         pageWrites += 1;
       }
@@ -76,6 +85,7 @@ async function main() {
     sourceName: 'studentProfiles',
     targetName: 'publicStudentProfiles',
     project: (data, id) => projectPublicStudentProfile(data, id),
+    targetId: (_doc, value) => value.publicStudentId,
     dryRun
   });
 
