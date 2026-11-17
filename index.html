@@ -2913,7 +2913,8 @@ function loadLeaderboard(){
   }
 
   const weekLabelEl = $('leaderboardWeekLabel');
-  let query = db.collection('testResults');
+  // Public projection is allowlisted and contains opaque student IDs only.
+  let query = db.collection('publicLeaderboard');
 
   if (leaderboardPeriod === 'weekly') {
     const { startUTC, endUTC, label } = getWeeklyBoundaries();
@@ -3107,8 +3108,13 @@ function normalizeLeaderboardName(value) {
 }
 
 function getLeaderboardStudentKey(data, docId) {
-  const studentId = String(data && data.studentId || '').trim();
-  if (studentId) return 'id:' + studentId;
+  // Public leaderboard documents carry an opaque ID, never a Firebase UID.
+  const publicStudentId = String(data && data.publicStudentId || '').trim();
+  if (publicStudentId) return 'id:' + publicStudentId;
+
+  // Compatibility fallback for isolated legacy/test fixtures only.
+  const legacyStudentId = String(data && data.studentId || '').trim();
+  if (legacyStudentId) return 'id:' + legacyStudentId;
 
   const studentName = normalizeLeaderboardName(data && data.studentName);
   return studentName ? 'name:' + studentName : 'anonymous:' + String(docId || '');
@@ -3205,7 +3211,7 @@ function rankLeaderboardEntries(docs) {
 }
 
 function hasLeaderboardProfile(data) {
-  return Boolean(String(data && data.studentId || '').trim());
+  return Boolean(String(data && data.publicStudentId || '').trim());
 }
 
 const LEADERBOARD_PAGE_SIZE = 100;
@@ -3374,34 +3380,25 @@ function updatePublicProfileUI(overlay, profileData) {
     }
 }
 
-function listenToStudentProfile(studentId, profileData, onChange) {
-    return db.collection('studentProfiles').doc(studentId).onSnapshot(docSnap => {
+function listenToStudentProfile(publicStudentId, profileData, onChange) {
+    return db.collection('publicStudentProfiles').doc(publicStudentId).onSnapshot(docSnap => {
         if (docSnap && docSnap.exists) {
             const data = docSnap.data();
             if (data.name) profileData.name = data.name;
-
             if (data.photo !== undefined) profileData.photo = data.photo;
             if (data.bio !== undefined) profileData.bio = data.bio;
 
-            const canViewContact = (data.showPublic === true || String(data.showPublic) === 'true' || AdminAuth.isAdmin);
-
-            if (canViewContact) {
-                profileData.phone = data.phone !== undefined ? data.phone : null;
-                profileData.email = data.email !== undefined ? data.email : null;
-                profileData.address = data.address !== undefined ? data.address : null;
-            } else {
-                profileData.phone = null;
-                profileData.email = null;
-                profileData.address = null;
-            }
-
+            // Public projections intentionally never contain contact details.
+            profileData.phone = null;
+            profileData.email = null;
+            profileData.address = null;
             onChange();
         }
     }, err => console.error(err));
 }
 
-function listenToStudentStats(studentId, profileData, onChange) {
-    let query = db.collection('testResults').where('studentId', '==', studentId);
+function listenToStudentStats(publicStudentId, profileData, onChange) {
+    let query = db.collection('publicLeaderboard').where('publicStudentId', '==', publicStudentId);
 
     if (leaderboardPeriod === 'weekly') {
         const { startUTC, endUTC } = getWeeklyBoundaries();
@@ -3519,7 +3516,7 @@ function renderLeaderboardList(){
     `;
     if (canOpenProfile) {
       row.addEventListener('click', () => {
-        showPublicProfile(d.studentId, d.studentName);
+        showPublicProfile(d.publicStudentId, d.studentName);
       });
     }
     fragment.appendChild(row);
