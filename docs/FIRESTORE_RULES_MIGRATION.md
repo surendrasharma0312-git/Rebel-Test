@@ -7,7 +7,7 @@ The rules in `firestore.rules` are a **draft for emulator validation only**. The
 ## Current policy
 
 - `vocabTests`: public reads; create/update/delete require the existing server-issued `admin: true` custom claim.
-- `testResults`: raw records are readable only by the owning Google-authenticated student (including a verified legacy ID mapping) or an admin. These records include `authUid`; public ranking reads use the sanitized `publicLeaderboard` projection. Student creates require `authUid == request.auth.uid` and an owned student ID. Student updates/deletes are denied; Admin SDK writes bypass rules.
+- `testResults`: raw records are readable only by the owning student whose Firebase token contains a linked Google identity (including an anonymous account upgraded by linking Google and a verified legacy ID mapping) or an admin. The rules check linked provider identities as well as the primary sign-in provider. These records include `authUid`; public ranking reads use the sanitized `publicLeaderboard` projection. Student creates require `authUid == request.auth.uid` and an owned student ID. Student updates/deletes are denied; Admin SDK writes bypass rules.
 - `studentProfiles`: private to the owning Google-authenticated student (including a verified legacy ID mapping) and admins; student writes require Google authentication. Only the known profile fields are accepted.
 - `fcmTokens`: private; writes require Google authentication, an `authUid` matching the caller, and a document ID matching the token.
 - `studentAccountLinks`, `adminLoginAttempts`, and legacy `config`: client access denied.
