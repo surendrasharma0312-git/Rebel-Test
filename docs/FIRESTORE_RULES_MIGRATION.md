@@ -7,7 +7,7 @@ The rules in `firestore.rules` are a **draft for emulator validation only**. The
 ## Current policy
 
 - `vocabTests`: public reads; create/update/delete require the existing server-issued `admin: true` custom claim.
-- `testResults`: raw records are readable only by the owning student whose Firebase token contains a linked Google identity (including an anonymous account upgraded by linking Google and a verified legacy ID mapping) or an admin. The rules check linked provider identities as well as the primary sign-in provider. These records include `authUid`; public ranking reads use the sanitized `publicLeaderboard` projection. Student creates require `authUid == request.auth.uid` and an owned student ID. Student updates/deletes are denied; Admin SDK writes bypass rules.
+- `testResults`: raw records are readable only by the owning student whose Firebase token contains a linked Google identity (including an anonymous account upgraded by linking Google and a verified legacy ID mapping) or an admin. The rules check linked provider identities as well as the primary sign-in provider. These records include `authUid`; public ranking reads use the sanitized `publicLeaderboard` projection. Clients cannot create or modify score records. The `submitStudentAttempt` callable verifies question references and answers against the published test source, calculates the aggregate score on the server, and writes through the Admin SDK.
 - `studentProfiles`: private to the owning Google-authenticated student (including a verified legacy ID mapping) and admins; student writes require Google authentication. Only the known profile fields are accepted.
 - `fcmTokens`: private; writes require Google authentication, an `authUid` matching the caller, and a document ID matching the token.
 - `studentAccountLinks`, `adminLoginAttempts`, and legacy `config`: client access denied.
@@ -15,13 +15,13 @@ The rules in `firestore.rules` are a **draft for emulator validation only**. The
 
 ## Required compatibility work before deployment
 
-1. Complete the Google sign-in flow and call `resolveStudentIdentity` before any student profile, history, result, or token operation. The app must use the returned canonical `studentId`.
+1. Complete the Google sign-in flow and call `resolveStudentIdentity` before any student profile, history, result, or token operation. The app must use the returned canonical `studentId`. Student test results must be submitted only through `submitStudentAttempt`; never restore direct client writes to `testResults`.
 2. FCM token writes now include the current authenticated `authUid`; token deletion is owner-checked by the rules. Validate this behavior after the Google login flow is integrated, including tokens created by older anonymous sessions.
 3. Profile documents contain phone, email, and address. Firestore Rules cannot redact individual fields from a document. These draft rules therefore keep the whole profile private even when `showPublic` is true. Before restoring public profile views, publish a separate allowlisted public profile document/collection containing only safe fields; never expose the private profile document.
 4. The leaderboard and public profile UI now read only `publicLeaderboard` and `publicStudentProfiles`. Raw `testResults` reads are owner/admin-only; History continues to query by the signed-in canonical `studentId`. Validate this owner query and the projection backfill before deployment.
 5. Existing anonymous/local-only profile IDs and results without a matching `authUid` cannot be safely migrated automatically. Leave them unresolved for an explicit recovery path; do not claim ownership based only on a client-supplied student ID.
 6. Device-only history from older builds is stored under an unowned legacy local-storage key. New local history is isolated by canonical student ID; do not import the old global key into a signed-in account because ownership cannot be verified. Existing cloud history remains available through the owner-filtered query.
-6. Client-submitted scores are not independently verified by these rules. Owner-only create access prevents writing as another student, but does not prevent a modified client from submitting an inflated score. Server-side attempt validation is a separate integrity requirement.
+6. Basic server-side score integrity is implemented: `submitStudentAttempt` derives the score from question-level answers and the authoritative `vocabTests` source, rejects partial/duplicate/out-of-range question references, and prevents clients from writing aggregate results directly. This is not full anti-cheat protection: a modified client can still inspect the publicly readable test source and fabricate answer submissions. A stronger model would require server-issued attempt sessions and keeping answer keys out of public test documents.
 7. Confirm the legacy `config/admin` password hash is no longer needed, then remove it through a separately reviewed migration after the server-side AdminAuth deployment is verified.
 
 ## Emulator tests
@@ -33,7 +33,7 @@ npm install --no-save --package-lock=false @firebase/rules-unit-testing firebase
 npm run test:firestore
 ```
 
-The command starts the Firestore emulator and tests public/admin test access, Google-only student writes (anonymous sessions denied), student ownership, verified legacy mappings, profile privacy, FCM token ownership, and server-only collections.
+The command starts the Firestore emulator and tests public/admin test access, client-denied score writes, Google-only profile/token writes (anonymous sessions denied), student ownership, verified legacy mappings, profile privacy, FCM token ownership, and server-only collections.
 
 ## Deployment gate
 
