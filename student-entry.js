@@ -40,6 +40,11 @@
         root.localStorage.removeItem('vocabTestApp_studentName');
         root.localStorage.removeItem('vocabTestApp_studentBio');
         root.localStorage.removeItem('vocabTestApp_studentPhoto');
+        root.localStorage.removeItem('vocabTestApp_studentPhone');
+        root.localStorage.removeItem('vocabTestApp_studentEmail');
+        root.localStorage.removeItem('vocabTestApp_studentAddress');
+        root.localStorage.removeItem('vocabTestApp_studentShowPublic');
+        profileForm.reset();
         root.showScreen('screen-welcome');
       } catch (error) {
         showError(errorBox, error);
@@ -62,6 +67,9 @@
       if (!session) return false;
       let profile = await studentSession.loadRequiredProfile();
       if (!profile) {
+        // This device may have been used by another student. Do not carry any
+        // previous profile/contact fields or public-consent choice forward.
+        profileForm.reset();
         const googleProfile = session.profile || {};
         byId('studentProfileNameInput').value = googleProfile.displayName || '';
         byId('studentProfileEmailInput').value = googleProfile.email || '';
