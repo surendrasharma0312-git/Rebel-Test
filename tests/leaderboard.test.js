@@ -316,11 +316,23 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(getLeaderboardVisibleEntries(entries, NaN).visibleEntries.length, 100);
   });
 
-  await t.test('only modern records with a studentId can open a public profile', () => {
-    assert.strictEqual(hasLeaderboardProfile({ studentId: 'student-a' }), true);
-    assert.strictEqual(hasLeaderboardProfile({ studentId: '  student-a  ' }), true);
+  await t.test('only records with an opaque publicStudentId can open a public profile', () => {
+    assert.strictEqual(hasLeaderboardProfile({ publicStudentId: 'opaque-student-a' }), true);
+    assert.strictEqual(hasLeaderboardProfile({ publicStudentId: '  opaque-student-a  ' }), true);
+    assert.strictEqual(hasLeaderboardProfile({ studentId: 'raw-firebase-uid' }), false);
     assert.strictEqual(hasLeaderboardProfile({ studentName: 'Rahul' }), false);
-    assert.strictEqual(hasLeaderboardProfile({ studentId: '  ' }), false);
+    assert.strictEqual(hasLeaderboardProfile({ publicStudentId: '  ' }), false);
+  });
+
+  await t.test('groups leaderboard rows by opaque public ID', () => {
+    const sameStudent = [
+      createDoc('attempt-1', { publicStudentId: 'opaque-a', studentName: 'Rahul', testDocId: 'test-1', total: 10, pct: 80 }),
+      createDoc('attempt-2', { publicStudentId: 'opaque-a', studentName: 'Rahul S.', testDocId: 'test-1', total: 10, pct: 90 }),
+      createDoc('attempt-3', { publicStudentId: 'opaque-b', studentName: 'Rahul', testDocId: 'test-1', total: 10, pct: 85 })
+    ];
+    const best = bestPerStudentPerTest(sameStudent);
+    assert.strictEqual(best.length, 2);
+    assert.deepStrictEqual(best.map(doc => doc.id).sort(), ['attempt-2', 'attempt-3']);
   });
 
   await t.test('keeps profile module stats scoped to the selected leaderboard module', () => {
