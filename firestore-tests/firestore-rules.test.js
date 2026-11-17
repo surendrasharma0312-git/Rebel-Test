@@ -41,7 +41,10 @@ test('student results are private, append-only and tied to the authenticated ide
   const anonymous = env.unauthenticatedContext().firestore();
   const admin = env.authenticatedContext('admin-a', { admin: true }).firestore();
   const result = { authUid: 'student-a', studentId: 'student-a', studentName: 'Student A', total: 10, correct: 8, pct: 80 };
-  await assertSucceeds(setDoc(doc(owner, 'testResults/attempt-1'), result));
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'testResults/attempt-1'), result);
+  });
+  await assertFails(setDoc(doc(owner, 'testResults/forged-owner-result'), result));
   await assertFails(setDoc(doc(other, 'testResults/attempt-2'), result));
   await assertSucceeds(getDoc(doc(owner, 'testResults/attempt-1')));
   await assertFails(getDoc(doc(other, 'testResults/attempt-1')));
@@ -54,11 +57,18 @@ test('student results are private, append-only and tied to the authenticated ide
   await assertFails(deleteDoc(doc(owner, 'testResults/attempt-1')));
 });
 
-test('verified legacy identity mapping permits its owner to create results for that legacy ID', async () => {
+test('verified legacy identity mapping permits reading old results but not client-side score creation', async () => {
   const owner = env.authenticatedContext('student-a', { firebase: { sign_in_provider: 'google.com' } }).firestore();
-  await assertSucceeds(setDoc(doc(owner, 'testResults/legacy-attempt'), {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'testResults/legacy-attempt'), {
+      authUid: 'student-a', studentId: 'legacy-student-a', studentName: 'Student A',
+      total: 10, correct: 9, pct: 90
+    });
+  });
+  await assertSucceeds(getDoc(doc(owner, 'testResults/legacy-attempt')));
+  await assertFails(setDoc(doc(owner, 'testResults/forged-legacy-attempt'), {
     authUid: 'student-a', studentId: 'legacy-student-a', studentName: 'Student A',
-    total: 10, correct: 9, pct: 90
+    total: 10, correct: 10, pct: 100
   }));
 });
 
@@ -117,7 +127,7 @@ test('anonymous accounts upgraded with a linked Google identity can use student 
     }
   }).firestore();
 
-  await assertSucceeds(setDoc(doc(upgraded, 'testResults/upgraded-attempt'), {
+  await assertFails(setDoc(doc(upgraded, 'testResults/upgraded-attempt'), {
     authUid: 'upgraded-student', studentId: 'upgraded-student',
     studentName: 'Upgraded Student', total: 10, correct: 9, pct: 90
   }));
