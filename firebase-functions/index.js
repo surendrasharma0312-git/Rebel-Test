@@ -264,8 +264,9 @@ exports.submitStudentAttempt = onCall(async (request) => {
   const data = request.data && typeof request.data === 'object' ? request.data : {};
   const attemptId = data.attemptId;
   const testDocId = data.testDocId;
-  if (typeof attemptId !== 'string' || !/^[0-9a-f-]{36}$/i.test(attemptId) ||
-      typeof testDocId !== 'string' || !testDocId.trim() || testDocId.length > 150) {
+  if (typeof attemptId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(attemptId) ||
+      typeof testDocId !== 'string' || !testDocId.trim() || testDocId.trim() !== testDocId ||
+      testDocId.includes('/') || testDocId.length > 150) {
     throw new HttpsError('invalid-argument', 'The attempt or test identifier is invalid.');
   }
 
