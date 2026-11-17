@@ -39,6 +39,16 @@ The command starts the Firestore emulator and tests public/admin test access, Go
 Do not deploy these rules until the login/profile/token compatibility work is complete, the public profile and leaderboard projections are addressed, and the emulator suite passes. The rules are not a substitute for production backup, staging verification, or a reviewed rollout plan.
 
 
+## Public projection secret setup
+
+Before deploying the projection trigger functions, set the secret once for the intended Firebase project:
+
+```sh
+firebase functions:secrets:set REBEL_PUBLIC_ID_SECRET
+```
+
+Use a randomly generated value of at least 32 characters. Keep it in Secret Manager and in the secure environment used for the one-time backfill; never commit it, paste it into source code, or rotate it casually. The trigger functions are explicitly bound to this secret. If it is unavailable, projection generation fails closed rather than publishing a raw student identifier.
+
 ## Sanitized public projection rollout
 - Cloud Functions mirror each new/updated `testResults/{attemptId}` into `publicLeaderboard/{attemptId}` using an explicit allowlist. The public projection uses `publicStudentId`, never the Firebase UID or source `studentId`.
 - Public student IDs are deterministic HMAC-SHA256 pseudonyms generated with the Secret Manager secret `REBEL_PUBLIC_ID_SECRET` (minimum 32 characters). Keep this secret stable and private; rotating it changes public IDs and requires a coordinated rebuild of projections.
