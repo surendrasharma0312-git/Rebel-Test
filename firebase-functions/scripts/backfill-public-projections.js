@@ -14,6 +14,7 @@ async function backfillCollection({
   sourceName,
   targetName,
   project,
+  targetId = doc => doc.id,
   pageSize = 400,
   dryRun = true
 }) {
@@ -45,7 +46,7 @@ async function backfillCollection({
       }
       summary.projected += 1;
       if (batch) {
-        batch.set(db.collection(targetName).doc(doc.id), value, { merge: false });
+        batch.set(db.collection(targetName).doc(targetId(doc, value)), value, { merge: false });
         summary.written += 1;
         pageWrites += 1;
       }
@@ -80,6 +81,7 @@ async function main() {
     sourceName: 'studentProfiles',
     targetName: 'publicStudentProfiles',
     project: (data, id) => projectPublicStudentProfile(data, id, publicIdSecret),
+    targetId: (doc, value) => value.publicStudentId,
     dryRun
   });
 
