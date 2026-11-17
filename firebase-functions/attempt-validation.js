@@ -13,10 +13,15 @@ function normalizeAnswer(value) {
 }
 
 function getQuestionLimit(testData, sourceLength) {
+  if (testData.questionCount === undefined || testData.questionCount === null ||
+      testData.questionCount === '') {
+    return sourceLength;
+  }
   const configured = Number(testData.questionCount);
-  return Number.isSafeInteger(configured) && configured > 0
-    ? Math.min(configured, sourceLength)
-    : sourceLength;
+  if (!Number.isSafeInteger(configured) || configured < 1) {
+    throw createError('failed-precondition', 'The published test question count is invalid.');
+  }
+  return Math.min(configured, sourceLength);
 }
 
 function validateAttempt({ testData, answers }) {
