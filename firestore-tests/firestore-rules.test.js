@@ -106,19 +106,19 @@ test('sanitized public projections are readable by everyone but never client-wri
   }).firestore();
   await env.withSecurityRulesDisabled(async context => {
     await setDoc(doc(context.firestore(), 'publicLeaderboard/attempt-1'), {
-      studentId: 'student-a', studentName: 'Student A', pct: 90
+      publicStudentId: 'opaque-public-id-a', studentName: 'Student A', pct: 90
     });
     await setDoc(doc(context.firestore(), 'publicStudentProfiles/student-a'), {
-      studentId: 'student-a', name: 'Student A'
+      publicStudentId: 'opaque-public-id-a', name: 'Student A'
     });
   });
   await assertSucceeds(getDoc(doc(anonymous, 'publicLeaderboard/attempt-1')));
   await assertSucceeds(getDoc(doc(anonymous, 'publicStudentProfiles/student-a')));
   await assertFails(setDoc(doc(student, 'publicLeaderboard/forged'), {
-    studentId: 'student-a', studentName: 'Forged', pct: 100
+    publicStudentId: 'opaque-public-id-a', studentName: 'Forged', pct: 100
   }));
   await assertFails(setDoc(doc(student, 'publicStudentProfiles/student-a'), {
-    studentId: 'student-a', name: 'Forged'
+    publicStudentId: 'opaque-public-id-a', name: 'Forged'
   }));
 });
 
