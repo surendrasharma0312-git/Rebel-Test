@@ -219,17 +219,15 @@ exports.adminAccess = onCall(
 );
 
 
-const { resolveStudentIdentity } = require('./student-identity');
+const { resolveStudentIdentity, hasGoogleIdentity } = require('./student-identity');
 
 exports.resolveStudentIdentity = onCall(async (request) => {
   if (!request.auth || !request.auth.uid) {
     throw new HttpsError('unauthenticated', 'Sign in is required.');
   }
 
-  const signInProvider = request.auth.token &&
-    request.auth.token.firebase &&
-    request.auth.token.firebase.sign_in_provider;
-  if (signInProvider !== 'google.com') {
+  const firebaseIdentity = request.auth.token && request.auth.token.firebase;
+  if (!hasGoogleIdentity(firebaseIdentity)) {
     throw new HttpsError('permission-denied', 'Google sign-in is required.');
   }
 
