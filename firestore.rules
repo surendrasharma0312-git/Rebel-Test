@@ -33,14 +33,14 @@ service cloud.firestore {
     }
 
     match /studentProfiles/{studentId} {
-      // Profile documents contain contact fields and must not be public.
-      allow read: if ownsStudentId(studentId) || isAdmin();
+      // Contact fields are private; owner access requires a verified Google session.
+      allow read: if (isGoogleStudent() && ownsStudentId(studentId)) || isAdmin();
       allow create, update: if isGoogleStudent() && ownsStudentId(studentId)
         && request.resource.data.keys().hasOnly([
           'name', 'bio', 'photo', 'phone', 'email', 'address',
           'showPublic', 'updatedAt'
         ]);
-      allow delete: if ownsStudentId(studentId) || isAdmin();
+      allow delete: if (isGoogleStudent() && ownsStudentId(studentId)) || isAdmin();
     }
 
     match /publicLeaderboard/{attemptId} {
