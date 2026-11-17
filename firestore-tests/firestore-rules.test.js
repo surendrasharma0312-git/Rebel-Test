@@ -130,3 +130,20 @@ test('identity links, admin attempts and legacy config are inaccessible to clien
   await assertFails(getDoc(doc(admin, 'adminLoginAttempts/attempt-a')));
   await assertFails(getDoc(doc(anonymous, 'config/admin')));
 });
+
+test('anonymous owner cannot read or delete a profile even when its UID matches the document ID', async () => {
+  const anonymousOwner = env.authenticatedContext('anonymous-a', {
+    firebase: { sign_in_provider: 'anonymous' }
+  }).firestore();
+
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'studentProfiles/anonymous-a'), {
+      name: 'Legacy Anonymous Profile', bio: '', photo: null,
+      phone: '9999999999', email: 'private@example.test',
+      address: 'Private address', showPublic: false
+    });
+  });
+
+  await assertFails(getDoc(doc(anonymousOwner, 'studentProfiles/anonymous-a')));
+  await assertFails(deleteDoc(doc(anonymousOwner, 'studentProfiles/anonymous-a')));
+});
