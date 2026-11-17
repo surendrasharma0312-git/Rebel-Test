@@ -63,19 +63,23 @@ async function main() {
   const dryRun = !process.argv.includes('--apply');
   if (!admin.apps.length) admin.initializeApp();
   const db = admin.firestore();
+  const publicIdSecret = process.env.REBEL_PUBLIC_ID_SECRET;
+  if (typeof publicIdSecret !== 'string' || publicIdSecret.length < 32) {
+    throw new Error('Set REBEL_PUBLIC_ID_SECRET to the same stable secret used by the projection triggers (at least 32 characters).');
+  }
 
   const results = await backfillCollection({
     db,
     sourceName: 'testResults',
     targetName: 'publicLeaderboard',
-    project: data => projectPublicLeaderboardResult(data),
+    project: data => projectPublicLeaderboardResult(data, publicIdSecret),
     dryRun
   });
   const profiles = await backfillCollection({
     db,
     sourceName: 'studentProfiles',
     targetName: 'publicStudentProfiles',
-    project: (data, id) => projectPublicStudentProfile(data, id),
+    project: (data, id) => projectPublicStudentProfile(data, id, publicIdSecret),
     dryRun
   });
 
