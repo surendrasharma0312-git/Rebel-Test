@@ -64,6 +64,12 @@ test('public profile projection never exposes auth IDs or contact fields, even a
   assert.equal(JSON.stringify(projected).includes('Private address'), false);
 });
 
+test('public profile opt-out removes the public projection', () => {
+  assert.equal(projectPublicStudentProfile({
+    name: 'Student One', showPublic: false
+  }, 'private-auth-uid', secret), null);
+});
+
 test('invalid profile projection input or missing secret is rejected', () => {
   assert.equal(projectPublicStudentProfile(null, 'student-1', secret), null);
   assert.equal(projectPublicStudentProfile({ name: 'Student' }, '', secret), null);
