@@ -3108,13 +3108,9 @@ function normalizeLeaderboardName(value) {
 }
 
 function getLeaderboardStudentKey(data, docId) {
-  // Public leaderboard documents carry an opaque ID, never a Firebase UID.
+  // Only the opaque public ID may be used for public leaderboard identity.
   const publicStudentId = String(data && data.publicStudentId || '').trim();
   if (publicStudentId) return 'id:' + publicStudentId;
-
-  // Compatibility fallback for isolated legacy/test fixtures only.
-  const legacyStudentId = String(data && data.studentId || '').trim();
-  if (legacyStudentId) return 'id:' + legacyStudentId;
 
   const studentName = normalizeLeaderboardName(data && data.studentName);
   return studentName ? 'name:' + studentName : 'anonymous:' + String(docId || '');
