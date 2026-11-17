@@ -109,6 +109,27 @@ test('anonymous Firebase sessions cannot create student results, profiles, or FC
 });
 
 
+test('anonymous accounts upgraded with a linked Google identity can use student data', async () => {
+  const upgraded = env.authenticatedContext('upgraded-student', {
+    firebase: {
+      sign_in_provider: 'anonymous',
+      identities: { 'google.com': ['google-provider-user'] }
+    }
+  }).firestore();
+
+  await assertSucceeds(setDoc(doc(upgraded, 'testResults/upgraded-attempt'), {
+    authUid: 'upgraded-student', studentId: 'upgraded-student',
+    studentName: 'Upgraded Student', total: 10, correct: 9, pct: 90
+  }));
+  await assertSucceeds(setDoc(doc(upgraded, 'studentProfiles/upgraded-student'), {
+    name: 'Upgraded Student', bio: '', photo: null, phone: '',
+    email: 'upgraded@example.test', address: '', showPublic: false
+  }));
+  await assertSucceeds(setDoc(doc(upgraded, 'fcmTokens/upgraded-token'), {
+    token: 'upgraded-token', authUid: 'upgraded-student'
+  }));
+});
+
 test('sanitized public projections are readable by everyone but never client-writable', async () => {
   const anonymous = env.unauthenticatedContext().firestore();
   const student = env.authenticatedContext('student-a', {
