@@ -4,7 +4,13 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function isGoogleStudent() {
       return signedIn()
-        && request.auth.token.firebase.sign_in_provider == 'google.com';
+        && (
+          request.auth.token.firebase.sign_in_provider == 'google.com'
+          || (
+            request.auth.token.firebase.keys().hasAny(['identities'])
+            && request.auth.token.firebase.identities.keys().hasAny(['google.com'])
+          )
+        );
     }
     function isAdmin() { return signedIn() && request.auth.token.admin == true; }
     function hasLinkedStudentId(studentId) {
