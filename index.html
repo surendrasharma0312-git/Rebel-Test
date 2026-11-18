@@ -3378,18 +3378,30 @@ function updatePublicProfileUI(overlay, profileData) {
 
 function listenToStudentProfile(publicStudentId, profileData, onChange) {
     return db.collection('publicStudentProfiles').doc(publicStudentId).onSnapshot(docSnap => {
-        if (docSnap && docSnap.exists) {
-            const data = docSnap.data();
-            if (data.name) profileData.name = data.name;
-            if (data.photo !== undefined) profileData.photo = data.photo;
-            if (data.bio !== undefined) profileData.bio = data.bio;
-
-            // Public projections intentionally never contain contact details.
+        if (!docSnap || !docSnap.exists) {
+            // A student may revoke public-profile consent while this modal is
+            // open. Clear cached projection fields instead of leaving stale
+            // profile content visible after Firestore reports the deletion.
+            profileData.name = null;
+            profileData.photo = null;
+            profileData.bio = '';
             profileData.phone = null;
             profileData.email = null;
             profileData.address = null;
             onChange();
+            return;
         }
+
+        const data = docSnap.data() || {};
+        if (data.name !== undefined) profileData.name = data.name || null;
+        if (data.photo !== undefined) profileData.photo = data.photo;
+        if (data.bio !== undefined) profileData.bio = data.bio;
+
+        // Public projections intentionally never contain contact details.
+        profileData.phone = null;
+        profileData.email = null;
+        profileData.address = null;
+        onChange();
     }, err => console.error(err));
 }
 
