@@ -35,20 +35,24 @@ function setupJSDOM() {
             };
 
             // Mock firebase to prevent network calls during init in index.html.
-            window.firebase = {
-                initializeApp: () => ({}),
-                auth: () => mockAuth,
-                firestore: () => ({
-                    // The app enables Firestore offline persistence during startup.
-                    enablePersistence: () => Promise.resolve(),
-                    collection: () => ({
-                        orderBy: () => ({
-                            limit: () => ({
-                                onSnapshot: () => {}
-                            })
+            const mockFirestoreDb = {
+                // The app enables Firestore offline persistence during startup.
+                enablePersistence: () => Promise.resolve(),
+                collection: () => ({
+                    orderBy: () => ({
+                        limit: () => ({
+                            onSnapshot: () => {}
                         })
                     })
                 })
+            };
+            // Expose the same object used by the app so tests can replace
+            // collection listeners without reaching into lexical app state.
+            window.__testFirestoreDb = mockFirestoreDb;
+            window.firebase = {
+                initializeApp: () => ({}),
+                auth: () => mockAuth,
+                firestore: () => mockFirestoreDb
             };
             // Mock matchMedia to prevent errors
             window.matchMedia = () => ({
