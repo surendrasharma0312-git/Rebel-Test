@@ -334,6 +334,75 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(getLeaderboardVisibleEntries(entries, NaN).visibleEntries.length, 100);
   });
 
+  await t.test('clears cached public profile fields when the opt-in projection is deleted', () => {
+    const mockDb = window.__testFirestoreDb;
+    const originalCollection = mockDb.collection;
+    let snapshotCallback = null;
+    let requestedCollection = null;
+    let requestedDocument = null;
+    mockDb.collection = name => {
+      requestedCollection = name;
+      return {
+        doc: id => {
+          requestedDocument = id;
+          return {
+            onSnapshot: callback => {
+              snapshotCallback = callback;
+              return () => {};
+            }
+          };
+        }
+      };
+    };
+
+    const profileData = {
+      name: 'Student One',
+      photo: 'https://example.test/photo.png',
+      bio: 'Public bio',
+      phone: null,
+      email: null,
+      address: null,
+      stats: { testsTaken: 2, avgScore: 85 }
+    };
+    let updates = 0;
+
+    try {
+      const unsubscribe = window.listenToStudentProfile('opaque-student-id', profileData, () => {
+        updates += 1;
+      });
+
+      assert.equal(requestedCollection, 'publicStudentProfiles');
+      assert.equal(requestedDocument, 'opaque-student-id');
+      assert.equal(typeof snapshotCallback, 'function');
+
+      snapshotCallback({
+        exists: true,
+        data: () => ({
+          name: 'Student One',
+          photo: 'https://example.test/photo.png',
+          bio: 'Public bio'
+        })
+      });
+      assert.equal(profileData.name, 'Student One');
+      assert.equal(profileData.bio, 'Public bio');
+      assert.equal(profileData.photo, 'https://example.test/photo.png');
+
+      // Cloud Function deletes this projection after public-profile opt-out.
+      snapshotCallback({ exists: false });
+      assert.equal(profileData.name, null);
+      assert.equal(profileData.photo, null);
+      assert.equal(profileData.bio, '');
+      assert.equal(profileData.phone, null);
+      assert.equal(profileData.email, null);
+      assert.equal(profileData.address, null);
+      assert.deepEqual(profileData.stats, { testsTaken: 2, avgScore: 85 });
+      assert.equal(updates, 2);
+      unsubscribe();
+    } finally {
+      mockDb.collection = originalCollection;
+    }
+  });
+
   await t.test('only records with an opaque publicStudentId can open a public profile', () => {
     assert.strictEqual(hasLeaderboardProfile({ publicStudentId: 'opaque-student-a' }), true);
     assert.strictEqual(hasLeaderboardProfile({ publicStudentId: '  opaque-student-a  ' }), true);
