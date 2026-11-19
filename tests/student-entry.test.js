@@ -172,12 +172,13 @@ test('failed cloud profile save keeps the student out of the dashboard', async (
 
   try {
     await harness.initialize();
+    harness.ids.studentProfileNameInput.value = 'New Student';
     await harness.ids.studentProfileSetupForm.trigger('submit', {
       preventDefault() {}
     });
 
     assert.equal(harness.submittedProfiles.length, 1);
-    assert.equal(harness.submittedProfiles[0].name, '');
+    assert.equal(harness.submittedProfiles[0].name, 'New Student');
     assert.equal(harness.screens.includes('screen-home'), false);
     assert.equal(harness.ids.studentProfileSetupError.textContent, 'permission-denied');
     assert.equal(harness.ids.studentProfileSetupError.style.display, 'block');
