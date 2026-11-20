@@ -2824,7 +2824,9 @@ const AdminAuth = (function() {
           user = auth && auth.currentUser;
         }
         if (!user) return;
-        const token = await user.getIdTokenResult();
+        // Refresh the ID token so a server-side admin-claim revocation is
+        // reflected on startup instead of trusting a still-cached claim.
+        const token = await user.getIdTokenResult(true);
         _isAdmin = token.claims.admin === true;
       } catch (e) {
         console.error('Admin session restore failed', e);
