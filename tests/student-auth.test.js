@@ -36,6 +36,21 @@ test('links the existing anonymous user instead of creating a second identity', 
   assert.equal(redirectCalled, false);
 });
 
+test('fails closed instead of switching away from an anonymous account when linking is unavailable', async () => {
+  const providerAuth = createFirebaseAuthMock();
+  let redirectCalled = false;
+  const auth = {
+    currentUser: { uid: 'anonymous-uid', isAnonymous: true },
+    signInWithRedirect: async () => { redirectCalled = true; }
+  };
+
+  await assert.rejects(
+    StudentAuth.create(auth, providerAuth).signInWithGoogle(),
+    /stopped to protect existing student history/
+  );
+  assert.equal(redirectCalled, false);
+});
+
 test('starts Google redirect sign-in when there is no anonymous user', async () => {
   const providerAuth = createFirebaseAuthMock();
   let redirectProvider = null;
