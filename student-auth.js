@@ -27,12 +27,16 @@
         const provider = createGoogleProvider();
         const currentUser = auth.currentUser;
 
-        // Upgrade the existing anonymous Firebase user when possible. This
-        // preserves its UID, which is already written to historical attempts
-        // as authUid. A credential-already-in-use error is intentionally
-        // surfaced to the caller; merging two accounts must never be silent.
-        if (currentUser && currentUser.isAnonymous &&
-            typeof currentUser.linkWithRedirect === 'function') {
+        // An anonymous UID may already own historical attempts. Never fall
+        // back to signInWithRedirect for that session: it can replace the
+        // current account instead of linking Google to the existing identity.
+        if (currentUser && currentUser.isAnonymous) {
+          if (typeof currentUser.linkWithRedirect !== 'function') {
+            throw new Error(
+              'Google account linking is unavailable for the current anonymous session. ' +
+              'Sign-in was stopped to protect existing student history.'
+            );
+          }
           return currentUser.linkWithRedirect(provider);
         }
 
