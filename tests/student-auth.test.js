@@ -64,17 +64,42 @@ test('starts Google redirect sign-in when there is no anonymous user', async () 
   assert.ok(redirectProvider instanceof providerAuth.GoogleAuthProvider);
 });
 
-test('starts Google redirect sign-in for an already registered user session', async () => {
+test('does not switch away from an existing Google-linked Firebase session', async () => {
   const providerAuth = createFirebaseAuthMock();
-  let redirectProvider = null;
+  let redirectCalled = false;
   const auth = {
-    currentUser: { uid: 'registered-uid', isAnonymous: false },
-    signInWithRedirect: async provider => { redirectProvider = provider; }
+    currentUser: {
+      uid: 'registered-google-uid',
+      isAnonymous: false,
+      providerData: [{ providerId: 'google.com' }]
+    },
+    signInWithRedirect: async () => { redirectCalled = true; }
   };
 
-  await StudentAuth.create(auth, providerAuth).signInWithGoogle();
+  await assert.rejects(
+    StudentAuth.create(auth, providerAuth).signInWithGoogle(),
+    /will not switch or merge accounts automatically/
+  );
+  assert.equal(redirectCalled, false);
+});
 
-  assert.ok(redirectProvider instanceof providerAuth.GoogleAuthProvider);
+test('does not replace an existing non-Google Firebase account with a new Google account', async () => {
+  const providerAuth = createFirebaseAuthMock();
+  let redirectCalled = false;
+  const auth = {
+    currentUser: {
+      uid: 'registered-password-uid',
+      isAnonymous: false,
+      providerData: [{ providerId: 'password' }]
+    },
+    signInWithRedirect: async () => { redirectCalled = true; }
+  };
+
+  await assert.rejects(
+    StudentAuth.create(auth, providerAuth).signInWithGoogle(),
+    /will not switch or merge accounts automatically/
+  );
+  assert.equal(redirectCalled, false);
 });
 
 test('returns the signed-in user from the redirect result and null when cancelled', async () => {
