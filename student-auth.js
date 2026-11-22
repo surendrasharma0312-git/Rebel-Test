@@ -40,6 +40,17 @@
           return currentUser.linkWithRedirect(provider);
         }
 
+        // A registered Firebase account may already own student history or an
+        // admin session. Do not let a second Google redirect silently replace
+        // that identity. Account linking/recovery must be an explicit flow.
+        if (currentUser) {
+          throw new Error(
+            'A Firebase account is already signed in. To protect existing student history, ' +
+            'Rebel Test will not switch or merge accounts automatically. Sign out or contact ' +
+            'the administrator before using a different Google account.'
+          );
+        }
+
         if (typeof auth.signInWithRedirect !== 'function') {
           throw new Error('Google redirect sign-in is not available in this Firebase SDK.');
         }

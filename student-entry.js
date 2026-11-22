@@ -87,6 +87,10 @@
       signInButton.textContent = 'Connecting to Google...';
       errorBox.style.display = 'none';
       try {
+        // Wait for Firebase to restore the persisted account before deciding
+        // whether a new Google redirect is safe. Otherwise a slow startup can
+        // make currentUser appear null and silently replace an existing UID.
+        await runtime.authSessionPromise;
         await studentAuth.signInWithGoogle();
       } catch (error) {
         const message = error && error.code === 'auth/credential-already-in-use'
