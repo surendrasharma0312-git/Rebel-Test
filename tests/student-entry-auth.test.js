@@ -131,3 +131,113 @@ test('waits for Firebase auth restoration before starting Google redirect', asyn
     }
   }
 });
+
+test('retries identity resolution for the existing Google session after startup failure', async () => {
+  const ids = Object.fromEntries([
+    ['googleStudentSignInBtn', createElement('Continue with Google')],
+    ['welcomeAdminBtn', createElement()],
+    ['studentEntryError', createElement()],
+    ['studentProfileSetupForm', createElement()],
+    ['studentProfileSetupError', createElement()],
+    ['studentProfileSaveBtn', createElement()],
+    ['studentProfileNameInput', createElement()],
+    ['studentProfileEmailInput', createElement()],
+    ['studentProfilePhotoInput', createElement()],
+    ['studentProfileBioInput', createElement()],
+    ['studentProfilePhoneInput', createElement()],
+    ['studentProfileAddressInput', createElement()],
+    ['studentProfilePublicInput', createElement()],
+    ['adminLoginError', createElement()]
+  ]);
+
+  const keys = [
+    'document', 'localStorage', 'firebase', 'StudentAuth', 'StudentSession',
+    'RebelStudentRuntime', 'showScreen', 'updateSettingsUI',
+    'StudentSessionManager', 'handleStudentSignOut'
+  ];
+  const previous = new Map(keys.map(key => [
+    key,
+    Object.getOwnPropertyDescriptor(globalThis, key)
+  ]));
+
+  const currentUser = {
+    uid: 'existing-google-uid',
+    isAnonymous: false,
+    displayName: 'Existing Student',
+    email: 'student@example.com',
+    providerData: [{ providerId: 'google.com' }]
+  };
+  let identityAttempts = 0;
+  let redirectCalls = 0;
+  const auth = {
+    currentUser,
+    signInWithRedirect: async () => { redirectCalls += 1; }
+  };
+  class GoogleAuthProvider {
+    setCustomParameters() {}
+  }
+  const screens = [];
+  const studentSession = {
+    handleRedirectResult: async () => {
+      identityAttempts += 1;
+      if (identityAttempts === 1) {
+        throw new Error('Temporary identity lookup failure');
+      }
+      return {
+        studentId: 'canonical-student-id',
+        profile: {
+          displayName: 'Existing Student',
+          email: 'student@example.com'
+        }
+      };
+    },
+    loadRequiredProfile: async () => ({
+      name: 'Existing Student',
+      bio: 'Existing profile',
+      photo: 'https://example.com/student.png'
+    }),
+    getSession: () => null,
+    saveRequiredProfile: async () => null,
+    signOut: async () => {}
+  };
+  const storage = {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {}
+  };
+
+  Object.assign(globalThis, {
+    document: { getElementById: id => ids[id] || null },
+    localStorage: storage,
+    firebase: { GoogleAuthProvider, functions: () => ({}) },
+    StudentAuth,
+    StudentSession: { create: () => studentSession },
+    RebelStudentRuntime: {
+      firebaseReady: true,
+      auth,
+      db: {},
+      authSessionPromise: Promise.resolve(currentUser)
+    },
+    showScreen: screen => screens.push(screen),
+    updateSettingsUI: () => {}
+  });
+
+  try {
+    await StudentEntry.initialize();
+    assert.equal(identityAttempts, 1);
+    assert.deepEqual(screens, ['screen-welcome']);
+
+    await ids.googleStudentSignInBtn.trigger('click');
+
+    assert.equal(identityAttempts, 2);
+    assert.equal(redirectCalls, 0);
+    assert.equal(ids.googleStudentSignInBtn.disabled, false);
+    assert.equal(ids.googleStudentSignInBtn.textContent, 'Continue with Google');
+    assert.deepEqual(screens, ['screen-welcome', 'screen-home']);
+  } finally {
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    }
+  }
+});

@@ -91,6 +91,18 @@
         // whether a new Google redirect is safe. Otherwise a slow startup can
         // make currentUser appear null and silently replace an existing UID.
         await runtime.authSessionPromise;
+        if (studentAuth.isGoogleUser(runtime.auth.currentUser)) {
+          // If startup could not finish identity resolution (for example, a
+          // temporary callable/network failure), resume the same Google
+          // session instead of asking Firebase to sign in a second account.
+          const resumed = await completeStudentEntry();
+          if (!resumed) {
+            throw new Error('The existing Google session could not be resumed. Please try again.');
+          }
+          signInButton.disabled = false;
+          signInButton.textContent = 'Continue with Google';
+          return;
+        }
         await studentAuth.signInWithGoogle();
       } catch (error) {
         const message = error && error.code === 'auth/credential-already-in-use'
