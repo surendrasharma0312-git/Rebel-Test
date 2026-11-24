@@ -2,7 +2,7 @@ name: Node.js tests
 
 on:
   push:
-    branches: [ main, "fix/**" ]
+    branches: [ main, "fix/**", "test/**" ]
   pull_request:
     branches: [ main, "feat/google-student-auth-foundation" ]
 
