@@ -12,6 +12,7 @@ const {
   getLeaderboardDate,
   normalizeCloudHistoryRecord,
   normalizeCloudHistoryRecords,
+  normalizeHistoryRecord,
   parseLocalHistory,
   getLeaderboardTestKey,
   buildLeaderboardTestAliases,
@@ -80,6 +81,43 @@ test('All-Time leaderboard data integrity', async (t) => {
       JSON.stringify(parseLocalHistory('[null, 1, "bad", [], {"attemptId":"valid"}]')),
       '[{"attemptId":"valid"}]'
     );
+  });
+
+  await t.test('normalizes valid history records and excludes invalid scores or dates', () => {
+    const valid = normalizeHistoryRecord({
+      attemptId: 'valid',
+      date: '2026-11-15T10:00:00.000Z',
+      total: '10',
+      correct: '8',
+      wrong: 1,
+      timeout: 1,
+      pct: '80',
+      durationSeconds: '42'
+    });
+    assert.strictEqual(valid.total, 10);
+    assert.strictEqual(valid.correct, 8);
+    assert.strictEqual(valid.pct, 80);
+    assert.strictEqual(valid.durationSeconds, 42);
+    assert.strictEqual(valid.date, '2026-11-15T10:00:00.000Z');
+
+    const normalizedInvalidCounts = normalizeHistoryRecord({
+      date: '2026-11-15T10:00:00.000Z',
+      total: 10,
+      correct: 'not-a-number',
+      wrong: -1,
+      timeout: null,
+      pct: 80,
+      durationSeconds: 'invalid'
+    });
+    assert.strictEqual(normalizedInvalidCounts.correct, 0);
+    assert.strictEqual(normalizedInvalidCounts.wrong, 0);
+    assert.strictEqual(normalizedInvalidCounts.timeout, 0);
+    assert.strictEqual(normalizedInvalidCounts.durationSeconds, null);
+
+    assert.strictEqual(normalizeHistoryRecord({ total: 0, pct: 0, date: '2026-11-15' }), null);
+    assert.strictEqual(normalizeHistoryRecord({ total: 10, pct: 'NaN', date: '2026-11-15' }), null);
+    assert.strictEqual(normalizeHistoryRecord({ total: 10, pct: 80, date: 'not-a-date' }), null);
+    assert.strictEqual(normalizeHistoryRecord(null), null);
   });
 
   await t.test('renders untrusted history values as text instead of HTML', () => {
