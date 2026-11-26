@@ -3084,16 +3084,29 @@ function normalizeHistoryRecord(record) {
   if (!record || typeof record !== 'object' || Array.isArray(record)) return null;
 
   const total = Number(record.total);
-  const pct = getLeaderboardPercentage(record);
+  const correct = record.correct !== null && record.correct !== undefined && record.correct !== ''
+    ? Number(record.correct)
+    : NaN;
+  const normalizeOptionalCount = value => {
+    if (value === null || value === undefined || value === '') return 0;
+    const count = Number(value);
+    return Number.isSafeInteger(count) && count >= 0 ? count : null;
+  };
+  const wrong = normalizeOptionalCount(record.wrong);
+  const timeout = normalizeOptionalCount(record.timeout);
   const date = getLeaderboardDate(record.date) || getLeaderboardDate(record.createdAt);
-  if (!Number.isFinite(total) || total <= 0 || pct === null || pct < 0 || pct > 100 || !date) {
+
+  // Test results are question counts, not arbitrary decimals. Keep the count
+  // fields authoritative so a stale or malformed stored percentage cannot
+  // disagree with the score shown in the history row.
+  if (!Number.isSafeInteger(total) || total <= 0 ||
+      !Number.isSafeInteger(correct) || correct < 0 || correct > total ||
+      wrong === null || timeout === null ||
+      correct + wrong + timeout > total || !date) {
     return null;
   }
 
-  const normalizeCount = value => {
-    const count = Number(value);
-    return Number.isFinite(count) && count >= 0 ? count : 0;
-  };
+  const pct = Math.round((correct / total) * 100);
   const rawDuration = record.durationSeconds;
   const duration = rawDuration !== null && rawDuration !== undefined && rawDuration !== ''
     ? Number(rawDuration)
@@ -3102,9 +3115,9 @@ function normalizeHistoryRecord(record) {
   return {
     ...record,
     total,
-    correct: normalizeCount(record.correct),
-    wrong: normalizeCount(record.wrong),
-    timeout: normalizeCount(record.timeout),
+    correct,
+    wrong,
+    timeout,
     pct,
     durationSeconds: duration !== null && Number.isFinite(duration) && duration >= 0 ? duration : null,
     date: date.toISOString()
