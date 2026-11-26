@@ -100,23 +100,44 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(valid.durationSeconds, 42);
     assert.strictEqual(valid.date, '2026-11-15T10:00:00.000Z');
 
-    const normalizedInvalidCounts = normalizeHistoryRecord({
+    const normalizedInconsistentPercentage = normalizeHistoryRecord({
+      date: '2026-11-15T10:00:00.000Z',
+      total: 10,
+      correct: 8,
+      wrong: 1,
+      timeout: 1,
+      pct: 20
+    });
+    assert.strictEqual(normalizedInconsistentPercentage.pct, 80);
+
+    const normalizedMissingOptionalCounts = normalizeHistoryRecord({
+      date: '2026-11-15T10:00:00.000Z',
+      total: 10,
+      correct: '8',
+      pct: '80',
+      durationSeconds: 'invalid'
+    });
+    assert.strictEqual(normalizedMissingOptionalCounts.wrong, 0);
+    assert.strictEqual(normalizedMissingOptionalCounts.timeout, 0);
+    assert.strictEqual(normalizedMissingOptionalCounts.durationSeconds, null);
+
+    assert.strictEqual(normalizeHistoryRecord({
       date: '2026-11-15T10:00:00.000Z',
       total: 10,
       correct: 'not-a-number',
       wrong: -1,
       timeout: null,
-      pct: 80,
-      durationSeconds: 'invalid'
-    });
-    assert.strictEqual(normalizedInvalidCounts.correct, 0);
-    assert.strictEqual(normalizedInvalidCounts.wrong, 0);
-    assert.strictEqual(normalizedInvalidCounts.timeout, 0);
-    assert.strictEqual(normalizedInvalidCounts.durationSeconds, null);
-
-    assert.strictEqual(normalizeHistoryRecord({ total: 0, pct: 0, date: '2026-11-15' }), null);
-    assert.strictEqual(normalizeHistoryRecord({ total: 10, pct: 'NaN', date: '2026-11-15' }), null);
-    assert.strictEqual(normalizeHistoryRecord({ total: 10, pct: 80, date: 'not-a-date' }), null);
+      pct: 80
+    }), null);
+    assert.strictEqual(normalizeHistoryRecord({ total: 0, correct: 0, pct: 0, date: '2026-11-15' }), null);
+    assert.strictEqual(normalizeHistoryRecord({ total: 10.5, correct: 8, pct: 80, date: '2026-11-15' }), null);
+    assert.strictEqual(normalizeHistoryRecord({ total: 10, correct: 10.5, pct: 100, date: '2026-11-15' }), null);
+    assert.strictEqual(normalizeHistoryRecord({ total: 10, correct: 11, pct: 100, date: '2026-11-15' }), null);
+    assert.strictEqual(normalizeHistoryRecord({
+      total: 10, correct: 8, wrong: 2, timeout: 1, pct: 80, date: '2026-11-15'
+    }), null);
+    assert.strictEqual(normalizeHistoryRecord({ total: 10, correct: 8, pct: 'NaN', date: '2026-11-15' }).pct, 80);
+    assert.strictEqual(normalizeHistoryRecord({ total: 10, correct: 8, pct: 80, date: 'not-a-date' }), null);
     assert.strictEqual(normalizeHistoryRecord(null), null);
   });
 
