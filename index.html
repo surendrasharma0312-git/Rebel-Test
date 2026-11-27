@@ -3089,7 +3089,7 @@ function normalizeHistoryRecord(record) {
     if (typeof value === 'number') {
       return Number.isSafeInteger(value) ? value : NaN;
     }
-    if (typeof value !== 'string' || !/^\\d+$/.test(value.trim())) return NaN;
+    if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) return NaN;
     const count = Number(value.trim());
     return Number.isSafeInteger(count) ? count : NaN;
   };
