@@ -3083,13 +3083,21 @@ function parseLocalHistory(raw) {
 function normalizeHistoryRecord(record) {
   if (!record || typeof record !== 'object' || Array.isArray(record)) return null;
 
-  const total = Number(record.total);
-  const correct = record.correct !== null && record.correct !== undefined && record.correct !== ''
-    ? Number(record.correct)
-    : NaN;
+  // Accept real numbers and legacy numeric strings only. Number(value)
+  // alone also coerces booleans, arrays, and objects into plausible scores.
+  const normalizeRequiredCount = value => {
+    if (typeof value === 'number') {
+      return Number.isSafeInteger(value) ? value : NaN;
+    }
+    if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) return NaN;
+    const count = Number(value.trim());
+    return Number.isSafeInteger(count) ? count : NaN;
+  };
+  const total = normalizeRequiredCount(record.total);
+  const correct = normalizeRequiredCount(record.correct);
   const normalizeOptionalCount = value => {
     if (value === null || value === undefined || value === '') return 0;
-    const count = Number(value);
+    const count = normalizeRequiredCount(value);
     return Number.isSafeInteger(count) && count >= 0 ? count : null;
   };
   const wrong = normalizeOptionalCount(record.wrong);

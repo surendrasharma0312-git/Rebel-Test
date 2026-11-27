@@ -121,6 +121,28 @@ test('All-Time leaderboard data integrity', async (t) => {
     assert.strictEqual(normalizedMissingOptionalCounts.timeout, 0);
     assert.strictEqual(normalizedMissingOptionalCounts.durationSeconds, null);
 
+    await t.test('rejects non-numeric count types instead of coercing them', () => {
+      const validDate = '2026-11-15T10:00:00.000Z';
+      const validRecord = {
+        date: validDate, total: 10, correct: 8, wrong: 1, timeout: 1, pct: 80
+      };
+
+      assert.strictEqual(normalizeHistoryRecord({ ...validRecord, total: true }), null);
+      assert.strictEqual(normalizeHistoryRecord({ ...validRecord, correct: false }), null);
+      assert.strictEqual(normalizeHistoryRecord({ ...validRecord, total: [10] }), null);
+      assert.strictEqual(normalizeHistoryRecord({ ...validRecord, correct: { value: 8 } }), null);
+      assert.strictEqual(normalizeHistoryRecord({ ...validRecord, wrong: true }), null);
+      assert.strictEqual(normalizeHistoryRecord({ ...validRecord, timeout: [1] }), null);
+      assert.strictEqual(normalizeHistoryRecord({ ...validRecord, correct: '   ' }), null);
+      assert.strictEqual(normalizeHistoryRecord({ ...validRecord, wrong: '   ' }), null);
+
+      const legacyNumericStrings = normalizeHistoryRecord({
+        ...validRecord, total: ' 10 ', correct: ' 8 ', wrong: '1', timeout: '1'
+      });
+      assert.strictEqual(legacyNumericStrings.total, 10);
+      assert.strictEqual(legacyNumericStrings.correct, 8);
+    });
+
     assert.strictEqual(normalizeHistoryRecord({
       date: '2026-11-15T10:00:00.000Z',
       total: 10,
